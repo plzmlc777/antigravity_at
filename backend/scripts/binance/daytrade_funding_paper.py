@@ -62,12 +62,21 @@ TAKER_FEE_BP = 5.0
 SUB_BATCH = 100
 SUB_INTERVAL = 0.4
 
-# 사건 창 (분). 백테스트 최적점이 진입 -15 / 보유 30 이었다.
-PRE_SUBSCRIBE_MIN = 20      # 구독 시작
-ENTRY_MIN = 15              # 진입 (T-15분)
-EXIT_MIN = 15               # 청산 (T+15분)
-POST_MIN = 20               # 구독 해제
+# 사건 창 (분). 기본값은 백테스트 최적점(진입 T-15 / 청산 T+15 = 보유 30분).
+# 아래는 런타임에 덮어쓴다 — 같은 사건에서 여러 가설을 나란히 돌리기 위해서다.
+#
+# 백테스트가 짚어준 후보들 (ultra_event_scan, 279종목 60일):
+#   기본  진입 -15 / 청산 +15 (보유 30) 롱   → 정산 고유 +12.56bp
+#   되돌림 진입 +15 / 청산 +75 (보유 60) 숏   → -5.4 ~ -19.1bp (부호 반대, 메커니즘 대칭)
+#   조기  진입 -30 / 청산 +30 (보유 60) 롱   → +5.39bp
+#   지연  진입  -5 / 청산 +10 (보유 15) 롱   → +7.02bp
+PRE_SUBSCRIBE_MIN = 20      # 사건 시각 기준 구독 시작 (진입보다 5분 이상 앞서야)
+ENTRY_MIN = -15             # 진입 시점 (사건 대비 분. 음수=이전)
+EXIT_MIN = 15               # 청산 시점 (사건 대비 분)
+POST_MIN = 20               # 구독 해제 (청산보다 뒤여야)
 EXIT_GRACE_MIN = 3          # 청산 지정가를 이만큼 기다린 뒤 시장가
+SIDE = "long"               # long | short
+MIN_FUNDING_BP = 0.0        # |펀딩률| 이 이보다 작은 종목은 건너뛴다
 
 
 @dataclass
@@ -107,6 +116,7 @@ class FundingPaper:
         self.out_dir = out_dir
         self.book: dict[str, Book] = {s: Book() for s in symbols}
         self.pos: dict[str, Pos] = {}
+        self.funding: dict[str, float] = {}     # 종목 → 펀딩률 (MIN_FUNDING_BP 용)
         self.phase = "idle"          # idle | armed | holding | closing
         self.records: list = []
         self.stats = {"events": 0, "armed": 0, "filled": 0, "closed": 0,
@@ -126,8 +136,11 @@ class FundingPaper:
             return
         n = price * qty
         if not p.filled:
-            # 진입: 매수 지정가 → 테이커 매도(buyer_maker=True)가 큐를 소진해야 체결
-            if buyer_maker and price <= p.entry_px:
+            # 진입 체결: 롱(매수 지정가)은 테이커 **매도**가, 숏(매도 지정가)은
+            # 테이커 **매수**가 큐를 소진해야 한다.
+            hit = ((buyer_maker and price <= p.entry_px) if SIDE == "long"
+                   else ((not buyer_maker) and price >= p.entry_px))
+            if hit:
                 p.queue_ahead -= n
                 if p.queue_ahead <= 0:
                     b = self.book[sym]
@@ -136,8 +149,10 @@ class FundingPaper:
                     p.entry_ts = time.time()
                     self.stats["filled"] += 1
         elif p.exit_px > 0 and not p.closed:
-            # 청산: 매도 지정가 → 테이커 매수(buyer_maker=False)가 소진
-            if (not buyer_maker) and price >= p.exit_px:
+            # 청산은 진입의 반대편이다.
+            hit = (((not buyer_maker) and price >= p.exit_px) if SIDE == "long"
+                   else (buyer_maker and price <= p.exit_px))
+            if hit:
                 p.exit_queue -= n
                 if p.exit_queue <= 0:
                     self._close(sym, p, taker=False)
@@ -145,54 +160,88 @@ class FundingPaper:
     def _close(self, sym: str, p: Pos, taker: bool) -> None:
         b = self.book[sym]
         if taker:
-            p.exit_px = b.bid or p.entry_px      # 시장가 매도 = 매수호가에 친다
+            # 시장가 청산은 반대편 호가를 친다 (롱→매수호가, 숏→매도호가)
+            p.exit_px = (b.bid if SIDE == "long" else b.ask) or p.entry_px
             p.exit_taker = True
             self.stats["exit_taker"] += 1
         p.exit_mid = b.mid or p.exit_px
         p.closed = True
         self.stats["closed"] += 1
-        gross = (p.exit_px / p.entry_px - 1.0) if p.entry_px > 0 else 0.0
+        sign = 1.0 if SIDE == "long" else -1.0
+        gross = ((p.exit_px / p.entry_px - 1.0) * sign) if p.entry_px > 0 else 0.0
         fee = (MAKER_FEE_BP + (TAKER_FEE_BP if taker else MAKER_FEE_BP)) / 1e4
         # 지정가 이점 = 중간가 대비 얼마나 유리하게 샀나
-        edge_in = ((p.entry_mid - p.entry_px) / p.entry_mid * 1e4) if p.entry_mid else 0.0
-        edge_out = ((p.exit_px - p.exit_mid) / p.exit_mid * 1e4) if p.exit_mid else 0.0
+        edge_in = (((p.entry_mid - p.entry_px) / p.entry_mid * 1e4 * sign)
+                   if p.entry_mid else 0.0)
+        edge_out = (((p.exit_px - p.exit_mid) / p.exit_mid * 1e4 * sign)
+                    if p.exit_mid else 0.0)
         self.records.append({
             "t": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "symbol": sym, "entry_px": p.entry_px, "exit_px": p.exit_px,
             "gross_bp": round(gross * 1e4, 3), "fee_bp": round(fee * 1e4, 3),
             "net_bp": round((gross - fee) * 1e4, 3),
             "edge_in_bp": round(edge_in, 3), "edge_out_bp": round(edge_out, 3),
-            "exit_taker": taker,
+            "exit_taker": taker, "side": SIDE,
             "queue_wait_sec": round(p.entry_ts - p.posted_at, 1) if p.entry_ts else None,
         })
 
+    async def refresh_funding(self) -> None:
+        """펀딩률 갱신. MIN_FUNDING_BP 필터의 입력이다."""
+        if MIN_FUNDING_BP <= 0:
+            return
+        try:
+            import aiohttp
+            async with aiohttp.ClientSession() as s:
+                async with s.get(PREMIUM_INDEX,
+                                 timeout=aiohttp.ClientTimeout(total=45)) as r:
+                    data = await r.json()
+            self.funding = {x["symbol"]: float(x.get("lastFundingRate") or 0.0)
+                            for x in data}
+            hi = sum(1 for v in self.funding.values()
+                     if abs(v) * 1e4 >= MIN_FUNDING_BP)
+            log.info("펀딩률 갱신 %d종목 — |rate| >= %.1fbp 인 종목 %d개",
+                     len(self.funding), MIN_FUNDING_BP, hi)
+        except Exception as e:
+            log.warning("펀딩률 갱신 실패: %s — 필터를 적용하지 않는다", e)
+            self.funding = {}
+
     # ── 사건 진행 ─────────────────────────────────────────────
     def arm(self) -> None:
-        """T-15분: 최우선 매수호가에 지정가를 건다."""
+        """진입 시점: 롱이면 매수호가에, 숏이면 매도호가에 지정가를 건다."""
         self.pos.clear()
-        n = 0
+        n = skipped = 0
         for s in self.symbols:
+            if MIN_FUNDING_BP > 0:
+                fr = abs(self.funding.get(s, 0.0)) * 1e4
+                if fr < MIN_FUNDING_BP:
+                    skipped += 1
+                    continue
             b = self.book[s]
-            if b.bid <= 0:
+            px = b.bid if SIDE == "long" else b.ask
+            q0 = b.bid_usd if SIDE == "long" else b.ask_usd
+            if px <= 0:
                 continue
-            q = b.bid_usd + self.notional      # 내 앞 물량 + 내 주문
-            self.pos[s] = Pos(symbol=s, entry_px=b.bid, queue_ahead=q, queue0=q,
+            q = q0 + self.notional             # 내 앞 물량 + 내 주문
+            self.pos[s] = Pos(symbol=s, entry_px=px, queue_ahead=q, queue0=q,
                               posted_at=time.time())
             n += 1
         self.stats["armed"] += n
         self.phase = "holding"
-        log.info("[진입] 지정가 게시 %d종목 (호가 있는 종목만)", n)
+        log.info("[진입] %s 지정가 게시 %d종목%s", "매수" if SIDE == "long" else "매도",
+                 n, f" (펀딩률 미달 {skipped}종목 제외)" if skipped else "")
 
     def start_exit(self) -> None:
-        """T+15분: 체결된 포지션에 매도 지정가."""
+        """청산 시점: 진입의 반대편 호가에 지정가."""
         n = 0
         for s, p in self.pos.items():
             if p.filled and not p.closed:
                 b = self.book[s]
-                if b.ask <= 0:
+                px = b.ask if SIDE == "long" else b.bid
+                q0 = b.ask_usd if SIDE == "long" else b.bid_usd
+                if px <= 0:
                     continue
-                p.exit_px = b.ask
-                p.exit_queue = b.ask_usd + self.notional
+                p.exit_px = px
+                p.exit_queue = q0 + self.notional
                 p.exit_posted = time.time()
                 n += 1
         self.phase = "closing"
@@ -265,6 +314,7 @@ async def event_cycle(fp: FundingPaper, T: datetime, stop: asyncio.Event) -> Non
     import websockets
     streams = [f"{s.lower()}@bookTicker" for s in fp.symbols] + \
               [f"{s.lower()}@trade" for s in fp.symbols]
+    await fp.refresh_funding()
     try:
         async with websockets.connect(WS_BASE, ping_interval=180,
                                       ping_timeout=600, max_size=2 ** 22) as ws:
@@ -278,9 +328,9 @@ async def event_cycle(fp: FundingPaper, T: datetime, stop: asyncio.Event) -> Non
             done_arm = done_exit = done_force = False
             while not stop.is_set():
                 now = datetime.now(timezone.utc)
-                if now >= T + timedelta(minutes=POST_MIN):
+                if now >= T + timedelta(minutes=EXIT_MIN + EXIT_GRACE_MIN + 2):
                     break
-                if not done_arm and now >= T - timedelta(minutes=ENTRY_MIN):
+                if not done_arm and now >= T + timedelta(minutes=ENTRY_MIN):
                     fp.arm(); done_arm = True
                 if not done_exit and now >= T + timedelta(minutes=EXIT_MIN):
                     fp.start_exit(); done_exit = True
@@ -321,8 +371,12 @@ async def amain(args) -> int:
         log.error("종목 없음")
         return 1
     fp = FundingPaper(syms, args.notional, Path(args.out_dir))
-    log.info("단타 페이퍼 [펀딩 정산] — %d종목 | 주문 $%.0f | 진입 T-%d분 / 청산 T+%d분",
-             len(syms), args.notional, ENTRY_MIN, EXIT_MIN)
+    log.info("단타 페이퍼 [펀딩 정산 · %s] — %d종목 | 주문 $%.0f | %s | "
+             "진입 T%+d분 / 청산 T%+d분 (보유 %d분)%s",
+             args.tag, len(syms), args.notional,
+             "롱" if SIDE == "long" else "숏", ENTRY_MIN, EXIT_MIN,
+             EXIT_MIN - ENTRY_MIN,
+             f" | 펀딩 >= {MIN_FUNDING_BP:.1f}bp" if MIN_FUNDING_BP > 0 else "")
 
     stop = asyncio.Event()
     loop = asyncio.get_running_loop()
@@ -331,7 +385,7 @@ async def amain(args) -> int:
 
     while not stop.is_set():
         T = await next_funding_time()
-        wake = T - timedelta(minutes=PRE_SUBSCRIBE_MIN)
+        wake = T + timedelta(minutes=ENTRY_MIN - 5)
         wait = (wake - datetime.now(timezone.utc)).total_seconds()
         if wait > 0:
             log.info("다음 사건 %s UTC — %.1f분 대기 (그동안 구독 없음)",
@@ -354,7 +408,23 @@ def main() -> int:
                    default=str(ROOT / "configs" / "daytrade_funding_symbols.txt"))
     p.add_argument("--notional", type=float, default=200.0)
     p.add_argument("--out-dir", default=str(ROOT / "runs" / "daytrade_funding_paper"))
+    p.add_argument("--entry-min", type=int, default=-15,
+                   help="진입 시점 (사건 대비 분, 음수=이전)")
+    p.add_argument("--exit-min", type=int, default=15,
+                   help="청산 시점 (사건 대비 분)")
+    p.add_argument("--side", choices=["long", "short"], default="long")
+    p.add_argument("--min-funding-bp", type=float, default=0.0,
+                   help="|펀딩률| 이 이보다 작은 종목 제외. 백테스트에서 양 3~10bp "
+                        "구간이 +24.39bp 로 전체 평균의 2.4배였다")
+    p.add_argument("--tag", default="base", help="출력 구분용")
     args = p.parse_args()
+
+    global ENTRY_MIN, EXIT_MIN, SIDE, MIN_FUNDING_BP
+    ENTRY_MIN, EXIT_MIN = args.entry_min, args.exit_min
+    SIDE, MIN_FUNDING_BP = args.side, args.min_funding_bp
+    if ENTRY_MIN >= EXIT_MIN:
+        log.error("진입(%d)이 청산(%d)보다 뒤다", ENTRY_MIN, EXIT_MIN)
+        return 1
     try:
         return asyncio.run(amain(args))
     except KeyboardInterrupt:
