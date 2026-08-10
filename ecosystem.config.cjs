@@ -445,6 +445,29 @@ const agentApps = [
         restart_delay: 15000
     },
     {
+        // 2군 페이퍼 MM **가설 7** — 깊이 + 불균형 결합. 미시험이던 유일한 조합이고
+        // 산술상 유일하게 양수로 닫힌다 (CYSUSDT 3.7시간 실측):
+        //   가설5 깊이5   획득 +6.42  역선택 -11.08  → net -6.66
+        //   가설6 불균형  획득 +0.37  역선택  -4.34  → net -5.97
+        //   결합 가정     +6.4 − 4.3 − 2.0(수수료)   → **+0.1bp**
+        // 두 가설이 서로 다른 성분을 공격하기 때문이다 — 5는 받는 것, 6은 뺏기는 것.
+        // 깊이의 획득은 단단하다(3회 측정 +6.35/+6.38/+6.42, 체결마다 즉시 확정).
+        // 불확실한 건 역선택뿐이다.
+        // 낙관하지 않는다: 깊이의 역선택이 나쁜 건 "가격이 쓸고 갈 때만 체결"되기
+        // 때문인데, 불균형 필터는 방향을 거를 뿐 그 성질을 못 없앨 수 있다.
+        // 어느 쪽이든 **초단타 메이킹의 마지막 축이 닫히거나 열린다.**
+        name: "ultra-mm-paper-depthimb",
+        script: "./venv/bin/python3",
+        args: "-u scripts/binance/ultra_mm_paper.py --strategy depth_imb --depth-ticks 5 " +
+              "--quote-usd 200 --inv-cap-usd 1000 --out-dir runs/ultra_mm_paper_depthimb",
+        cwd: "./backend",
+        interpreter: "none",
+        env: { PYTHONPATH: ".", PYTHONDONTWRITEBYTECODE: "1" },
+        autorestart: true,
+        max_restarts: 50,
+        restart_delay: 15000
+    },
+    {
         // ── 단타 트랙 (2026-08-10 신설) ──────────────────────────────────
         // 펀딩 정산 사건 페이퍼. **지정가 체결률을 실측한다.**
         // ultra_event_scan 이 279종목 60일에서 정산 고유 효과 +9.6~15.3bp 를

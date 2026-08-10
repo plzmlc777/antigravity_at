@@ -118,6 +118,22 @@ DEPTH_TICKS = 3             # 최우선에서 몇 **단계** 물러설까
 # 가설 6 은 **대기 중인 물량**(현재 상태)을 본다. 후행 대 선행이다.
 IMB_LEVELS = 5              # 불균형 계산에 쓸 호가 단계 수
 IMB_TH = 0.20               # |불균형| 이 이보다 크면 불리한 쪽을 걷는다
+
+# ── 가설 7: 깊이 + 불균형 결합 (2026-08-10) ────────────────────────────
+# 가설 5 와 6 은 **서로 다른 성분**을 공격한다. 결합한 적이 없는 유일한 조합이고,
+# 산술상 유일하게 양수로 닫힌다 (CYSUSDT 3.7시간 실측):
+#     가설5 깊이5   스프레드 획득 +6.42  역선택 -11.08  → net -6.66
+#     가설6 불균형  스프레드 획득 +0.37  역선택  -4.34  → net -5.97
+#     결합 (가정)   획득 +6.4 · 역선택 -4.3 · 수수료 -2.0 → **+0.1bp**
+#
+# 각 성분의 신뢰도가 다르다. **깊이의 획득은 단단하다** — 세 번 측정에
+# +6.35/+6.38/+6.42 로 흔들리지 않았다(체결마다 즉시 확정되는 값이라 표본 문제가
+# 없다). 불확실한 건 역선택 쪽뿐이다.
+#
+# 낙관하지는 않는다. 깊이에서 역선택이 나쁜 이유는 **물러선 호가가 "가격이 쓸고
+# 갈 때만" 체결되기 때문**이다. 불균형 필터는 방향을 거를 뿐 그 성질을 없애지
+# 못할 수 있다. 그러면 역선택이 -11 에서 -8 쯤으로만 줄고 여전히 적자다.
+# 어느 쪽이든 **초단타 메이킹의 마지막 축이 닫히거나 열린다.**
 MARKOUT_SEC = 300           # 주 역선택 지평 (net 계산에 쓰는 값)
 # 역선택이 **얼마나 빨리** 쌓이는지 모르면 "빨리 털면 피할 수 있는가" 에 답할 수
 # 없다. 여러 지평에서 같이 재서 곡선을 본다 (2026-08-10 추가).
@@ -245,7 +261,7 @@ class PaperMM:
 
     def _sides_allowed(self, s: SymState) -> tuple:
         """(매수호가를 댈까, 매도호가를 댈까). 가설 1 은 항상 양방향."""
-        if self.strategy == "book_imb":
+        if self.strategy in ("book_imb", "depth_imb"):
             imb = self.book_imbalance(s)
             if imb > IMB_TH:      # 매수 두꺼움 → 상승 압력 → 매도호가가 당한다
                 return True, False
@@ -281,7 +297,7 @@ class PaperMM:
         #
         # 시장이 **나에게서 멀어지면**(매수호가가 내 가격 위로) 더는 최우선이 아니므로
         # 취소하고 새 최우선에 다시 선다 — 큐는 처음부터다.
-        if self.strategy == "depth":
+        if self.strategy in ("depth", "depth_imb"):
             # 물러선 호가는 중간가를 따라 움직여야 한다 — 목표 가격이 바뀌면 재게시.
             tb, _ = self._depth_target(s, "buy")
             ta, _ = self._depth_target(s, "sell")
@@ -309,14 +325,21 @@ class PaperMM:
         """호가를 댄다. 재고 한도에 걸린 쪽은 대지 않는다."""
         if s.bid <= 0 or s.ask <= 0:
             return
-        if self.strategy == "depth":
-            ok_bid, ok_ask = True, True
-            if s.buy_order is None and s.inv_usd < s.inv_cap_usd:
+        if self.strategy in ("depth", "depth_imb"):
+            ok_bid, ok_ask = self._sides_allowed(s)
+            # 불균형이 불리하다고 한 쪽은 걷는다 (가설 7)
+            if not ok_bid and s.buy_order is not None:
+                s.buy_order = None
+                s.n_skip_bid += 1
+            if not ok_ask and s.sell_order is not None:
+                s.sell_order = None
+                s.n_skip_ask += 1
+            if ok_bid and s.buy_order is None and s.inv_usd < s.inv_cap_usd:
                 px, q = self._depth_target(s, "buy")
                 if px > 0:
                     s.buy_order = Order("buy", px, s.quote_usd, q + s.quote_usd,
                                         time.time(), q + s.quote_usd)
-            if s.sell_order is None and s.inv_usd > -s.inv_cap_usd:
+            if ok_ask and s.sell_order is None and s.inv_usd > -s.inv_cap_usd:
                 px, q = self._depth_target(s, "sell")
                 if px > 0:
                     s.sell_order = Order("sell", px, s.quote_usd, q + s.quote_usd,
@@ -566,7 +589,7 @@ async def funding_poller(mm: PaperMM, stop: asyncio.Event) -> None:
 
 async def run(mm: PaperMM, symbols: list[str], stop: asyncio.Event) -> None:
     import websockets
-    if mm.strategy in ("depth", "book_imb"):
+    if mm.strategy in ("depth", "book_imb", "depth_imb"):
         # 물러선 가격의 대기 물량을 알아야 하므로 20단계 스냅샷을 받는다.
         streams = [f"{s.lower()}@depth20@100ms" for s in symbols] + \
                   [f"{s.lower()}@trade" for s in symbols]
@@ -628,7 +651,9 @@ async def amain(args) -> int:
               else f" | 최우선에서 {DEPTH_TICKS}단계 물러섬"
               if args.strategy == "depth"
               else f" | 호가 {IMB_LEVELS}단계 불균형 임계 {IMB_TH}"
-              if args.strategy == "book_imb" else ""))
+              if args.strategy == "book_imb"
+              else f" | {DEPTH_TICKS}단계 물러섬 + 불균형 임계 {IMB_TH}"
+              if args.strategy == "depth_imb" else ""))
 
     stop = asyncio.Event()
     loop = asyncio.get_running_loop()
@@ -692,11 +717,12 @@ def main() -> int:
     p.add_argument("--out-dir", default=str(ROOT / "runs" / "ultra_mm_paper"))
     p.add_argument("--strategy",
                    choices=["touch", "flow_skew", "queue_flee", "combo", "depth",
-                            "book_imb"],
+                            "book_imb", "depth_imb"],
                    default="touch",
                    help="touch=가설1 / flow_skew=가설2 / queue_flee=가설3 / "
                         "combo=가설4(2+3) / depth=가설5 물러선 호가 / "
-                        "book_imb=가설6 호가창 불균형 조건부")
+                        "book_imb=가설6 호가창 불균형 조건부 / "
+                        "depth_imb=가설7 깊이+불균형 결합")
     p.add_argument("--depth-ticks", type=int, default=DEPTH_TICKS,
                    help="가설5 — 최우선에서 몇 틱 물러설까")
     p.add_argument("--stats-sec", type=int, default=STATS_SEC, help="요약 보고 주기(초)")
