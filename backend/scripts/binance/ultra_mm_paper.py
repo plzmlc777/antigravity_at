@@ -71,6 +71,11 @@ MAKER_FEE_BP = 2.0
 TAKER_FEE_BP = 5.0
 PREMIUM_INDEX = "https://fapi.binance.com/fapi/v1/premiumIndex"
 FUNDING_POLL_SEC = 300
+# 정산 판정 주기. 폴러(5분)보다 **촘촘해야 한다** — 정산 시각이 지나면 API 가
+# nextFundingTime 을 다음 시각으로 바꾸므로, 판정이 그 전에 그 순간을 잡아야 한다.
+# 초판은 판정이 10분 주기라 폴러가 먼저 덮어써서 **정산이 영영 0회**였다(2026-08-10 발견).
+# 15초면 정산 시각과 재고 측정 시점의 어긋남도 그 안으로 묶인다.
+FUNDING_SETTLE_SEC = 15
 MARKOUT_SEC = 300           # 역선택 측정 지평 (5분)
 
 # ── 가설 2: 흐름 회피형 편향 호가 (2026-08-09 신설) ──────────────────────
@@ -408,6 +413,9 @@ async def funding_poller(mm: PaperMM, stop: asyncio.Event) -> None:
                 async with sess.get(PREMIUM_INDEX,
                                     timeout=aiohttp.ClientTimeout(total=45)) as r:
                     data = await r.json()
+            # 갱신 **전에** 먼저 정산한다. 여기서 next 를 덮어쓰면 지나간 정산 시각을
+            # 잃어버린다 — 초판 버그의 직접 원인이다.
+            mm.settle_funding()
             got = 0
             for x in data:
                 st = mm.st.get(x.get("symbol"))
@@ -511,11 +519,21 @@ async def amain(args) -> int:
                          mk, r["markout_settled"], r["fee_bp"], r["flatten_bp"],
                          r["funding_bp"], r["n_funding"], r["funding_rate_bp"],
                          nt, r["inv_usd"])
+    async def settler():
+        """정산 시각 감시. 폴러보다 촘촘해야 한다 (FUNDING_SETTLE_SEC 주석 참조)."""
+        while not stop.is_set():
+            await asyncio.sleep(FUNDING_SETTLE_SEC)
+            try:
+                mm.settle_funding()
+            except Exception as e:
+                log.warning("펀딩 정산 실패: %s", e)
+
     rep = asyncio.create_task(reporter())
     fund = asyncio.create_task(funding_poller(mm, stop))
+    setl = asyncio.create_task(settler())
 
     await stop.wait()
-    for t in (task, rep, fund):
+    for t in (task, rep, fund, setl):
         t.cancel()
     mm.persist()
     log.info("종료 — 최종 요약")
