@@ -236,6 +236,8 @@ class SymState:
     mk_sum: dict = field(default_factory=dict)   # 지평별 누적 (bp·USD)
     mk_n: dict = field(default_factory=dict)
     fills_log: list = field(default_factory=list)
+    pending_rec: dict = field(default_factory=dict)   # 체결ID → 기록(markout 대기)
+    fill_seq: int = 0
 
     @property
     def mid(self) -> float:
@@ -440,15 +442,22 @@ class PaperMM:
         s.inv_cost += sign * o.notional * o.price
         s.n_fills += 1
         now = time.time()
-        for h in MARKOUT_HORIZONS:
-            s.pending_markout.append((now + h, o.side, mid, o.notional, h))
-        s.fills_log.append({
+        # 기록은 **markout 이 확정될 때까지 미룬다.** 초판은 체결 시점에 써버려서
+        # 역선택이 기록에 안 남았고, 그 때문에 net 의 신뢰구간을 계산할 수 없었다
+        # (2026-08-10: 획득 표준오차는 0.01bp 로 쟀는데 역선택 쪽은 못 쟀다).
+        # 지평별 markout 을 다 채운 뒤에 한 줄로 내린다.
+        s.fill_seq += 1
+        rid = s.fill_seq
+        s.pending_rec[rid] = {
             "t": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "side": o.side, "price": o.price, "mid": mid,
             "edge_bp": round(edge_bp, 4), "notional": o.notional,
             "adverse_sweep": adverse, "inv_usd": round(s.inv_usd, 1),
             "queue_wait_sec": round(time.time() - o.posted_at, 2),
-        })
+            "markout": {},
+        }
+        for h in MARKOUT_HORIZONS:
+            s.pending_markout.append((now + h, o.side, mid, o.notional, h, rid))
         self._enforce_inventory(s)
 
     def _enforce_inventory(self, s: SymState) -> None:
@@ -484,16 +493,26 @@ class PaperMM:
     def _settle_markouts(self, s: SymState) -> None:
         now = time.time()
         while s.pending_markout and s.pending_markout[0][0] <= now:
-            _, side, mid_at, notional, h = s.pending_markout.popleft()
+            _, side, mid_at, notional, h, rid = s.pending_markout.popleft()
             if s.mid <= 0 or mid_at <= 0:
+                s.pending_rec.pop(rid, None) if h == MARKOUT_SEC else None
                 continue
             sign = 1.0 if side == "buy" else -1.0
-            v = (s.mid - mid_at) / mid_at * 1e4 * sign * notional
+            bp = (s.mid - mid_at) / mid_at * 1e4 * sign
+            v = bp * notional
             s.mk_sum[h] = s.mk_sum.get(h, 0.0) + v
             s.mk_n[h] = s.mk_n.get(h, 0) + 1
+            rec = s.pending_rec.get(rid)
+            if rec is not None:
+                rec["markout"][h] = round(bp, 4)
             if h == MARKOUT_SEC:            # net 계산은 주 지평만 쓴다
                 s.markout_bp_sum += v
                 s.markout_n += 1
+                if rec is not None:
+                    # 이제 체결당 net 이 완성된다 — 이게 신뢰구간의 재료다
+                    rec["net_bp"] = round(rec["edge_bp"] + bp - MAKER_FEE_BP, 4)
+                    s.fills_log.append(rec)
+                    s.pending_rec.pop(rid, None)
 
     # ── 보고 ──────────────────────────────────────────────────
     def summary(self) -> list[dict]:
