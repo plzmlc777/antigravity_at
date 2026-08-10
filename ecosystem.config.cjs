@@ -522,6 +522,40 @@ const agentApps = [
         restart_delay: 15000
     },
     {
+        // 가설 7 깊이 곡선 확장 — 15단계.
+        // 1→5단계가 표본 1,681~5,939건에서 단조 개선(-5.80 → -3.89 → -3.50)이고
+        // 10단계에서 처음 양수(+2.62, 445건)가 나왔다. 곡선이 아직 안 꺾였다.
+        // ※ @depth20@100ms 가 20단계(0~19)까지만 주므로 19가 받을 수 있는 최대다.
+        //    더 깊이 가려면 차분 스트림으로 호가창을 직접 관리해야 한다.
+        name: "ultra-mm-paper-depthimb15",
+        script: "./venv/bin/python3",
+        args: "-u scripts/binance/ultra_mm_paper.py --strategy depth_imb --depth-ticks 15 " +
+              "--quote-usd 200 --inv-cap-usd 1000 --out-dir runs/ultra_mm_paper_depthimb15",
+        cwd: "./backend",
+        interpreter: "none",
+        env: { PYTHONPATH: ".", PYTHONDONTWRITEBYTECODE: "1" },
+        autorestart: true,
+        max_restarts: 50,
+        restart_delay: 15000
+    },
+    {
+        // 가설 7 깊이 곡선 확장 — 19단계 (스냅샷 최대 깊이).
+        // 1→5단계가 표본 1,681~5,939건에서 단조 개선(-5.80 → -3.89 → -3.50)이고
+        // 10단계에서 처음 양수(+2.62, 445건)가 나왔다. 곡선이 아직 안 꺾였다.
+        // ※ @depth20@100ms 가 20단계(0~19)까지만 주므로 19가 받을 수 있는 최대다.
+        //    더 깊이 가려면 차분 스트림으로 호가창을 직접 관리해야 한다.
+        name: "ultra-mm-paper-depthimb19",
+        script: "./venv/bin/python3",
+        args: "-u scripts/binance/ultra_mm_paper.py --strategy depth_imb --depth-ticks 19 " +
+              "--quote-usd 200 --inv-cap-usd 1000 --out-dir runs/ultra_mm_paper_depthimb19",
+        cwd: "./backend",
+        interpreter: "none",
+        env: { PYTHONPATH: ".", PYTHONDONTWRITEBYTECODE: "1" },
+        autorestart: true,
+        max_restarts: 50,
+        restart_delay: 15000
+    },
+    {
         // ── 단타 트랙 (2026-08-10 신설) ──────────────────────────────────
         // 펀딩 정산 사건 페이퍼. **지정가 체결률을 실측한다.**
         // ultra_event_scan 이 279종목 60일에서 정산 고유 효과 +9.6~15.3bp 를
