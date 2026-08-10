@@ -423,6 +423,28 @@ const agentApps = [
         restart_delay: 15000
     },
     {
+        // 2군 페이퍼 MM **가설 6** — 호가창 불균형 조건부.
+        // 타이밍 축(가설2~4)과 거리 축(가설5)이 둘 다 닫힌 뒤의 새 축이다.
+        // 가설5 때문에 받기 시작한 호가창 20단계를 "얼마나 물러설까" 가 아니라
+        // **"어느 쪽이 이길까"** 에 쓴다. 쌓인 물량의 좌우 비대칭은 초단기 방향의
+        // 강한 예측자다 — 매수 쪽이 두꺼우면 가격은 위로 간다.
+        //   매수 두꺼움 → 매도호가에 서면 팔고 나서 오른다(당함) → 매수호가만 유지
+        // 가설2 는 이미 일어난 **체결 흐름**(60초 후행), 가설6 은 **대기 물량**(현재).
+        // 로컬 8분: **역선택이 처음으로 양수**(CYS +2.77 / AKE +3.38 / TST +2.30).
+        // 앞 다섯 가설은 역선택을 줄이려다 실패했는데 이건 부호를 뒤집었다.
+        // 표본 4~89건이라 미판정 — 소표본이 뒤집힌 전례가 있다(AKE 5단계).
+        name: "ultra-mm-paper-bookimb",
+        script: "./venv/bin/python3",
+        args: "-u scripts/binance/ultra_mm_paper.py --strategy book_imb " +
+              "--quote-usd 200 --inv-cap-usd 1000 --out-dir runs/ultra_mm_paper_bookimb",
+        cwd: "./backend",
+        interpreter: "none",
+        env: { PYTHONPATH: ".", PYTHONDONTWRITEBYTECODE: "1" },
+        autorestart: true,
+        max_restarts: 50,
+        restart_delay: 15000
+    },
+    {
         // 2군 tier governor — day30_decision_protocol 결정 트리 매일 자동 집행.
         // TERMINATE 자동 / PROMOTE·RESEED는 Telegram 통보 (1군 진입은 수동 승인).
         // Daily 03:40 UTC (12:40 KST) — paper-cycle(02:30) + spawner(03:00) 이후

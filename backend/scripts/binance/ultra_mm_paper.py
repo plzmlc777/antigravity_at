@@ -100,7 +100,28 @@ FUNDING_SETTLE_SEC = 15
 # 어긋난다(7~10단계에서 특히). 단계 기준이 오히려 실전에 맞다 — 주문이 실제로
 # 쌓여 있는 가격에 서는 것이고, 비어 있는 가격에 혼자 서면 체결이 안 온다.
 DEPTH_TICKS = 3             # 최우선에서 몇 **단계** 물러설까
-MARKOUT_SEC = 300           # 역선택 측정 지평 (5분)
+
+# ── 가설 6: 호가창 불균형 조건부 (2026-08-10 신설) ──────────────────────
+# 타이밍 축(가설 2~4)과 거리 축(가설 5)이 둘 다 닫혔다. 거리 축은 U자가 나왔고
+# 최적점(3~5단계)에서도 CYS -7.03 / AKE -5.67bp 로 적자였다 — 물러설수록 획득은
+# 커지지만 역선택이 더 빨리 늘었다(5→7단계에서 획득 +1.85 vs 역선택 -9.68).
+#
+# 아직 안 쓴 데이터가 있다. 가설 5 때문에 호가창 20단계를 받기 시작했는데
+# 지금까지 "얼마나 물러설까" 에만 썼다. **쌓여 있는 물량의 좌우 비대칭**은
+# 초단기 가격 방향의 강한 예측자다. 매수 쪽이 두꺼우면 가격은 위로 간다.
+#
+# 메이커에겐 이게 결정적이다:
+#   매수 두꺼움 → 상승 압력 → 매수호가에 서면 사고 나서 오른다 (유리)
+#                          → 매도호가에 서면 팔고 나서 오른다 (당함)
+#
+# 가설 2 와 다른 점: 가설 2 는 이미 일어난 **체결 흐름**(60초 과거)을 봤다.
+# 가설 6 은 **대기 중인 물량**(현재 상태)을 본다. 후행 대 선행이다.
+IMB_LEVELS = 5              # 불균형 계산에 쓸 호가 단계 수
+IMB_TH = 0.20               # |불균형| 이 이보다 크면 불리한 쪽을 걷는다
+MARKOUT_SEC = 300           # 주 역선택 지평 (net 계산에 쓰는 값)
+# 역선택이 **얼마나 빨리** 쌓이는지 모르면 "빨리 털면 피할 수 있는가" 에 답할 수
+# 없다. 여러 지평에서 같이 재서 곡선을 본다 (2026-08-10 추가).
+MARKOUT_HORIZONS = (1, 5, 30, 60, 300)
 
 # ── 가설 2: 흐름 회피형 편향 호가 (2026-08-09 신설) ──────────────────────
 # 가설 1(양방향 최우선 고정)의 실측 실패 지점은 **스프레드 획득이 음수**라는 것이다
@@ -196,6 +217,8 @@ class SymState:
     pending_markout: deque = field(default_factory=deque)   # (t_due, side, mid_at_fill, notional)
     markout_bp_sum: float = 0.0
     markout_n: int = 0
+    mk_sum: dict = field(default_factory=dict)   # 지평별 누적 (bp·USD)
+    mk_n: dict = field(default_factory=dict)
     fills_log: list = field(default_factory=list)
 
     @property
@@ -211,8 +234,24 @@ class PaperMM:
         self.strategy = strategy          # "touch" = 가설1 / "flow_skew" = 가설2
         self.t0 = time.time()
 
+    def book_imbalance(self, s: SymState) -> float:
+        """호가창 상위 IMB_LEVELS 단계의 좌우 비대칭. +1=매수 일방, -1=매도 일방.
+        가설 2 의 체결흐름(후행)과 달리 **대기 물량**(현재 상태)을 본다."""
+        if not s.book_bids or not s.book_asks:
+            return 0.0
+        b = sum(u for _, u in s.book_bids[:IMB_LEVELS])
+        a = sum(u for _, u in s.book_asks[:IMB_LEVELS])
+        return (b - a) / (b + a) if (b + a) > 0 else 0.0
+
     def _sides_allowed(self, s: SymState) -> tuple:
         """(매수호가를 댈까, 매도호가를 댈까). 가설 1 은 항상 양방향."""
+        if self.strategy == "book_imb":
+            imb = self.book_imbalance(s)
+            if imb > IMB_TH:      # 매수 두꺼움 → 상승 압력 → 매도호가가 당한다
+                return True, False
+            if imb < -IMB_TH:     # 매도 두꺼움 → 하락 압력 → 매수호가가 당한다
+                return False, True
+            return True, True
         if self.strategy not in ("flow_skew", "combo"):
             return True, True
         tot = s.flow_buy + s.flow_sell
@@ -377,7 +416,9 @@ class PaperMM:
         s.inv_usd += sign * o.notional
         s.inv_cost += sign * o.notional * o.price
         s.n_fills += 1
-        s.pending_markout.append((time.time() + MARKOUT_SEC, o.side, mid, o.notional))
+        now = time.time()
+        for h in MARKOUT_HORIZONS:
+            s.pending_markout.append((now + h, o.side, mid, o.notional, h))
         s.fills_log.append({
             "t": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "side": o.side, "price": o.price, "mid": mid,
@@ -420,12 +461,16 @@ class PaperMM:
     def _settle_markouts(self, s: SymState) -> None:
         now = time.time()
         while s.pending_markout and s.pending_markout[0][0] <= now:
-            _, side, mid_at, notional = s.pending_markout.popleft()
+            _, side, mid_at, notional, h = s.pending_markout.popleft()
             if s.mid <= 0 or mid_at <= 0:
                 continue
             sign = 1.0 if side == "buy" else -1.0
-            s.markout_bp_sum += (s.mid - mid_at) / mid_at * 1e4 * sign * notional
-            s.markout_n += 1
+            v = (s.mid - mid_at) / mid_at * 1e4 * sign * notional
+            s.mk_sum[h] = s.mk_sum.get(h, 0.0) + v
+            s.mk_n[h] = s.mk_n.get(h, 0) + 1
+            if h == MARKOUT_SEC:            # net 계산은 주 지평만 쓴다
+                s.markout_bp_sum += v
+                s.markout_n += 1
 
     # ── 보고 ──────────────────────────────────────────────────
     def summary(self) -> list[dict]:
@@ -450,6 +495,9 @@ class PaperMM:
                 "spread_bp": round(spread_bp, 3),
                 "markout_bp": round(adverse_bp, 3) if adverse_bp == adverse_bp else None,
                 "fee_bp": round(fee_bp, 3), "flatten_bp": round(flat_bp, 3),
+                "markout_curve": {h: (round(s.mk_sum[h] / (s.mk_n[h] * s.quote_usd), 2)
+                                      if s.mk_n.get(h) else None)
+                                  for h in MARKOUT_HORIZONS},
                 "funding_bp": round(fund_bp, 3), "n_funding": s.n_funding,
                 "funding_rate_bp": round(s.funding_rate * 1e4, 3),
                 "net_bp": round(net, 3) if net == net else None,
@@ -518,7 +566,7 @@ async def funding_poller(mm: PaperMM, stop: asyncio.Event) -> None:
 
 async def run(mm: PaperMM, symbols: list[str], stop: asyncio.Event) -> None:
     import websockets
-    if mm.strategy == "depth":
+    if mm.strategy in ("depth", "book_imb"):
         # 물러선 가격의 대기 물량을 알아야 하므로 20단계 스냅샷을 받는다.
         streams = [f"{s.lower()}@depth20@100ms" for s in symbols] + \
                   [f"{s.lower()}@trade" for s in symbols]
@@ -577,8 +625,10 @@ async def amain(args) -> int:
               if args.strategy == "queue_flee"
               else f" | 흐름 {FLOW_WIN_SEC:.0f}초/{FLOW_SKEW_TH} + 회피 ETA {FLEE_ETA_SEC:.0f}초"
               if args.strategy == "combo"
-              else f" | 최우선에서 {DEPTH_TICKS}틱 물러섬"
-              if args.strategy == "depth" else ""))
+              else f" | 최우선에서 {DEPTH_TICKS}단계 물러섬"
+              if args.strategy == "depth"
+              else f" | 호가 {IMB_LEVELS}단계 불균형 임계 {IMB_TH}"
+              if args.strategy == "book_imb" else ""))
 
     stop = asyncio.Event()
     loop = asyncio.get_running_loop()
@@ -606,6 +656,11 @@ async def amain(args) -> int:
                          mk, r["markout_settled"], r["fee_bp"], r["flatten_bp"],
                          r["funding_bp"], r["n_funding"], r["funding_rate_bp"],
                          nt, r["inv_usd"])
+                cv = r.get("markout_curve") or {}
+                if any(v is not None for v in cv.values()):
+                    log.info("      역선택 곡선  " + "  ".join(
+                        f"{h}s {cv[h]:+.2f}" if cv.get(h) is not None else f"{h}s --"
+                        for h in MARKOUT_HORIZONS))
     async def settler():
         """정산 시각 감시. 폴러보다 촘촘해야 한다 (FUNDING_SETTLE_SEC 주석 참조)."""
         while not stop.is_set():
@@ -636,10 +691,12 @@ def main() -> int:
     p.add_argument("--inv-cap-usd", type=float, default=1000.0, help="종목별 재고 한도")
     p.add_argument("--out-dir", default=str(ROOT / "runs" / "ultra_mm_paper"))
     p.add_argument("--strategy",
-                   choices=["touch", "flow_skew", "queue_flee", "combo", "depth"],
+                   choices=["touch", "flow_skew", "queue_flee", "combo", "depth",
+                            "book_imb"],
                    default="touch",
                    help="touch=가설1 / flow_skew=가설2 / queue_flee=가설3 / "
-                        "combo=가설4(2+3) / depth=가설5 물러선 호가")
+                        "combo=가설4(2+3) / depth=가설5 물러선 호가 / "
+                        "book_imb=가설6 호가창 불균형 조건부")
     p.add_argument("--depth-ticks", type=int, default=DEPTH_TICKS,
                    help="가설5 — 최우선에서 몇 틱 물러설까")
     p.add_argument("--stats-sec", type=int, default=STATS_SEC, help="요약 보고 주기(초)")
