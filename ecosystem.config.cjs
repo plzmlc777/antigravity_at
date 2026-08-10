@@ -361,6 +361,38 @@ const agentApps = [
         restart_delay: 15000
     },
     {
+        // 가설 5 깊이 곡선 — 1틱: 최우선 바로 뒤. 획득 증가폭이 가장 작고 체결은 가장 많다.
+        // 최우선(가설1, 사실상 0.5틱) / 1틱 / 3틱 / 5틱 네 점으로 곡선을 그린다.
+        // 물러설수록 체결당 획득은 커지고 역선택은 농축된다. 어느 지점에서 둘이
+        // 교차하는지가 이 축의 답이며, 교차점이 없으면 축 자체가 닫힌다.
+        name: "ultra-mm-paper-depth1",
+        script: "./venv/bin/python3",
+        args: "-u scripts/binance/ultra_mm_paper.py --strategy depth --depth-ticks 1 " +
+              "--quote-usd 200 --inv-cap-usd 1000 --out-dir runs/ultra_mm_paper_depth1",
+        cwd: "./backend",
+        interpreter: "none",
+        env: { PYTHONPATH: ".", PYTHONDONTWRITEBYTECODE: "1" },
+        autorestart: true,
+        max_restarts: 50,
+        restart_delay: 15000
+    },
+    {
+        // 가설 5 깊이 곡선 — 5틱: 가장 멀다. 획득 최대, 체결 최소, 역선택 농축도 최대일 것.
+        // 최우선(가설1, 사실상 0.5틱) / 1틱 / 3틱 / 5틱 네 점으로 곡선을 그린다.
+        // 물러설수록 체결당 획득은 커지고 역선택은 농축된다. 어느 지점에서 둘이
+        // 교차하는지가 이 축의 답이며, 교차점이 없으면 축 자체가 닫힌다.
+        name: "ultra-mm-paper-depth5",
+        script: "./venv/bin/python3",
+        args: "-u scripts/binance/ultra_mm_paper.py --strategy depth --depth-ticks 5 " +
+              "--quote-usd 200 --inv-cap-usd 1000 --out-dir runs/ultra_mm_paper_depth5",
+        cwd: "./backend",
+        interpreter: "none",
+        env: { PYTHONPATH: ".", PYTHONDONTWRITEBYTECODE: "1" },
+        autorestart: true,
+        max_restarts: 50,
+        restart_delay: 15000
+    },
+    {
         // 2군 tier governor — day30_decision_protocol 결정 트리 매일 자동 집행.
         // TERMINATE 자동 / PROMOTE·RESEED는 Telegram 통보 (1군 진입은 수동 승인).
         // Daily 03:40 UTC (12:40 KST) — paper-cycle(02:30) + spawner(03:00) 이후
