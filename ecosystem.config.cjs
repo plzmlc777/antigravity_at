@@ -580,6 +580,28 @@ const agentApps = [
         restart_delay: 15000
     },
     {
+        // 단기 트랙 **새 부류** — 시간 단위 횡단면 되돌림.
+        // 기존 10팔이 전부 펀딩 정산 하나의 변형이었다. 정보 구조가 다른 축이다:
+        //   자기 종목 시계열 / BTC 대비 잔차 / 종목+일정  →  **그 시점 전 종목의 상대 위치**
+        // 몇 시간 동안 많이 떨어진 종목을 롱, 오른 종목을 숏. 롱숏 동수라 시장
+        // 방향과 무관하다.
+        // 백테스트(279종목 60일): 과거 2h / 보유 8h / K=10 이 최선 —
+        //   net -0.13bp, 마찰 약 12bp → **gross 약 +12bp**. 또 같은 벽이다.
+        // **빠져나갈 길**: 리밸런싱 시각을 우리가 정한다. 종목은 그 순간에야 알지만
+        //   시각은 고르므로 지정가를 걸고 보유 기간 내내 기다릴 수 있다.
+        //   +12 − 2(지정가) = +10bp. 그 체결 가정을 실측하는 게 이 페이퍼다.
+        name: "daytrade-xsection-paper",
+        script: "./venv/bin/python3",
+        args: "-u scripts/binance/daytrade_xsection_paper.py --notional 200 " +
+              "--lookback-h 2 --hold-h 8 --top-k 10",
+        cwd: "./backend",
+        interpreter: "none",
+        env: { PYTHONPATH: ".", PYTHONDONTWRITEBYTECODE: "1" },
+        autorestart: true,
+        max_restarts: 50,
+        restart_delay: 15000
+    },
+    {
         // 2군 tier governor — day30_decision_protocol 결정 트리 매일 자동 집행.
         // TERMINATE 자동 / PROMOTE·RESEED는 Telegram 통보 (1군 진입은 수동 승인).
         // Daily 03:40 UTC (12:40 KST) — paper-cycle(02:30) + spawner(03:00) 이후

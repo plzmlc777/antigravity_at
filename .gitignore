@@ -150,6 +150,7 @@ backend/runs/ultra_mm_paper_depthimb10/
 backend/runs/ultra_mm_paper_depthimb15/
 backend/runs/ultra_mm_paper_depthimb19/
 backend/runs/daytrade_funding_paper/
+backend/runs/daytrade_xsection_paper/
 backend/runs/daytrade_funding_reversal/
 backend/runs/daytrade_funding_hifr/
 backend/runs/daytrade_funding_early/
