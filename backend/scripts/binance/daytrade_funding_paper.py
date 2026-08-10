@@ -59,8 +59,8 @@ PREMIUM_INDEX = "https://fapi.binance.com/fapi/v1/premiumIndex"
 
 MAKER_FEE_BP = 2.0
 TAKER_FEE_BP = 5.0
-SUB_BATCH = 100
-SUB_INTERVAL = 0.4
+SUB_BATCH = 50      # 정산 순간 밀림 대비해 낮춤
+SUB_INTERVAL = 0.5
 
 # 사건 창 (분). 기본값은 백테스트 최적점(진입 T-15 / 청산 T+15 = 보유 30분).
 # 아래는 런타임에 덮어쓴다 — 같은 사건에서 여러 가설을 나란히 돌리기 위해서다.
@@ -309,59 +309,98 @@ async def next_funding_time() -> datetime:
             (base.replace(hour=0) + timedelta(days=1))
 
 
-async def event_cycle(fp: FundingPaper, T: datetime, stop: asyncio.Event) -> None:
-    """한 사건 창을 처리한다. 구독은 창 안에서만 유지한다."""
+async def _conn(fp: "FundingPaper", streams: list, name: str,
+                until: datetime, stop: asyncio.Event, gaps: list) -> None:
+    """연결 하나를 창이 끝날 때까지 유지한다. **끊기면 재연결한다.**
+
+    초판은 연결이 끊기면 사건을 통째로 포기하고 finally 에서 강제청산했다.
+    2026-08-10 첫 사건에서 두 번 끊겼고(16:46, 정산 직후 17:00:00.8) 그 때문에
+    청산 시각도 아닌데 시장가로 전부 털렸다 — net 수치가 통째로 무효가 됐다.
+    연결 문제와 전략 타임라인은 **분리돼야 한다.**"""
     import websockets
-    streams = [f"{s.lower()}@bookTicker" for s in fp.symbols] + \
-              [f"{s.lower()}@trade" for s in fp.symbols]
+    delay = 1.0
+    while not stop.is_set() and datetime.now(timezone.utc) < until:
+        t0 = time.time()
+        try:
+            async with websockets.connect(WS_BASE, ping_interval=180,
+                                          ping_timeout=600, max_size=2 ** 22) as ws:
+                for i in range(0, len(streams), SUB_BATCH):
+                    await ws.send(json.dumps({"method": "SUBSCRIBE",
+                                              "params": streams[i:i + SUB_BATCH],
+                                              "id": i + 1}))
+                    await asyncio.sleep(SUB_INTERVAL)
+                log.info("  [%s] 연결 — %d스트림", name, len(streams))
+                delay = 1.0
+                while not stop.is_set() and datetime.now(timezone.utc) < until:
+                    try:
+                        d = json.loads(await asyncio.wait_for(ws.recv(), timeout=5))
+                    except asyncio.TimeoutError:
+                        continue
+                    e = d.get("e")
+                    if e == "bookTicker":
+                        fp.on_book(d["s"], float(d["b"]), float(d["a"]),
+                                   float(d["B"]), float(d["A"]))
+                    elif e == "trade":
+                        fp.on_trade(d["s"], float(d["p"]), float(d["q"]), bool(d["m"]))
+        except asyncio.CancelledError:
+            return
+        except Exception as ex:
+            if stop.is_set() or datetime.now(timezone.utc) >= until:
+                return
+            up = time.time() - t0
+            gaps.append({"conn": name, "uptime_sec": round(up, 1), "err": str(ex)[:80]})
+            log.warning("  [%s] 끊김 (%.0f초 유지) — %s. %.0f초 후 재연결",
+                        name, up, str(ex)[:60], delay)
+            await asyncio.sleep(delay)
+            delay = min(delay * 2, 30)
+
+
+async def event_cycle(fp: FundingPaper, T: datetime, stop: asyncio.Event) -> None:
+    """한 사건 창. **타임라인은 연결 상태와 무관하게 흐른다.**"""
+    t_arm = T + timedelta(minutes=ENTRY_MIN)
+    t_exit = T + timedelta(minutes=EXIT_MIN)
+    t_force = t_exit + timedelta(minutes=EXIT_GRACE_MIN)
+    t_end = t_force + timedelta(minutes=2)
+
+    # 부하 분산 — 522스트림 한 연결이 정산 순간에 밀렸다. 종목을 나눠 두 연결로.
+    half = (len(fp.symbols) + 1) // 2
+    groups = [fp.symbols[:half], fp.symbols[half:]]
+    gaps: list = []
+    tasks = [asyncio.create_task(_conn(
+        fp, [f"{s.lower()}@bookTicker" for s in g] + [f"{s.lower()}@trade" for s in g],
+        f"conn{i}", t_end, stop, gaps)) for i, g in enumerate(groups) if g]
+
     await fp.refresh_funding()
-    try:
-        async with websockets.connect(WS_BASE, ping_interval=180,
-                                      ping_timeout=600, max_size=2 ** 22) as ws:
-            for i in range(0, len(streams), SUB_BATCH):
-                await ws.send(json.dumps({"method": "SUBSCRIBE",
-                                          "params": streams[i:i + SUB_BATCH],
-                                          "id": i + 1}))
-                await asyncio.sleep(SUB_INTERVAL)
-            log.info("구독 %d스트림 — 사건 %s UTC", len(streams),
-                     T.strftime("%m-%d %H:%M"))
-            done_arm = done_exit = done_force = False
-            while not stop.is_set():
-                now = datetime.now(timezone.utc)
-                if now >= T + timedelta(minutes=EXIT_MIN + EXIT_GRACE_MIN + 2):
-                    break
-                if not done_arm and now >= T + timedelta(minutes=ENTRY_MIN):
-                    fp.arm(); done_arm = True
-                if not done_exit and now >= T + timedelta(minutes=EXIT_MIN):
-                    fp.start_exit(); done_exit = True
-                if (not done_force and done_exit
-                        and now >= T + timedelta(minutes=EXIT_MIN + EXIT_GRACE_MIN)):
-                    fp.force_exit(); done_force = True
-                try:
-                    d = json.loads(await asyncio.wait_for(ws.recv(), timeout=5))
-                except asyncio.TimeoutError:
-                    continue
-                e = d.get("e")
-                if e == "bookTicker":
-                    fp.on_book(d["s"], float(d["b"]), float(d["a"]),
-                               float(d["B"]), float(d["A"]))
-                elif e == "trade":
-                    fp.on_trade(d["s"], float(d["p"]), float(d["q"]), bool(d["m"]))
-    except asyncio.CancelledError:
-        raise
-    except Exception as e:
-        log.warning("사건 창 오류: %s", e)
-    finally:
-        fp.force_exit()
-        s = fp.finish()
-        log.info("[사건 종료 %s] 게시 %d / 체결 %d (체결률 %.1f%%) | "
-                 "net %s bp | 지정가이점 %s bp | 큐대기 %s초 | 시장가청산 %s",
-                 T.strftime("%m-%d %H:%M"), s.get("armed", 0), s.get("filled", 0),
-                 s.get("fill_rate", 0) * 100, s.get("net_bp_mean", "--"),
-                 s.get("edge_in_bp_mean", "--"), s.get("queue_wait_med", "--"),
-                 f"{s.get('taker_exit_frac', 0) * 100:.0f}%")
-        fp.persist(T.strftime("%Y-%m-%dT%H:%MZ"))
-        fp.stats["events"] += 1
+    done_arm = done_exit = done_force = False
+    while not stop.is_set():
+        now = datetime.now(timezone.utc)
+        if now >= t_end:
+            break
+        if not done_arm and now >= t_arm:
+            fp.arm(); done_arm = True
+        if not done_exit and now >= t_exit:
+            fp.start_exit(); done_exit = True
+        if not done_force and done_exit and now >= t_force:
+            fp.force_exit(); done_force = True
+        await asyncio.sleep(0.5)
+
+    for t in tasks:
+        t.cancel()
+    # 창이 실제로 끝난 뒤에만 정리한다 (초판은 연결 끊길 때마다 여기로 왔다)
+    fp.force_exit()
+    s = fp.finish()
+    s["conn_gaps"] = len(gaps)
+    log.info("[사건 종료 %s] 게시 %d / 체결 %d (체결률 %.1f%%) | net %s bp | "
+             "지정가이점 %s bp | 큐대기 %s초 | 시장가청산 %s | 연결끊김 %d회",
+             T.strftime("%m-%d %H:%M"), s.get("armed", 0), s.get("filled", 0),
+             s.get("fill_rate", 0) * 100, s.get("net_bp_mean", "--"),
+             s.get("edge_in_bp_mean", "--"), s.get("queue_wait_med", "--"),
+             f"{s.get('taker_exit_frac', 0) * 100:.0f}%", len(gaps))
+    if gaps:
+        # 조용한 결손 금지 — 끊긴 동안 놓친 체결이 있다.
+        log.warning("  연결 끊김 상세: %s", json.dumps(gaps[:4], ensure_ascii=False))
+    fp.persist(T.strftime("%Y-%m-%dT%H:%MZ"))
+    fp.stats["events"] += 1
 
 
 async def amain(args) -> int:
@@ -383,8 +422,16 @@ async def amain(args) -> int:
     for sg in (signal.SIGINT, signal.SIGTERM):
         loop.add_signal_handler(sg, stop.set)
 
+    last_T = None
     while not stop.is_set():
         T = await next_funding_time()
+        if last_T is not None and T <= last_T:
+            # 같은 사건 재진입 방지. 초판은 연결이 끊길 때마다 사건을 다시
+            # 시작해 같은 창에서 두 번 게시했다 (2026-08-10 첫 사건).
+            log.info("사건 %s 는 이미 처리했다 — 60초 후 재확인",
+                     T.strftime("%m-%d %H:%M"))
+            await asyncio.sleep(60)
+            continue
         wake = T + timedelta(minutes=ENTRY_MIN - 5)
         wait = (wake - datetime.now(timezone.utc)).total_seconds()
         if wait > 0:
@@ -396,7 +443,7 @@ async def amain(args) -> int:
             except asyncio.TimeoutError:
                 pass
         await event_cycle(fp, T, stop)
-        await asyncio.sleep(60)      # 같은 사건 재진입 방지
+        last_T = T
     log.info("종료 — 사건 %d회 / 게시 %d / 체결 %d",
              fp.stats["events"], fp.stats["armed"], fp.stats["filled"])
     return 0
