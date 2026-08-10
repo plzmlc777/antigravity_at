@@ -468,6 +468,60 @@ const agentApps = [
         restart_delay: 15000
     },
     {
+        // 가설 7 깊이 곡선 — 1단계.
+        // 가설 5(불균형 없음)의 곡선은 CYS 가 1단계, AKE 가 10단계에서 최적이었다.
+        // 깊이를 막던 것이 역선택이었으므로, **불균형 필터가 그걸 줄이면 최적점이
+        // 더 깊어져야 한다** — 이 곡선이 그 예측을 검증한다.
+        // 5단계 실측(CYS 4,243건): 획득 +7.31 유지, 역선택 -12.93 → -9.68 로 3.3bp
+        // 개선, net -8.38 → -4.37. 의도대로 작동한다.
+        name: "ultra-mm-paper-depthimb1",
+        script: "./venv/bin/python3",
+        args: "-u scripts/binance/ultra_mm_paper.py --strategy depth_imb --depth-ticks 1 " +
+              "--quote-usd 200 --inv-cap-usd 1000 --out-dir runs/ultra_mm_paper_depthimb1",
+        cwd: "./backend",
+        interpreter: "none",
+        env: { PYTHONPATH: ".", PYTHONDONTWRITEBYTECODE: "1" },
+        autorestart: true,
+        max_restarts: 50,
+        restart_delay: 15000
+    },
+    {
+        // 가설 7 깊이 곡선 — 3단계.
+        // 가설 5(불균형 없음)의 곡선은 CYS 가 1단계, AKE 가 10단계에서 최적이었다.
+        // 깊이를 막던 것이 역선택이었으므로, **불균형 필터가 그걸 줄이면 최적점이
+        // 더 깊어져야 한다** — 이 곡선이 그 예측을 검증한다.
+        // 5단계 실측(CYS 4,243건): 획득 +7.31 유지, 역선택 -12.93 → -9.68 로 3.3bp
+        // 개선, net -8.38 → -4.37. 의도대로 작동한다.
+        name: "ultra-mm-paper-depthimb3",
+        script: "./venv/bin/python3",
+        args: "-u scripts/binance/ultra_mm_paper.py --strategy depth_imb --depth-ticks 3 " +
+              "--quote-usd 200 --inv-cap-usd 1000 --out-dir runs/ultra_mm_paper_depthimb3",
+        cwd: "./backend",
+        interpreter: "none",
+        env: { PYTHONPATH: ".", PYTHONDONTWRITEBYTECODE: "1" },
+        autorestart: true,
+        max_restarts: 50,
+        restart_delay: 15000
+    },
+    {
+        // 가설 7 깊이 곡선 — 10단계.
+        // 가설 5(불균형 없음)의 곡선은 CYS 가 1단계, AKE 가 10단계에서 최적이었다.
+        // 깊이를 막던 것이 역선택이었으므로, **불균형 필터가 그걸 줄이면 최적점이
+        // 더 깊어져야 한다** — 이 곡선이 그 예측을 검증한다.
+        // 5단계 실측(CYS 4,243건): 획득 +7.31 유지, 역선택 -12.93 → -9.68 로 3.3bp
+        // 개선, net -8.38 → -4.37. 의도대로 작동한다.
+        name: "ultra-mm-paper-depthimb10",
+        script: "./venv/bin/python3",
+        args: "-u scripts/binance/ultra_mm_paper.py --strategy depth_imb --depth-ticks 10 " +
+              "--quote-usd 200 --inv-cap-usd 1000 --out-dir runs/ultra_mm_paper_depthimb10",
+        cwd: "./backend",
+        interpreter: "none",
+        env: { PYTHONPATH: ".", PYTHONDONTWRITEBYTECODE: "1" },
+        autorestart: true,
+        max_restarts: 50,
+        restart_delay: 15000
+    },
+    {
         // ── 단타 트랙 (2026-08-10 신설) ──────────────────────────────────
         // 펀딩 정산 사건 페이퍼. **지정가 체결률을 실측한다.**
         // ultra_event_scan 이 279종목 60일에서 정산 고유 효과 +9.6~15.3bp 를
