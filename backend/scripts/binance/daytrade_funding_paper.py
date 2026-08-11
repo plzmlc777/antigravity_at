@@ -59,6 +59,18 @@ PREMIUM_INDEX = "https://fapi.binance.com/fapi/v1/premiumIndex"
 
 MAKER_FEE_BP = 2.0
 TAKER_FEE_BP = 5.0
+# ── 수신 큐 / 구독 방식 (2026-08-11 실측으로 규명) ──────────────────────
+# 단타 러너가 한 사건에 **28회** 끊겼다. 오류는 "no close frame received or sent",
+# uptime 은 일정하게 3~4초. 그런데 522스트림 구독에만 5.5초가 걸린다 —
+# **끊김이 구독 도중에 일어난다.**
+#
+# 원인: 구독하는 동안 recv 를 부르지 않는데 메시지는 계속 밀려든다. 실측 초당
+# bookTicker 6,338건 + trade 1,839건 = 8,177건. `websockets` 기본 수신 큐가
+# **32건**이라 즉시 가득 차고, 읽지 않으니 TCP 역압이 걸려 서버가 끊는다.
+#
+# 고침: (1) 수신 큐를 키우고 (2) **구독을 수신 루프와 동시에** 돌린다.
+WS_MAX_QUEUE = 8192
+
 SUB_BATCH = 50      # 정산 순간 밀림 대비해 낮춤
 SUB_INTERVAL = 0.5
 
@@ -355,12 +367,17 @@ async def _conn(fp: "FundingPaper", streams: list, name: str,
         t0 = time.time()
         try:
             async with websockets.connect(WS_BASE, ping_interval=180,
-                                          ping_timeout=600, max_size=2 ** 22) as ws:
-                for i in range(0, len(streams), SUB_BATCH):
-                    await ws.send(json.dumps({"method": "SUBSCRIBE",
-                                              "params": streams[i:i + SUB_BATCH],
-                                              "id": i + 1}))
-                    await asyncio.sleep(SUB_INTERVAL)
+                                          ping_timeout=600, max_size=2 ** 22,
+                                          max_queue=WS_MAX_QUEUE) as ws:
+                async def _subscribe():
+                    # 구독을 **별도 태스크**로 돌린다 — 그래야 아래 수신 루프가
+                    # 곧바로 시작되어 구독 중에도 큐를 계속 비운다.
+                    for i in range(0, len(streams), SUB_BATCH):
+                        await ws.send(json.dumps({"method": "SUBSCRIBE",
+                                                  "params": streams[i:i + SUB_BATCH],
+                                                  "id": i + 1}))
+                        await asyncio.sleep(SUB_INTERVAL)
+                asyncio.create_task(_subscribe())
                 log.info("  [%s] 연결 — %d스트림", name, len(streams))
                 delay = 1.0
                 while not stop.is_set() and datetime.now(timezone.utc) < until:

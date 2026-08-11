@@ -70,6 +70,18 @@ WS_BASE = "wss://fstream.binance.com/ws"
 REST_KLINES = "https://fapi.binance.com/fapi/v1/klines"
 
 MAX_STREAMS_PER_CONN = 1024
+# ── 수신 큐 / 구독 방식 (2026-08-11 실측으로 규명) ──────────────────────
+# 단타 러너가 한 사건에 **28회** 끊겼다. 오류는 "no close frame received or sent",
+# uptime 은 일정하게 3~4초. 그런데 522스트림 구독에만 5.5초가 걸린다 —
+# **끊김이 구독 도중에 일어난다.**
+#
+# 원인: 구독하는 동안 recv 를 부르지 않는데 메시지는 계속 밀려든다. 실측 초당
+# bookTicker 6,338건 + trade 1,839건 = 8,177건. `websockets` 기본 수신 큐가
+# **32건**이라 즉시 가득 차고, 읽지 않으니 TCP 역압이 걸려 서버가 끊는다.
+#
+# 고침: (1) 수신 큐를 키우고 (2) **구독을 수신 루프와 동시에** 돌린다.
+WS_MAX_QUEUE = 8192
+
 SUB_BATCH = 100                 # SUBSCRIBE 한 건에 담는 스트림 수
 SUB_INTERVAL_SEC = 0.4          # 초당 10건 제한 대비 (여유 2.5배)
 RECONNECT_MAX_SEC = 120
@@ -245,7 +257,8 @@ async def run_stream(streams: list[str], on_msg, name: str, stop: asyncio.Event)
         opened = time.time()
         try:
             async with websockets.connect(WS_BASE, ping_interval=180,
-                                          ping_timeout=600, max_size=2 ** 22) as ws:
+                                          ping_timeout=600, max_size=2 ** 22,
+                                          max_queue=WS_MAX_QUEUE) as ws:
                 for i in range(0, len(streams), SUB_BATCH):
                     await ws.send(json.dumps({
                         "method": "SUBSCRIBE",

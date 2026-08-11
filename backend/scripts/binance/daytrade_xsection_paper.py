@@ -58,8 +58,34 @@ log = logging.getLogger("daytrade_xsection_paper")
 WS_BASE = "wss://fstream.binance.com/ws"
 MAKER_FEE_BP = 2.0
 TAKER_FEE_BP = 5.0
+# ── 수신 큐 / 구독 방식 (2026-08-11 실측으로 규명) ──────────────────────
+# 단타 러너가 한 사건에 **28회** 끊겼다. 오류는 "no close frame received or sent",
+# uptime 은 일정하게 3~4초. 그런데 522스트림 구독에만 5.5초가 걸린다 —
+# **끊김이 구독 도중에 일어난다.**
+#
+# 원인: 구독하는 동안 recv 를 부르지 않는데 메시지는 계속 밀려든다. 실측 초당
+# bookTicker 6,338건 + trade 1,839건 = 8,177건. `websockets` 기본 수신 큐가
+# **32건**이라 즉시 가득 차고, 읽지 않으니 TCP 역압이 걸려 서버가 끊는다.
+#
+# 고침: (1) 수신 큐를 키우고 (2) **구독을 수신 루프와 동시에** 돌린다.
+WS_MAX_QUEUE = 8192
+
 SUB_BATCH = 50
 SUB_INTERVAL = 0.5
+
+# ── bookTicker 를 상시 구독하지 않는다 (2026-08-11) ─────────────────────
+# Mint 부하 실측: 이 러너 하나가 CPU 41.8% 를 먹었다(코어 8, load 6.33).
+# 메시지량을 재보니 261종목 기준 초당 bookTicker 6,338건 대 trade 1,839건 —
+# **bookTicker 가 78%** 다.
+#
+# 그런데 bookTicker 가 필요한 순간은 셋뿐이다:
+#   리밸런싱(순위·게시가·큐) / 체결 직후(중간가) / 청산(반대편 호가)
+# 체결은 게시 후 수십 초 안에 대부분 일어난다(펀딩 페이퍼 큐대기 중앙 18~59초).
+# 나머지 시간엔 `@trade` 만 있으면 체결 감지가 된다.
+#
+# → bookTicker 를 **창 안에서만** 구독하고 밖에서는 해제한다.
+BOOK_WARM_SEC = 90          # 리밸런싱/청산 몇 초 전부터 켤까
+BOOK_HOLD_SEC = 300         # 그 뒤 몇 초까지 유지할까
 
 
 @dataclass
@@ -105,6 +131,8 @@ class XSectionPaper:
         self.legs: dict[str, Leg] = {}
         self.records: list = []
         self.rounds = 0
+        # bookTicker 가 필요한 시각들 (리밸런싱·청산). 창 밖에선 구독을 끈다.
+        self.book_windows: list = []
 
     def on_book(self, sym: str, bid: float, ask: float, bq: float, aq: float) -> None:
         b = self.book.get(sym)
@@ -112,6 +140,20 @@ class XSectionPaper:
             return
         b.bid, b.ask = bid, ask
         b.bid_usd, b.ask_usd = bq * bid, aq * ask
+
+    def need_book_at(self, t: float) -> None:
+        """시각 t 에 호가가 필요하다고 등록한다. 여러 곳에서 부르므로 **더한다** —
+        덮어쓰면 정시 스냅샷과 리밸런싱 창이 서로를 지운다."""
+        self.book_windows.append(t)
+        cut = time.time() - BOOK_HOLD_SEC * 2
+        self.book_windows = sorted(x for x in set(self.book_windows) if x > cut)
+
+    def book_window_open(self) -> bool:
+        """지금 bookTicker 가 필요한 창인가. 상시 구독하면 CPU 를 4할 먹는다.
+        구독에 약 3초가 걸리므로 BOOK_WARM_SEC 만큼 미리 켠다."""
+        now = time.time()
+        return any(t - BOOK_WARM_SEC <= now <= t + BOOK_HOLD_SEC
+                   for t in self.book_windows)
 
     def snapshot(self) -> None:
         """정시마다 중간가를 남긴다 — 순위의 재료."""
@@ -244,24 +286,36 @@ class XSectionPaper:
             fh.write(json.dumps(self.summary(), ensure_ascii=False) + "\n")
 
 
-async def _conn(xp: XSectionPaper, streams: list, name: str,
-                stop: asyncio.Event, gaps: list) -> None:
-    """상시 연결. 끊기면 재연결한다 — 연결 문제가 전략 타임라인을 망가뜨리면 안 된다."""
+async def _conn(xp: XSectionPaper, trade_streams: list, book_streams: list,
+                name: str, stop: asyncio.Event, gaps: list) -> None:
+    """상시 연결. `@trade` 는 계속 구독하고 **`@bookTicker` 는 창 안에서만** 켠다.
+    끊기면 재연결한다 — 연결 문제가 전략 타임라인을 망가뜨리면 안 된다."""
     import websockets
     delay = 1.0
     while not stop.is_set():
         t0 = time.time()
         try:
             async with websockets.connect(WS_BASE, ping_interval=180,
-                                          ping_timeout=600, max_size=2 ** 22) as ws:
-                for i in range(0, len(streams), SUB_BATCH):
-                    await ws.send(json.dumps({"method": "SUBSCRIBE",
-                                              "params": streams[i:i + SUB_BATCH],
-                                              "id": i + 1}))
-                    await asyncio.sleep(SUB_INTERVAL)
-                log.info("  [%s] 연결 — %d스트림", name, len(streams))
+                                          ping_timeout=600, max_size=2 ** 22,
+                                          max_queue=WS_MAX_QUEUE) as ws:
+                async def _send(method: str, params: list):
+                    for i in range(0, len(params), SUB_BATCH):
+                        await ws.send(json.dumps({"method": method,
+                                                  "params": params[i:i + SUB_BATCH],
+                                                  "id": i + 1}))
+                        await asyncio.sleep(SUB_INTERVAL)
+                asyncio.create_task(_send("SUBSCRIBE", trade_streams))
+                log.info("  [%s] 연결 — trade %d스트림 (호가는 창에서만)",
+                         name, len(trade_streams))
                 delay = 1.0
+                book_on = False
                 while not stop.is_set():
+                    want = xp.book_window_open()
+                    if want != book_on:
+                        asyncio.create_task(_send(
+                            "SUBSCRIBE" if want else "UNSUBSCRIBE", book_streams))
+                        book_on = want
+                        log.info("  [%s] 호가 구독 %s", name, "켬" if want else "끔")
                     try:
                         d = json.loads(await asyncio.wait_for(ws.recv(), timeout=10))
                     except asyncio.TimeoutError:
@@ -300,8 +354,8 @@ async def amain(args) -> int:
     half = (len(syms) + 1) // 2
     gaps: list = []
     tasks = [asyncio.create_task(_conn(
-        xp, [f"{s.lower()}@bookTicker" for s in g] + [f"{s.lower()}@trade" for s in g],
-        f"conn{i}", stop, gaps))
+        xp, [f"{s.lower()}@trade" for s in g],
+        [f"{s.lower()}@bookTicker" for s in g], f"conn{i}", stop, gaps))
         for i, g in enumerate([syms[:half], syms[half:]]) if g]
 
     async def clock():
@@ -310,6 +364,9 @@ async def amain(args) -> int:
             now = datetime.now(timezone.utc)
             nxt = (now.replace(minute=0, second=0, microsecond=0)
                    + timedelta(hours=1))
+            # 정시 스냅샷은 순위의 재료다 — **미리** 등록해야 그 시각에 호가가 켜져
+            # 있다. 직전에 등록하면 구독(약 3초)이 끝나기 전에 순위를 매기게 된다.
+            xp.need_book_at(nxt.timestamp())
             try:
                 await asyncio.wait_for(stop.wait(),
                                        timeout=(nxt - now).total_seconds())
@@ -329,6 +386,11 @@ async def amain(args) -> int:
         pass
 
     while not stop.is_set():
+        # 리밸런싱과 청산 시각을 호가 창으로 등록 — 그 전후에만 구독한다.
+        now = time.time()
+        xp.need_book_at(now + BOOK_WARM_SEC)              # 곧 있을 리밸런싱
+        xp.need_book_at(now + BOOK_WARM_SEC + args.hold_h * 3600)   # 그 청산
+        await asyncio.sleep(BOOK_WARM_SEC)      # 호가가 채워질 시간
         r = xp.rebalance()
         if not r.get("skipped"):
             try:
