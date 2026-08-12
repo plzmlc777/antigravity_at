@@ -341,7 +341,15 @@ class PaperOrchestrator:
             ret = (proceeds - cost) / cost
             pnl_cash = proceeds - cost
         else:  # short
-            proceeds = session.qty * (session.entry_price - exit_price)
+            # 2026-08-12: 숏에 수수료가 아예 부과되지 않던 결함 수정.
+            # backtester._close_position 과 **같은 식**이어야 한다 — 두 실행기가
+            # 갈리면 그게 곧 2026-08-08 사고의 재발이다.
+            # 양다리 모두 청산 시점 계상 (이유는 backtester 쪽 주석 참조).
+            fee = session.fee_rate
+            gross = session.qty * (session.entry_price - float(exit_price))
+            fees = (session.qty * session.entry_price * fee
+                    + session.qty * float(exit_price) * fee)
+            proceeds = gross - fees
             cost = session.qty * session.entry_price
             session.cash += cost + proceeds
             ret = proceeds / cost
