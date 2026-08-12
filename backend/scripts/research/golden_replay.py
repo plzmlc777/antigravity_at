@@ -15,16 +15,24 @@
      그래서 기준 파일에 `bar_end`(마지막 eval 바 시각)를 적고, 검증 때 바를
      그 시각까지 잘라낸다. 이렇게 해야 며칠 뒤에도 같은 답이 나온다.
 
-  2) **결정적이지 않은 케이스.** LGBM/XGB 컴포저는 시드가 고정돼 있어야 같은
-     답을 낸다. 고정돼 있지 않으면 그 케이스는 회귀 기준이 될 수 없다.
-     그래서 build 는 **모든 케이스를 두 번 돌려** 자기 자신과 일치하는지 먼저
-     확인하고, 불일치는 `nondeterministic` 로 표시해 기준에서 제외한다.
+  2) **결정적이지 않은 케이스.** 재현되지 않는 케이스는 회귀 기준이 될 수 없다.
+     build 는 모든 케이스를 두 번 돌려 자기 자신과 일치하는지 확인한다.
      (이 검사를 빼면 2단계에서 "리팩터링이 깨뜨렸다"와 "원래 안 정해졌다"를
       구분할 수 없다.)
 
+     ⚠ **2회 in-process 검사만으로는 부족하다** (2026-08-12 실측). build 에서
+     비결정 0 이었는데 별도 프로세스로 --verify 하니 136건 중 6건이 어긋났다.
+     전부 `lgbm` 컴포저다 — `LGBMRegressor` 에 `random_state=42` 는 있지만
+     `deterministic` / `force_row_wise` / `num_threads` 가 없어 멀티스레드
+     히스토그램 생성이 비트 단위로 재현되지 않는다. 시드만으로는 안 된다.
+
+     그래서 기준 생성 절차는 **build → verify --prune** 2단계다. verify 를
+     한 번 돌려 프로세스 경계를 넘겨 봐야 진짜 결정적인 케이스만 남는다.
+
 사용:
-  python3 -m scripts.research.golden_replay --build              # 기준 생성
-  python3 -m scripts.research.golden_replay --verify             # 최신 기준과 대조
+  python3 -m scripts.research.golden_replay --build              # 1차 생성
+  python3 -m scripts.research.golden_replay --verify --prune     # 비결정 제거 (필수)
+  python3 -m scripts.research.golden_replay --verify             # 이후 회귀 검사
   python3 -m scripts.research.golden_replay --verify --ref <경로>
 
 종료코드 0 = 일치, 1 = 불일치. 배포 전 훅으로 쓸 것.
@@ -195,6 +203,25 @@ def cmd_verify(args) -> int:
         return 1
     ref = json.loads(ref_path.read_text())
     entries = ref["entries"]
+
+    # 원인 기준 제외 — 증상(관찰된 불일치)으로 거르면 안 되는 경우가 있다.
+    # 2026-08-12: lgbm 비결정성은 **간헐적**이라 실행마다 불일치 목록이 바뀐다
+    # (1차 6건, 2차 5건, ICPUSDT 는 2차에서 우연히 통과). 두 번 봐서 흔들리는
+    # 케이스를 다 잡을 수 없으므로 원인이 되는 컴포저 타입을 통째로 뺀다.
+    drop_comp = {c.strip() for c in (args.drop_composers or "").split(",") if c.strip()}
+    if drop_comp:
+        before = len(entries)
+        removed = {k for k, e in entries.items()
+                   if (e.get("spec", {}).get("composer", {}) or {}).get("type") in drop_comp}
+        entries = {k: v for k, v in entries.items() if k not in removed}
+        ref["entries"] = entries
+        ref["dropped_composers"] = sorted(drop_comp)
+        ref["dropped_by_composer"] = sorted(removed)
+        ref["n_golden"] = len(entries)
+        ref_path.write_text(json.dumps(ref, ensure_ascii=False, indent=2, default=str),
+                            encoding="utf-8")
+        log.warning("컴포저 %s 제외: %d → %d건", sorted(drop_comp), before, len(entries))
+
     log.info("골든 검증: %d 기준 (%s)", len(entries), ref_path)
 
     ok, bad, gone = 0, [], []
@@ -229,6 +256,22 @@ def cmd_verify(args) -> int:
             print(f"        현재: {b['first_diff']['현재']}")
     if gone:
         print(f"\n  재생불가 {len(gone)}건: {[g[0] for g in gone[:5]]}")
+
+    if args.prune:
+        # 코드가 바뀌지 않은 상태에서의 불일치 = 비결정성이지 회귀가 아니다.
+        # 기준 생성 직후에만 쓸 것. 리팩터링 뒤에 쓰면 진짜 회귀를 지운다.
+        drop = {b["key"] for b in bad} | {g[0] for g in gone}
+        kept = {k: v for k, v in entries.items() if k not in drop}
+        ref["entries"] = kept
+        ref["pruned_nondeterministic"] = sorted(drop)
+        ref["n_golden"] = len(kept)
+        ref_path.write_text(json.dumps(ref, ensure_ascii=False, indent=2, default=str),
+                            encoding="utf-8")
+        print(f"\n  ** prune: {len(drop)}건 제거 → 기준 {len(kept)}건 **")
+        print("     (코드 미변경 상태의 불일치이므로 비결정성이다. 리팩터링 뒤에는"
+              " --prune 을 쓰지 말 것 — 진짜 회귀를 지운다.)")
+        print("=" * 92 + "\n")
+        return 0
     print("=" * 92 + "\n")
     return 1 if (bad or gone) else 0
 
@@ -240,6 +283,12 @@ def main() -> int:
     ap.add_argument("--ref", help="기준 파일 경로")
     ap.add_argument("--out", help="생성 파일 경로")
     ap.add_argument("--limit", type=int)
+    ap.add_argument("--prune", action="store_true",
+                    help="불일치 케이스를 기준에서 제거 (기준 생성 직후에만! "
+                         "리팩터링 뒤에 쓰면 진짜 회귀를 지운다)")
+    ap.add_argument("--drop-composers", default="",
+                    help="이 컴포저 타입들을 기준에서 통째로 제외 (예: lgbm,xgb). "
+                         "증상이 아니라 원인으로 거르는 용도")
     args = ap.parse_args()
     if args.build:
         return cmd_build(args)
