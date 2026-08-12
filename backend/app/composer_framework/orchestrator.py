@@ -30,11 +30,58 @@ from .paper_session import (
     SessionStore,
     TradeRecord,
 )
+from .kernel import KernelConfig, KernelState, _forced_exit
+from .kernel import close as _kernel_close
+from .kernel import open_position as _kernel_open
+from .kernel import step as kernel_step
 from .pipeline_spec import build_pipeline
 from .policy import Action, PolicyContext
 from .signal_source import SourceContext
 
 logger = logging.getLogger(__name__)
+
+
+# ── 세션 ↔ 커널 상태 변환 ────────────────────────────────────────────────
+# 거래 로직은 kernel.py 에만 있다. 여기 있는 것은 영속화 형식(PaperSession)과
+# 커널 상태 사이의 변환뿐이다.
+
+def _kernel_config(session: PaperSession) -> KernelConfig:
+    """오케스트레이터의 **현행** 회계를 설정으로 표현한다.
+
+    브래킷 기본값 SL 4% / TP 10% 는 backtester(비활성)와 다르다 — 격차 D2 이고
+    통합 계획 3b 에서 해소한다. 2단계는 행동을 바꾸지 않으므로 여기서는 지금
+    값을 그대로 유지한다. `policy_exit_reason` 도 마찬가지(backtester 는
+    "policy", 여기는 "policy_exit").
+    """
+    return KernelConfig(
+        size_pct=0.95,
+        fee_rate=session.fee_rate,
+        apply_fee_to_short=True,
+        default_sl_pct=0.04,
+        default_tp_pct=0.10,
+        policy_exit_reason="policy_exit",
+    )
+
+
+def _state_from_session(session: PaperSession) -> KernelState:
+    return KernelState(
+        cash=session.cash, side=session.side, qty=session.qty,
+        entry_price=session.entry_price, entry_ts=session.entry_ts,
+        bars_held=session.bars_held, sl_price=session.sl_price,
+        tp_price=session.tp_price,
+    )
+
+
+def _apply_state(session: PaperSession, st: KernelState) -> None:
+    session.cash = st.cash
+    session.side = st.side
+    session.qty = st.qty
+    session.entry_price = st.entry_price
+    session.entry_ts = (None if st.entry_ts is None
+                        else pd.Timestamp(st.entry_ts).isoformat())
+    session.bars_held = st.bars_held
+    session.sl_price = st.sl_price
+    session.tp_price = st.tp_price
 
 
 @dataclass
@@ -183,67 +230,46 @@ class PaperOrchestrator:
             logger.warning("Session %s predict failed: %s", session.session_id, exc)
             return self._record_no_op(session, feat, f"predict_error: {exc}")
 
+        # 바 처리 로직은 **커널에만** 있다. 여기는 세션 상태를 커널 상태로 옮기고
+        # 결과를 영속화하는 얇은 껍데기다. 두 실행기가 각자 루프를 갖고 있던 것이
+        # 2026-08-08 사고의 원인이었다 (같은 policy, 다른 실행기, 다른 전략).
+        cfg = _kernel_config(session)
+        st = _state_from_session(session)
+
         cycle: Optional[CycleResult] = None
         for k, pos in enumerate(gap_positions):
             prediction = float(pred_all[k])
             bar = df_eval.iloc[pos]
             bar_ts = eval_index[pos]
             ts_iso = pd.Timestamp(bar_ts).isoformat()
-            # bars_held는 policy가 읽기 전에 증가해야 한다. backtester는
-            # `bars_held = i - entry_idx`(진입 다음 바에서 1)를 넘기는데, 여기서는
-            # 진입 시 0으로 두고 policy 호출 *뒤에* 증가시켜서 policy가 항상 1 적은
-            # 값을 봤다 → max_hold_bars가 정확히 1바 늦게 발동(= Day-30 전략이
-            # Day-31에 청산). R-3 검증 기준은 `entry_idx + hold_days`이므로
-            # backtester가 맞고 여기가 틀렸다 (2026-08-08 정합성 게이트로 발견).
-            if session.side != "flat":
-                session.bars_held += 1
 
-            policy_ctx = PolicyContext(
-                timestamp=bar_ts.to_pydatetime() if hasattr(bar_ts, "to_pydatetime") else bar_ts,
-                prediction=prediction,
-                open_price=float(bar["open"]),
-                high_price=float(bar["high"]),
-                low_price=float(bar["low"]),
-                close_price=float(bar["close"]),
-                in_position=(session.side != "flat"),
-                side=session.side,
-                entry_price=session.entry_price,
-                bars_held=session.bars_held,
-            )
+            st, res = kernel_step(
+                st,
+                ts=bar_ts.to_pydatetime() if hasattr(bar_ts, "to_pydatetime") else bar_ts,
+                open_price=float(bar["open"]), high_price=float(bar["high"]),
+                low_price=float(bar["low"]), close_price=float(bar["close"]),
+                prediction=prediction, policy=pipeline.policy, cfg=cfg)
 
-            # Forced-exit check (SL/TP hit intra-bar) BEFORE policy.decide
-            forced_exit = self._check_forced_exit(session, bar)
-
-            action = pipeline.policy.decide(policy_ctx)
-
-            side_before = session.side
+            side_before = res.side_before
+            action = res.action
             trade_id: Optional[str] = None
-
-            if forced_exit:
-                trade = self._close_position(session, forced_exit["price"], bar_ts, forced_exit["reason"], prediction)
+            if res.closed is not None:
+                session.n_trades += 1
+                trade = TradeRecord(
+                    trade_id=str(uuid.uuid4())[:12], side=res.closed.side,
+                    entry_ts=(pd.Timestamp(res.closed.entry_ts).isoformat()
+                              if res.closed.entry_ts is not None else ""),
+                    exit_ts=pd.Timestamp(res.closed.exit_ts).isoformat(),
+                    entry_price=res.closed.entry_price, exit_price=res.closed.exit_price,
+                    qty=res.closed.qty, return_pct=res.closed.return_pct,
+                    pnl_cash=res.closed.pnl_cash, exit_reason=res.closed.exit_reason,
+                    prediction_at_entry=prediction,
+                )
                 trade_id = trade.trade_id
                 self.store.append_trade(session.session_id, trade)
-            elif action.kind == "exit" and session.side != "flat":
-                trade = self._close_position(session, float(bar["open"]), bar_ts, action.note or "policy_exit", prediction)
-                trade_id = trade.trade_id
-                self.store.append_trade(session.session_id, trade)
 
-            # Apply entry if flat now
-            if session.side == "flat" and action.kind == "enter_long":
-                self._open_long(session, float(bar["open"]), bar_ts, action, prediction)
-            elif session.side == "flat" and action.kind == "enter_short":
-                self._open_short(session, float(bar["open"]), bar_ts, action, prediction)
-            # bars_held 증가는 위 policy 호출 전으로 옮겼다 — 여기서 hold일 때만
-            # 올리면 policy가 1 적은 값을 보고 청산이 1바 밀린다.
-
-            # Mark equity
-            if session.side == "long":
-                equity = session.cash + session.qty * float(bar["close"])
-            elif session.side == "short":
-                equity = session.cash + session.qty * (session.entry_price - float(bar["close"])) + session.qty * session.entry_price
-            else:
-                equity = session.cash
-
+            _apply_state(session, st)
+            equity = res.equity
             session.final_equity = equity
             session.total_return_pct = (equity - session.initial_capital) / session.initial_capital
             session.last_cycle_ts = ts_iso
@@ -258,7 +284,7 @@ class PaperOrchestrator:
                 cash_after=session.cash, equity_after=equity,
                 sl_price=session.sl_price, tp_price=session.tp_price,
                 trade_id=trade_id,
-                forced_exit_reason=forced_exit["reason"] if forced_exit else None,
+                forced_exit_reason=res.forced_exit_reason,
             )
             self.store.append_cycle(session.session_id, cycle)
 
@@ -276,109 +302,45 @@ class PaperOrchestrator:
             return True
         return (datetime.utcnow() - last).days >= session.refit_interval_days
 
+    # ── 아래 헬퍼들은 **커널 위임**이다 ─────────────────────────────────
+    # 회계식을 여기에 다시 쓰면 그 순간 두 번째 구현이 생긴다 (2026-08-08 사고).
+    # 기존 테스트(test_bracket_semantics / test_short_fee)가 이 진입점을 쓰므로
+    # 시그니처는 유지하되 내용은 전부 kernel 로 넘긴다.
+
     def _check_forced_exit(self, session: PaperSession, bar: pd.Series) -> Optional[dict]:
-        if session.side == "flat":
-            return None
-        # A bracket price of 0.0 means "disabled" — never treat it as a level,
-        # or `high >= 0` / `low <= 0` would fire an instant bogus exit at price 0.
-        sl, tp = session.sl_price, session.tp_price
-        if session.side == "long":
-            if sl > 0 and float(bar["low"]) <= sl:
-                return {"price": sl, "reason": "sl"}
-            if tp > 0 and float(bar["high"]) >= tp:
-                return {"price": tp, "reason": "tp"}
-        else:  # short
-            if sl > 0 and float(bar["high"]) >= sl:
-                return {"price": sl, "reason": "sl"}
-            if tp > 0 and float(bar["low"]) <= tp:
-                return {"price": tp, "reason": "tp"}
-        return None
+        hit = _forced_exit(_state_from_session(session),
+                           float(bar["high"]), float(bar["low"]))
+        return None if hit is None else {"price": hit[0], "reason": hit[1]}
 
     def _open_long(self, session: PaperSession, price: float, ts: pd.Timestamp,
                    action: Action, prediction: float) -> None:
-        size_pct = 0.95
-        qty = (session.cash * size_pct) / (price * (1 + session.fee_rate))
-        if qty <= 0:
-            return
-        cost = qty * price * (1 + session.fee_rate)
-        session.cash -= cost
-        session.qty = qty
-        session.side = "long"
-        session.entry_price = price
-        session.entry_ts = pd.Timestamp(ts).isoformat()
-        # None = policy left the bracket unset → apply the generic default.
-        # 0.0 = policy explicitly disabled that bracket (e.g. lifecycle_decay
-        # with tp_pct>=1.0 returns tp_price=0.0 meaning "no take-profit").
-        # `or` conflated the two and silently armed a 10% TP the strategy never
-        # declared, diverging System-2 forward sessions from the R-3 validated
-        # SL-only design (incident 2026-08-08, GRVTUSDT).
-        session.sl_price = price * 0.96 if action.sl_price is None else float(action.sl_price)
-        session.tp_price = price * 1.10 if action.tp_price is None else float(action.tp_price)
-        session.bars_held = 0
+        st = _kernel_open(_state_from_session(session), "enter_long", price,
+                          pd.Timestamp(ts).isoformat(), action, _kernel_config(session))
+        _apply_state(session, st)
 
     def _open_short(self, session: PaperSession, price: float, ts: pd.Timestamp,
                     action: Action, prediction: float) -> None:
-        qty = (session.cash * 0.95) / price
-        if qty <= 0:
-            return
-        session.cash -= qty * price  # collateral
-        session.qty = qty
-        session.side = "short"
-        session.entry_price = price
-        session.entry_ts = pd.Timestamp(ts).isoformat()
-        # See _open_long: None = unset (use default), 0.0 = explicitly disabled.
-        session.sl_price = price * 1.04 if action.sl_price is None else float(action.sl_price)
-        session.tp_price = price * 0.90 if action.tp_price is None else float(action.tp_price)
-        session.bars_held = 0
+        st = _kernel_open(_state_from_session(session), "enter_short", price,
+                          pd.Timestamp(ts).isoformat(), action, _kernel_config(session))
+        _apply_state(session, st)
 
     def _close_position(self, session: PaperSession, exit_price: float,
                         exit_ts: pd.Timestamp, reason: str,
                         prediction_at_entry: float) -> TradeRecord:
-        if session.side == "long":
-            proceeds = session.qty * exit_price * (1 - session.fee_rate)
-            cost = session.qty * session.entry_price * (1 + session.fee_rate)
-            session.cash += proceeds
-            ret = (proceeds - cost) / cost
-            pnl_cash = proceeds - cost
-        else:  # short
-            # 2026-08-12: 숏에 수수료가 아예 부과되지 않던 결함 수정.
-            # backtester._close_position 과 **같은 식**이어야 한다 — 두 실행기가
-            # 갈리면 그게 곧 2026-08-08 사고의 재발이다.
-            # 양다리 모두 청산 시점 계상 (이유는 backtester 쪽 주석 참조).
-            fee = session.fee_rate
-            gross = session.qty * (session.entry_price - float(exit_price))
-            fees = (session.qty * session.entry_price * fee
-                    + session.qty * float(exit_price) * fee)
-            proceeds = gross - fees
-            cost = session.qty * session.entry_price
-            session.cash += cost + proceeds
-            ret = proceeds / cost
-            pnl_cash = proceeds
-
-        trade_id = str(uuid.uuid4())[:12]
-        trade = TradeRecord(
-            trade_id=trade_id,
-            side=session.side,
-            entry_ts=session.entry_ts or "",
-            exit_ts=pd.Timestamp(exit_ts).isoformat(),
-            entry_price=session.entry_price,
-            exit_price=float(exit_price),
-            qty=session.qty,
-            return_pct=float(ret),
-            pnl_cash=float(pnl_cash),
-            exit_reason=reason,
+        st, tr = _kernel_close(_state_from_session(session), float(exit_price),
+                               exit_ts, reason, _kernel_config(session))
+        _apply_state(session, st)
+        session.n_trades += 1
+        return TradeRecord(
+            trade_id=str(uuid.uuid4())[:12], side=tr.side,
+            entry_ts=(pd.Timestamp(tr.entry_ts).isoformat()
+                      if tr.entry_ts is not None else ""),
+            exit_ts=pd.Timestamp(tr.exit_ts).isoformat(),
+            entry_price=tr.entry_price, exit_price=tr.exit_price, qty=tr.qty,
+            return_pct=tr.return_pct, pnl_cash=tr.pnl_cash,
+            exit_reason=tr.exit_reason,
             prediction_at_entry=float(prediction_at_entry),
         )
-
-        session.qty = 0.0
-        session.side = "flat"
-        session.entry_price = 0.0
-        session.entry_ts = None
-        session.sl_price = 0.0
-        session.tp_price = 0.0
-        session.bars_held = 0
-        session.n_trades += 1
-        return trade
 
     def _record_no_op(self, session: PaperSession, feat: pd.DataFrame, reason: str) -> CycleResult:
         ts_iso = pd.Timestamp(feat.index[-1]).isoformat()
