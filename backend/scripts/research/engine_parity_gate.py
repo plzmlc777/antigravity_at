@@ -261,6 +261,10 @@ def main() -> int:
     ap.add_argument("--all-lifecycle", action="store_true")
     ap.add_argument("--all-sessions", action="store_true")
     ap.add_argument("--limit", type=int)
+    # 2026-08-12: 통합 실행기 1단계(동결·계측). 게이트는 지금까지 로그만 남겨
+    # "그때 무엇이 통과했는지"를 나중에 대조할 수 없었다. 리팩터링 전/후를 비교
+    # 하려면 판정을 파일로 고정해야 한다.
+    ap.add_argument("--out", help="판정 결과를 JSON 으로 저장 (리팩터링 회귀 기준)")
     args = ap.parse_args()
 
     if args.session:
@@ -276,15 +280,25 @@ def main() -> int:
     log.info("정합성 게이트: %d 케이스", len(cases))
     failed, skipped, passed, leaked = [], [], 0, []
     pol_pass, pol_fail = Counter(), Counter()
+    records: list[dict] = []
     for symbol, spec, cap, fee, pol in cases:
         try:
             r = compare(spec, symbol, cap, fee)
         except Exception as exc:
             r = {"skipped": f"예외: {type(exc).__name__}: {exc}"}
+        rec = {"symbol": symbol, "policy": pol,
+               "sources": sorted(s.get("type", "?") for s in (spec.get("sources") or []))}
+        records.append(rec)
         if r.get("skipped"):
             log.info("%-13s %-26s SKIP — %s", symbol, pol, r["skipped"])
             skipped.append((symbol, pol, r["skipped"]))
+            rec.update({"verdict": "SKIP", "reason": r["skipped"]})
             continue
+        rec.update({"n_bars": r.get("n_bars"), "n_backtester": r.get("n_backtester"),
+                    "n_orchestrator": r.get("n_orchestrator"),
+                    "lookahead_leaks": len((r.get("lookahead") or {}).get("leaks") or []),
+                    "lookahead_checked": (r.get("lookahead") or {}).get("checked"),
+                    "lookahead_skipped": (r.get("lookahead") or {}).get("skipped")})
         la = r.get("lookahead") or {}
         if la.get("leaks"):
             leaked.append((symbol, pol, la))
@@ -292,6 +306,11 @@ def main() -> int:
                       symbol, pol, la.get("checked", 0), len(la["leaks"]))
             for lk in la["leaks"][:2]:
                 log.error("      %s  신호 %.3g → 섭동 후 %.3g", lk["bar"], lk["before"], lk["after"])
+        rec["verdict"] = "PASS" if r["match"] else "FAIL"
+        if la.get("leaks"):
+            rec["verdict"] += "+LOOKAHEAD"
+        if not r["match"]:
+            rec["diffs"] = r.get("diffs")
         if r["match"]:
             passed += 1
             pol_pass[pol] += 1
@@ -321,6 +340,17 @@ def main() -> int:
         log.error("폴리시별 FAIL: %s", dict(pol_fail))
     if skipped:
         log.info("SKIP 사유 분포: %s", dict(Counter(s[2].split(":")[0] for s in skipped)))
+
+    if args.out:
+        p = Path(args.out)
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(json.dumps({
+            "n_cases": len(cases), "passed": passed,
+            "failed": len(failed), "skipped": len(skipped), "lookahead": len(leaked),
+            "by_policy_pass": dict(pol_pass), "by_policy_fail": dict(pol_fail),
+            "records": records,
+        }, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
+        log.info("저장: %s", p)
     return 1 if (failed or leaked) else 0
 
 
