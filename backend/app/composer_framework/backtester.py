@@ -23,8 +23,11 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 
+from .kernel import KernelConfig, KernelState
+from .kernel import close as kernel_close
+from .kernel import step as kernel_step
 from .pipeline import Pipeline
-from .policy import Action, PolicyContext, TradingPolicy
+from .policy import TradingPolicy
 from .signal_source import SourceContext
 
 logger = logging.getLogger(__name__)
@@ -165,13 +168,6 @@ class GenericBacktester:
         predictions: pd.Series,
         policy: TradingPolicy,
     ) -> BacktestKPIs:
-        cash = self.initial_capital
-        qty = 0.0
-        side = "flat"
-        entry_price = 0.0
-        entry_idx = -1
-        sl_price = 0.0
-        tp_price = 0.0
         trades: list[BacktestTrade] = []
         eq: list[tuple[datetime, float]] = []
 
@@ -179,100 +175,44 @@ class GenericBacktester:
         # align predictions to bars
         preds_aligned = predictions.reindex(bars.index)
 
+        cfg = self._kernel_config()
+        st = KernelState(cash=self.initial_capital)
+        pred_at_entry = 0.0          # 커널은 예측을 들고 다니지 않는다 — 드라이버 몫
+
+        def _py(t):
+            return t.to_pydatetime() if hasattr(t, "to_pydatetime") else t
+
+        def _record(tr) -> None:
+            trades.append(BacktestTrade(
+                entry_ts=_py(tr.entry_ts), exit_ts=_py(tr.exit_ts), side=tr.side,
+                entry_price=tr.entry_price, exit_price=tr.exit_price, qty=tr.qty,
+                return_pct=tr.return_pct, exit_reason=tr.exit_reason,
+                prediction_at_entry=pred_at_entry,
+            ))
+
         for i in range(len(bars)):
             ts = bars.index[i]
-            o = float(bars.iloc[i]["open"])
-            h = float(bars.iloc[i]["high"])
-            l = float(bars.iloc[i]["low"])
-            c = float(bars.iloc[i]["close"])
+            row = bars.iloc[i]
             pred = float(preds_aligned.iloc[i]) if i < len(preds_aligned) else np.nan
 
-            # 1) Forced exits (SL/TP intrabar) — checked BEFORE policy.decide for fairness
-            forced_exit_reason: Optional[str] = None
-            forced_exit_price: Optional[float] = None
-            # 0.0 = bracket disabled (policy returned None/0) — must not be read
-            # as a level, else `h >= 0` / `l <= 0` fires an instant exit at 0.
-            if side == "long":
-                if sl_price > 0 and l <= sl_price:
-                    forced_exit_reason, forced_exit_price = "sl", sl_price
-                elif tp_price > 0 and h >= tp_price:
-                    forced_exit_reason, forced_exit_price = "tp", tp_price
-            elif side == "short":
-                if sl_price > 0 and h >= sl_price:
-                    forced_exit_reason, forced_exit_price = "sl", sl_price
-                elif tp_price > 0 and l <= tp_price:
-                    forced_exit_reason, forced_exit_price = "tp", tp_price
+            st, res = kernel_step(
+                st, ts=ts, open_price=float(row["open"]), high_price=float(row["high"]),
+                low_price=float(row["low"]), close_price=float(row["close"]),
+                prediction=pred, policy=policy, cfg=cfg)
 
-            # 2) Policy decision (sees current bar)
-            ctx = PolicyContext(
-                timestamp=ts.to_pydatetime() if hasattr(ts, "to_pydatetime") else ts,
-                prediction=pred, open_price=o, high_price=h, low_price=l, close_price=c,
-                in_position=(side != "flat"), side=side,
-                entry_price=entry_price,
-                bars_held=(i - entry_idx) if side != "flat" else 0,
-            )
-            action = policy.decide(ctx)
+            if res.closed is not None:
+                _record(res.closed)
+            if res.opened:
+                pred_at_entry = 0.0 if (pred is None or np.isnan(pred)) else float(pred)
+            eq.append((_py(ts), res.equity))
 
-            # 3) Apply exits
-            if forced_exit_reason is not None:
-                self._close_position(
-                    side=side, qty=qty, entry_price=entry_price,
-                    exit_price=forced_exit_price, exit_ts=ts, entry_ts=bars.index[entry_idx],
-                    exit_reason=forced_exit_reason, prediction_entry=preds_aligned.iloc[entry_idx],
-                    cash_holder=lambda d: setattr(self, "_tmp_cash", cash + d),
-                    trades=trades,
-                )
-                cash = getattr(self, "_tmp_cash")
-                qty = 0.0; side = "flat"
-            elif action.kind == "exit" and side != "flat":
-                self._close_position(
-                    side=side, qty=qty, entry_price=entry_price,
-                    exit_price=o, exit_ts=ts, entry_ts=bars.index[entry_idx],
-                    exit_reason=action.note or "policy",
-                    prediction_entry=preds_aligned.iloc[entry_idx],
-                    cash_holder=lambda d: setattr(self, "_tmp_cash", cash + d),
-                    trades=trades,
-                )
-                cash = getattr(self, "_tmp_cash")
-                qty = 0.0; side = "flat"
-
-            # 4) Entries
-            if side == "flat" and action.kind in ("enter_long", "enter_short"):
-                if action.kind == "enter_long":
-                    qty = (cash * self.size_pct) / (o * (1 + self.fee_rate))
-                    cash -= qty * o * (1 + self.fee_rate)
-                    side = "long"
-                else:
-                    qty = (cash * self.size_pct) / o
-                    cash -= qty * o  # collateral
-                    side = "short"
-                entry_price = o
-                entry_idx = i
-                sl_price = action.sl_price or 0.0
-                tp_price = action.tp_price or 0.0
-
-            # 5) Mark-to-market
-            if side == "long":
-                mtm = cash + qty * c
-            elif side == "short":
-                mtm = cash + qty * (entry_price - c) + qty * entry_price
-            else:
-                mtm = cash
-            eq.append((ts.to_pydatetime() if hasattr(ts, "to_pydatetime") else ts, mtm))
-
-        # close residual at last bar
-        if side != "flat":
-            last_close = float(bars.iloc[-1]["close"])
-            self._close_position(
-                side=side, qty=qty, entry_price=entry_price,
-                exit_price=last_close, exit_ts=bars.index[-1],
-                entry_ts=bars.index[entry_idx],
-                exit_reason="eod",
-                prediction_entry=preds_aligned.iloc[entry_idx],
-                cash_holder=lambda d: setattr(self, "_tmp_cash", cash + d),
-                trades=trades,
-            )
-            cash = getattr(self, "_tmp_cash")
+        # close residual at last bar — 백테스트만의 규칙(라이브 세션은 열어 둔다).
+        # 통합 계획에서 `close_at_end` 설정으로 표현할 항목(D6).
+        if st.side != "flat":
+            st, tr = kernel_close(st, float(bars.iloc[-1]["close"]), bars.index[-1],
+                                  "eod", cfg)
+            _record(tr)
+        cash = st.cash
 
         bh = (float(bars.iloc[-1]["close"]) - float(bars.iloc[0]["open"])) / float(bars.iloc[0]["open"])
         kpis = BacktestKPIs(
@@ -291,34 +231,16 @@ class GenericBacktester:
 
     # -- helpers --
 
-    def _close_position(
-        self, *, side, qty, entry_price, exit_price, exit_ts, entry_ts,
-        exit_reason, prediction_entry, cash_holder, trades,
-    ):
-        if side == "long":
-            proceeds = qty * exit_price * (1 - self.fee_rate)
-            cost = qty * entry_price * (1 + self.fee_rate)
-            ret = (proceeds - cost) / cost
-            cash_holder(proceeds)
-        else:  # short
-            # 숏 수수료는 **양다리 모두 청산 시점에** 계상한다. 진입 시 차감하면
-            # 구방식으로 이미 열려 있는 포지션이 진입 수수료를 낸 적이 없는데
-            # 청산에서 빼게 돼 보고 수익률과 현금 변화가 어긋난다. 완결된 거래
-            # 기준으로는 진입 시 차감과 경제적으로 동일하다.
-            fee = self.fee_rate if self.apply_fee_to_short else 0.0
-            gross = qty * (entry_price - float(exit_price))
-            fees = qty * entry_price * fee + qty * float(exit_price) * fee
-            proceeds = gross - fees
-            cost = qty * entry_price
-            ret = proceeds / cost
-            cash_holder(cost + proceeds)
-        trades.append(BacktestTrade(
-            entry_ts=entry_ts.to_pydatetime() if hasattr(entry_ts, "to_pydatetime") else entry_ts,
-            exit_ts=exit_ts.to_pydatetime() if hasattr(exit_ts, "to_pydatetime") else exit_ts,
-            side=side, entry_price=entry_price, exit_price=float(exit_price),
-            qty=qty, return_pct=float(ret), exit_reason=exit_reason,
-            prediction_at_entry=float(prediction_entry) if prediction_entry is not None and not np.isnan(prediction_entry) else 0.0,
-        ))
+    def _kernel_config(self) -> KernelConfig:
+        """백테스터의 현행 회계를 커널 설정으로 표현한다.
+
+        브래킷 기본값 없음 — 예전 코드의 `action.sl_price or 0.0` 과 같다
+        (None 도 0.0 도 비활성). orchestrator 는 SL4%/TP10% 를 넣는데, 그
+        격차(D2)는 3b 에서 따로 다룬다. 2단계는 행동을 바꾸지 않는다.
+        """
+        return KernelConfig(size_pct=self.size_pct, fee_rate=self.fee_rate,
+                            apply_fee_to_short=self.apply_fee_to_short,
+                            default_sl_pct=None, default_tp_pct=None)
 
     def _fill_kpis(self, k: BacktestKPIs) -> None:
         n = len(k.trades)

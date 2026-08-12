@@ -1,0 +1,2174 @@
+{
+  "n_cases": 154,
+  "passed": 136,
+  "failed": 0,
+  "skipped": 18,
+  "lookahead": 0,
+  "by_policy_pass": {
+    "long_short_threshold": 95,
+    "lifecycle_decay_early_exit": 27,
+    "long_only_threshold": 10,
+    "funding_reversal": 4
+  },
+  "by_policy_fail": {},
+  "records": [
+    {
+      "symbol": "OUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_lifecycle_decay"
+      ],
+      "n_bars": 48,
+      "n_backtester": 1,
+      "n_orchestrator": 1,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "GRAMUSDT",
+      "policy": "lifecycle_decay_early_exit",
+      "sources": [
+        "bn_lifecycle_decay_early_exit"
+      ],
+      "n_bars": 40,
+      "n_backtester": 1,
+      "n_orchestrator": 1,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "SOLUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_alt_volume_burst_neg_reversion_short"
+      ],
+      "n_bars": 2016,
+      "n_backtester": 0,
+      "n_orchestrator": 0,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_alt_volume_burst_pos_continuation_long"
+      ],
+      "n_bars": 2016,
+      "n_backtester": 0,
+      "n_orchestrator": 0,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "GRVTUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_lifecycle_decay"
+      ],
+      "n_bars": 11,
+      "n_backtester": 0,
+      "n_orchestrator": 0,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_premium_index_zscore"
+      ],
+      "n_bars": 796,
+      "n_backtester": 32,
+      "n_orchestrator": 32,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "CTRUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_lifecycle_decay"
+      ],
+      "n_bars": 75,
+      "n_backtester": 2,
+      "n_orchestrator": 2,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "OUSDT",
+      "policy": "lifecycle_decay_early_exit",
+      "sources": [
+        "bn_lifecycle_decay_early_exit"
+      ],
+      "n_bars": 48,
+      "n_backtester": 1,
+      "n_orchestrator": 1,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "DATAIPUSDT",
+      "policy": "lifecycle_decay_early_exit",
+      "sources": [
+        "bn_lifecycle_decay_early_exit"
+      ],
+      "n_bars": 39,
+      "n_backtester": 1,
+      "n_orchestrator": 1,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "000660",
+      "policy": "long_only_threshold",
+      "sources": [
+        "kr_flow",
+        "market_state",
+        "pattern",
+        "regime"
+      ],
+      "n_bars": 363,
+      "n_backtester": 72,
+      "n_orchestrator": 72,
+      "lookahead_leaks": 0,
+      "lookahead_checked": null,
+      "lookahead_skipped": "signal 컬럼 없음",
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_alt_volume_burst_neg_reversion_short"
+      ],
+      "n_bars": 2016,
+      "n_backtester": 0,
+      "n_orchestrator": 0,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "LDOUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_event_detector",
+        "bn_oi_dynamics",
+        "bn_smart_money",
+        "bn_taker_flow",
+        "market_state",
+        "pattern",
+        "regime"
+      ],
+      "n_bars": 796,
+      "n_backtester": 176,
+      "n_orchestrator": 176,
+      "lookahead_leaks": 0,
+      "lookahead_checked": null,
+      "lookahead_skipped": "signal 컬럼 없음",
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_oi_dynamics",
+        "bn_taker_flow",
+        "market_state",
+        "pattern",
+        "regime"
+      ],
+      "n_bars": 796,
+      "n_backtester": 141,
+      "n_orchestrator": 141,
+      "lookahead_leaks": 0,
+      "lookahead_checked": null,
+      "lookahead_skipped": "signal 컬럼 없음",
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "STARUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_lifecycle_decay_bear_skip"
+      ],
+      "n_bars": 82,
+      "n_backtester": 2,
+      "n_orchestrator": 2,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "BTWUSDT",
+      "policy": "lifecycle_decay_early_exit",
+      "sources": [
+        "bn_lifecycle_decay_early_exit"
+      ],
+      "n_bars": 68,
+      "n_backtester": 2,
+      "n_orchestrator": 2,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "SLXUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_lifecycle_decay"
+      ],
+      "n_bars": 71,
+      "n_backtester": 5,
+      "n_orchestrator": 5,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "STARUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_lifecycle_decay"
+      ],
+      "n_bars": 82,
+      "n_backtester": 4,
+      "n_orchestrator": 4,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "BTWUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_lifecycle_decay_bear_skip"
+      ],
+      "n_bars": 68,
+      "n_backtester": 0,
+      "n_orchestrator": 0,
+      "lookahead_leaks": 0,
+      "lookahead_checked": null,
+      "lookahead_skipped": "신호 발생 없음",
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "PHAROSUSDT",
+      "policy": "lifecycle_decay_early_exit",
+      "sources": [
+        "bn_lifecycle_decay_early_exit"
+      ],
+      "n_bars": 82,
+      "n_backtester": 1,
+      "n_orchestrator": 1,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "GRVTUSDT",
+      "policy": "lifecycle_decay_early_exit",
+      "sources": [
+        "bn_lifecycle_decay_early_exit"
+      ],
+      "n_bars": 11,
+      "n_backtester": 0,
+      "n_orchestrator": 0,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "AXSUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_event_detector",
+        "market_state",
+        "pattern",
+        "regime"
+      ],
+      "n_bars": 795,
+      "n_backtester": 151,
+      "n_orchestrator": 151,
+      "lookahead_leaks": 0,
+      "lookahead_checked": null,
+      "lookahead_skipped": "signal 컬럼 없음",
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "OUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_lifecycle_decay"
+      ],
+      "n_bars": 48,
+      "n_backtester": 2,
+      "n_orchestrator": 2,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "HBARUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_premium",
+        "bn_smart_money",
+        "market_state",
+        "pattern",
+        "regime"
+      ],
+      "n_bars": 796,
+      "n_backtester": 152,
+      "n_orchestrator": 152,
+      "lookahead_leaks": 0,
+      "lookahead_checked": null,
+      "lookahead_skipped": "signal 컬럼 없음",
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_oi_price_decoupling"
+      ],
+      "n_bars": 2016,
+      "n_backtester": 14,
+      "n_orchestrator": 14,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_btc_rv_highvol_long"
+      ],
+      "verdict": "SKIP",
+      "reason": "orchestrator 실행 실패: RuntimeError: SignalSource 'bn_btc_rv_highvol_long' failed: bn_btc_rv_highvol_long[ADAUSDT]: BTC 1m leader too short — have 201440 bars (~139d), need ≥216000 (~150d) for 120d vol warmup + 30d usable window. Backfill BTCUSDT 1m before trusting this session."
+    },
+    {
+      "symbol": "FILUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_alt_volume_burst_pos_continuation_long"
+      ],
+      "n_bars": 2016,
+      "n_backtester": 5,
+      "n_orchestrator": 5,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "DOSUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_lifecycle_decay"
+      ],
+      "verdict": "SKIP",
+      "reason": "eval 바 부족"
+    },
+    {
+      "symbol": "SOLUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_alt_volume_burst_pos_continuation_long"
+      ],
+      "n_bars": 2016,
+      "n_backtester": 0,
+      "n_orchestrator": 0,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "CTRUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_lifecycle_decay_bear_skip"
+      ],
+      "n_bars": 75,
+      "n_backtester": 2,
+      "n_orchestrator": 2,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_alt_volume_burst_pos_continuation_long"
+      ],
+      "n_bars": 2016,
+      "n_backtester": 0,
+      "n_orchestrator": 0,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "BNBUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_btc_rv_highvol_long"
+      ],
+      "verdict": "SKIP",
+      "reason": "orchestrator 실행 실패: RuntimeError: SignalSource 'bn_btc_rv_highvol_long' failed: bn_btc_rv_highvol_long[BNBUSDT]: BTC 1m leader too short — have 201440 bars (~139d), need ≥216000 (~150d) for 120d vol warmup + 30d usable window. Backfill BTCUSDT 1m before trusting this session."
+    },
+    {
+      "symbol": "GRVTUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_lifecycle_decay_bear_skip"
+      ],
+      "n_bars": 11,
+      "n_backtester": 0,
+      "n_orchestrator": 0,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "WLDUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_event_detector",
+        "market_state",
+        "pattern",
+        "regime"
+      ],
+      "n_bars": 796,
+      "n_backtester": 208,
+      "n_orchestrator": 208,
+      "lookahead_leaks": 0,
+      "lookahead_checked": null,
+      "lookahead_skipped": "signal 컬럼 없음",
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "SOLUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_premium_index_zscore"
+      ],
+      "n_bars": 796,
+      "n_backtester": 29,
+      "n_orchestrator": 29,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "AIGENSYNUSDT",
+      "policy": "lifecycle_decay_early_exit",
+      "sources": [
+        "bn_lifecycle_decay_early_exit"
+      ],
+      "n_bars": 100,
+      "n_backtester": 1,
+      "n_orchestrator": 1,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "DATAIPUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_lifecycle_decay"
+      ],
+      "n_bars": 39,
+      "n_backtester": 1,
+      "n_orchestrator": 1,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "BCHUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_btc_rv_highvol_long"
+      ],
+      "verdict": "SKIP",
+      "reason": "orchestrator 실행 실패: RuntimeError: SignalSource 'bn_btc_rv_highvol_long' failed: bn_btc_rv_highvol_long[BCHUSDT]: BTC 1m leader too short — have 201440 bars (~139d), need ≥216000 (~150d) for 120d vol warmup + 30d usable window. Backfill BTCUSDT 1m before trusting this session."
+    },
+    {
+      "symbol": "REUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_lifecycle_decay"
+      ],
+      "n_bars": 54,
+      "n_backtester": 3,
+      "n_orchestrator": 3,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_alt_volume_burst_pos_continuation_long"
+      ],
+      "n_bars": 2016,
+      "n_backtester": 1,
+      "n_orchestrator": 1,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_btc_rv_highvol_long"
+      ],
+      "verdict": "SKIP",
+      "reason": "orchestrator 실행 실패: RuntimeError: SignalSource 'bn_btc_rv_highvol_long' failed: bn_btc_rv_highvol_long[NEARUSDT]: BTC 1m leader too short — have 201440 bars (~139d), need ≥216000 (~150d) for 120d vol warmup + 30d usable window. Backfill BTCUSDT 1m before trusting this session."
+    },
+    {
+      "symbol": "REUSDT",
+      "policy": "lifecycle_decay_early_exit",
+      "sources": [
+        "bn_lifecycle_decay_early_exit"
+      ],
+      "n_bars": 54,
+      "n_backtester": 2,
+      "n_orchestrator": 2,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "TONUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_oi_dynamics",
+        "bn_taker_flow",
+        "market_state",
+        "pattern",
+        "regime"
+      ],
+      "n_bars": 793,
+      "n_backtester": 119,
+      "n_orchestrator": 119,
+      "lookahead_leaks": 0,
+      "lookahead_checked": null,
+      "lookahead_skipped": "signal 컬럼 없음",
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "DATAIPUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_lifecycle_decay"
+      ],
+      "n_bars": 39,
+      "n_backtester": 1,
+      "n_orchestrator": 1,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "FILUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_btc_rv_highvol_long"
+      ],
+      "verdict": "SKIP",
+      "reason": "orchestrator 실행 실패: RuntimeError: SignalSource 'bn_btc_rv_highvol_long' failed: bn_btc_rv_highvol_long[FILUSDT]: BTC 1m leader too short — have 201440 bars (~139d), need ≥216000 (~150d) for 120d vol warmup + 30d usable window. Backfill BTCUSDT 1m before trusting this session."
+    },
+    {
+      "symbol": "SOLUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_btc_rv_highvol_long"
+      ],
+      "verdict": "SKIP",
+      "reason": "orchestrator 실행 실패: RuntimeError: SignalSource 'bn_btc_rv_highvol_long' failed: bn_btc_rv_highvol_long[SOLUSDT]: BTC 1m leader too short — have 201440 bars (~139d), need ≥216000 (~150d) for 120d vol warmup + 30d usable window. Backfill BTCUSDT 1m before trusting this session."
+    },
+    {
+      "symbol": "UNIUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_autocorr_regime"
+      ],
+      "n_bars": 2016,
+      "n_backtester": 0,
+      "n_orchestrator": 0,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "HBARUSDT",
+      "policy": "funding_reversal",
+      "sources": [
+        "bn_funding_zscore"
+      ],
+      "n_bars": 2016,
+      "n_backtester": 18,
+      "n_orchestrator": 18,
+      "lookahead_leaks": 0,
+      "lookahead_checked": null,
+      "lookahead_skipped": "signal 컬럼 없음",
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "SLXUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_lifecycle_decay"
+      ],
+      "n_bars": 71,
+      "n_backtester": 2,
+      "n_orchestrator": 2,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_alt_volume_burst_neg_reversion_short"
+      ],
+      "n_bars": 2016,
+      "n_backtester": 2,
+      "n_orchestrator": 2,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "ZESTUSDT",
+      "policy": "lifecycle_decay_early_exit",
+      "sources": [
+        "bn_lifecycle_decay_early_exit"
+      ],
+      "n_bars": 68,
+      "n_backtester": 1,
+      "n_orchestrator": 1,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "122630",
+      "policy": "long_only_threshold",
+      "sources": [
+        "kr_flow",
+        "market_state",
+        "pattern",
+        "regime"
+      ],
+      "n_bars": 310,
+      "n_backtester": 64,
+      "n_orchestrator": 64,
+      "lookahead_leaks": 0,
+      "lookahead_checked": null,
+      "lookahead_skipped": "signal 컬럼 없음",
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "DATAIPUSDT",
+      "policy": "lifecycle_decay_early_exit",
+      "sources": [
+        "bn_lifecycle_decay_early_exit"
+      ],
+      "n_bars": 39,
+      "n_backtester": 1,
+      "n_orchestrator": 1,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "122630",
+      "policy": "long_only_threshold",
+      "sources": [
+        "kr_flow",
+        "market_state",
+        "pattern",
+        "regime"
+      ],
+      "n_bars": 310,
+      "n_backtester": 64,
+      "n_orchestrator": 64,
+      "lookahead_leaks": 0,
+      "lookahead_checked": null,
+      "lookahead_skipped": "signal 컬럼 없음",
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "SLXUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_lifecycle_decay_bear_skip"
+      ],
+      "n_bars": 71,
+      "n_backtester": 0,
+      "n_orchestrator": 0,
+      "lookahead_leaks": 0,
+      "lookahead_checked": null,
+      "lookahead_skipped": "신호 발생 없음",
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "PHAROSUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_lifecycle_decay"
+      ],
+      "n_bars": 82,
+      "n_backtester": 2,
+      "n_orchestrator": 2,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "GRAMUSDT",
+      "policy": "lifecycle_decay_early_exit",
+      "sources": [
+        "bn_lifecycle_decay_early_exit"
+      ],
+      "n_bars": 40,
+      "n_backtester": 1,
+      "n_orchestrator": 1,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "AIGENSYNUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_lifecycle_decay"
+      ],
+      "n_bars": 100,
+      "n_backtester": 3,
+      "n_orchestrator": 3,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "PHAROSUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_lifecycle_decay_bear_skip"
+      ],
+      "n_bars": 82,
+      "n_backtester": 2,
+      "n_orchestrator": 2,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "DOSUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_lifecycle_decay_bear_skip"
+      ],
+      "verdict": "SKIP",
+      "reason": "eval 바 부족"
+    },
+    {
+      "symbol": "ARXUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_lifecycle_decay"
+      ],
+      "n_bars": 49,
+      "n_backtester": 1,
+      "n_orchestrator": 1,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "GRVTUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_lifecycle_decay"
+      ],
+      "n_bars": 11,
+      "n_backtester": 0,
+      "n_orchestrator": 0,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "XRPUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_btc_rv_highvol_long"
+      ],
+      "verdict": "SKIP",
+      "reason": "orchestrator 실행 실패: RuntimeError: SignalSource 'bn_btc_rv_highvol_long' failed: bn_btc_rv_highvol_long[XRPUSDT]: BTC 1m leader too short — have 201440 bars (~139d), need ≥216000 (~150d) for 120d vol warmup + 30d usable window. Backfill BTCUSDT 1m before trusting this session."
+    },
+    {
+      "symbol": "LINKUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_autocorr_regime"
+      ],
+      "n_bars": 2016,
+      "n_backtester": 0,
+      "n_orchestrator": 0,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "SLXUSDT",
+      "policy": "lifecycle_decay_early_exit",
+      "sources": [
+        "bn_lifecycle_decay_early_exit"
+      ],
+      "n_bars": 71,
+      "n_backtester": 1,
+      "n_orchestrator": 1,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "STARUSDT",
+      "policy": "lifecycle_decay_early_exit",
+      "sources": [
+        "bn_lifecycle_decay_early_exit"
+      ],
+      "n_bars": 82,
+      "n_backtester": 2,
+      "n_orchestrator": 2,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "JUPUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_oi_dynamics",
+        "market_state",
+        "pattern",
+        "regime"
+      ],
+      "n_bars": 796,
+      "n_backtester": 181,
+      "n_orchestrator": 181,
+      "lookahead_leaks": 0,
+      "lookahead_checked": null,
+      "lookahead_skipped": "signal 컬럼 없음",
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "BTWUSDT",
+      "policy": "lifecycle_decay_early_exit",
+      "sources": [
+        "bn_lifecycle_decay_early_exit"
+      ],
+      "n_bars": 68,
+      "n_backtester": 6,
+      "n_orchestrator": 6,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_alt_volume_burst_neg_reversion_short"
+      ],
+      "n_bars": 2016,
+      "n_backtester": 1,
+      "n_orchestrator": 1,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_alt_volume_burst_neg_reversion_short"
+      ],
+      "n_bars": 2016,
+      "n_backtester": 7,
+      "n_orchestrator": 7,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "LINKUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_alt_volume_burst_neg_reversion_short"
+      ],
+      "n_bars": 2016,
+      "n_backtester": 1,
+      "n_orchestrator": 1,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "CAPUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_lifecycle_decay_bear_skip"
+      ],
+      "n_bars": 45,
+      "n_backtester": 0,
+      "n_orchestrator": 0,
+      "lookahead_leaks": 0,
+      "lookahead_checked": null,
+      "lookahead_skipped": "신호 발생 없음",
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "122630",
+      "policy": "long_only_threshold",
+      "sources": [
+        "kr_flow",
+        "market_state",
+        "regime"
+      ],
+      "n_bars": 310,
+      "n_backtester": 64,
+      "n_orchestrator": 64,
+      "lookahead_leaks": 0,
+      "lookahead_checked": null,
+      "lookahead_skipped": "signal 컬럼 없음",
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "BTWUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_lifecycle_decay"
+      ],
+      "n_bars": 68,
+      "n_backtester": 6,
+      "n_orchestrator": 6,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "CTRUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_lifecycle_decay"
+      ],
+      "n_bars": 75,
+      "n_backtester": 3,
+      "n_orchestrator": 3,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "OUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_lifecycle_decay_bear_skip"
+      ],
+      "n_bars": 48,
+      "n_backtester": 0,
+      "n_orchestrator": 0,
+      "lookahead_leaks": 0,
+      "lookahead_checked": null,
+      "lookahead_skipped": "신호 발생 없음",
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "BNBUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_stablecoin_supply_flow"
+      ],
+      "n_bars": 798,
+      "n_backtester": 104,
+      "n_orchestrator": 104,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "ETCUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_premium",
+        "bn_smart_money",
+        "market_state",
+        "pattern",
+        "regime"
+      ],
+      "n_bars": 796,
+      "n_backtester": 167,
+      "n_orchestrator": 167,
+      "lookahead_leaks": 0,
+      "lookahead_checked": null,
+      "lookahead_skipped": "signal 컬럼 없음",
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "055550",
+      "policy": "long_only_threshold",
+      "sources": [
+        "kr_flow",
+        "market_state",
+        "pattern",
+        "regime"
+      ],
+      "n_bars": 363,
+      "n_backtester": 55,
+      "n_orchestrator": 55,
+      "lookahead_leaks": 0,
+      "lookahead_checked": null,
+      "lookahead_skipped": "signal 컬럼 없음",
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "LTCUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_btc_rv_highvol_long"
+      ],
+      "verdict": "SKIP",
+      "reason": "orchestrator 실행 실패: RuntimeError: SignalSource 'bn_btc_rv_highvol_long' failed: bn_btc_rv_highvol_long[LTCUSDT]: BTC 1m leader too short — have 201440 bars (~139d), need ≥216000 (~150d) for 120d vol warmup + 30d usable window. Backfill BTCUSDT 1m before trusting this session."
+    },
+    {
+      "symbol": "ICPUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_event_detector",
+        "bn_oi_dynamics",
+        "bn_smart_money",
+        "bn_taker_flow",
+        "market_state",
+        "pattern",
+        "regime"
+      ],
+      "n_bars": 796,
+      "n_backtester": 189,
+      "n_orchestrator": 189,
+      "lookahead_leaks": 0,
+      "lookahead_checked": null,
+      "lookahead_skipped": "signal 컬럼 없음",
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "122630",
+      "policy": "long_only_threshold",
+      "sources": [
+        "kr_flow",
+        "market_state",
+        "pattern",
+        "regime"
+      ],
+      "n_bars": 310,
+      "n_backtester": 63,
+      "n_orchestrator": 63,
+      "lookahead_leaks": 0,
+      "lookahead_checked": null,
+      "lookahead_skipped": "signal 컬럼 없음",
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "HBARUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_premium_velocity_zscore"
+      ],
+      "n_bars": 796,
+      "n_backtester": 107,
+      "n_orchestrator": 107,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_stablecoin_supply_flow"
+      ],
+      "n_bars": 796,
+      "n_backtester": 103,
+      "n_orchestrator": 103,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "DOSUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_lifecycle_decay"
+      ],
+      "verdict": "SKIP",
+      "reason": "eval 바 부족"
+    },
+    {
+      "symbol": "ZESTUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_lifecycle_decay"
+      ],
+      "n_bars": 68,
+      "n_backtester": 3,
+      "n_orchestrator": 3,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_alt_volume_burst_pos_continuation_long"
+      ],
+      "n_bars": 2016,
+      "n_backtester": 0,
+      "n_orchestrator": 0,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_btc_rv_highvol_long"
+      ],
+      "verdict": "SKIP",
+      "reason": "orchestrator 실행 실패: RuntimeError: SignalSource 'bn_btc_rv_highvol_long' failed: bn_btc_rv_highvol_long[AVAXUSDT]: BTC 1m leader too short — have 201440 bars (~139d), need ≥216000 (~150d) for 120d vol warmup + 30d usable window. Backfill BTCUSDT 1m before trusting this session."
+    },
+    {
+      "symbol": "CAPUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_lifecycle_decay"
+      ],
+      "n_bars": 45,
+      "n_backtester": 3,
+      "n_orchestrator": 3,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "SLXUSDT",
+      "policy": "lifecycle_decay_early_exit",
+      "sources": [
+        "bn_lifecycle_decay_early_exit"
+      ],
+      "n_bars": 71,
+      "n_backtester": 2,
+      "n_orchestrator": 2,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "SOLUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_wick_reversal_multibar"
+      ],
+      "n_bars": 2016,
+      "n_backtester": 0,
+      "n_orchestrator": 0,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "GRVTUSDT",
+      "policy": "lifecycle_decay_early_exit",
+      "sources": [
+        "bn_lifecycle_decay_early_exit"
+      ],
+      "n_bars": 11,
+      "n_backtester": 0,
+      "n_orchestrator": 0,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "XRPUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_alt_volume_burst_pos_continuation_long"
+      ],
+      "n_bars": 2016,
+      "n_backtester": 0,
+      "n_orchestrator": 0,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "196170",
+      "policy": "long_only_threshold",
+      "sources": [
+        "kr_flow",
+        "market_state",
+        "pattern",
+        "regime"
+      ],
+      "n_bars": 363,
+      "n_backtester": 65,
+      "n_orchestrator": 65,
+      "lookahead_leaks": 0,
+      "lookahead_checked": null,
+      "lookahead_skipped": "signal 컬럼 없음",
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "CAPUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_lifecycle_decay"
+      ],
+      "n_bars": 45,
+      "n_backtester": 2,
+      "n_orchestrator": 2,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "SOLUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_book_depth",
+        "bn_smart_money",
+        "bn_taker_flow",
+        "market_state",
+        "pattern",
+        "regime"
+      ],
+      "n_bars": 796,
+      "n_backtester": 172,
+      "n_orchestrator": 172,
+      "lookahead_leaks": 0,
+      "lookahead_checked": null,
+      "lookahead_skipped": "signal 컬럼 없음",
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "DOSUSDT",
+      "policy": "lifecycle_decay_early_exit",
+      "sources": [
+        "bn_lifecycle_decay_early_exit"
+      ],
+      "verdict": "SKIP",
+      "reason": "eval 바 부족"
+    },
+    {
+      "symbol": "ZESTUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_lifecycle_decay"
+      ],
+      "n_bars": 68,
+      "n_backtester": 3,
+      "n_orchestrator": 3,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "BNBUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_alt_volume_burst_pos_continuation_long"
+      ],
+      "n_bars": 2016,
+      "n_backtester": 1,
+      "n_orchestrator": 1,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "055550",
+      "policy": "long_only_threshold",
+      "sources": [
+        "kr_flow",
+        "market_state",
+        "pattern",
+        "regime"
+      ],
+      "n_bars": 363,
+      "n_backtester": 51,
+      "n_orchestrator": 51,
+      "lookahead_leaks": 0,
+      "lookahead_checked": null,
+      "lookahead_skipped": "signal 컬럼 없음",
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "LDOUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_premium_index_zscore"
+      ],
+      "n_bars": 796,
+      "n_backtester": 30,
+      "n_orchestrator": 30,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "LINKUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_stablecoin_supply_flow"
+      ],
+      "n_bars": 796,
+      "n_backtester": 103,
+      "n_orchestrator": 103,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "STARUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_lifecycle_decay"
+      ],
+      "n_bars": 82,
+      "n_backtester": 2,
+      "n_orchestrator": 2,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "BCHUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_alt_volume_burst_pos_continuation_long"
+      ],
+      "n_bars": 2016,
+      "n_backtester": 0,
+      "n_orchestrator": 0,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "BNBUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_alt_volume_burst_neg_reversion_short"
+      ],
+      "n_bars": 2016,
+      "n_backtester": 2,
+      "n_orchestrator": 2,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "ZESTUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_lifecycle_decay_bear_skip"
+      ],
+      "n_bars": 69,
+      "n_backtester": 0,
+      "n_orchestrator": 0,
+      "lookahead_leaks": 0,
+      "lookahead_checked": null,
+      "lookahead_skipped": "신호 발생 없음",
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "AXSUSDT",
+      "policy": "funding_reversal",
+      "sources": [
+        "bn_funding_zscore"
+      ],
+      "n_bars": 2016,
+      "n_backtester": 44,
+      "n_orchestrator": 44,
+      "lookahead_leaks": 0,
+      "lookahead_checked": null,
+      "lookahead_skipped": "signal 컬럼 없음",
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "196170",
+      "policy": "long_only_threshold",
+      "sources": [
+        "kr_flow",
+        "market_state",
+        "pattern",
+        "regime"
+      ],
+      "n_bars": 363,
+      "n_backtester": 68,
+      "n_orchestrator": 68,
+      "lookahead_leaks": 0,
+      "lookahead_checked": null,
+      "lookahead_skipped": "signal 컬럼 없음",
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_btc_rv_highvol_long"
+      ],
+      "verdict": "SKIP",
+      "reason": "orchestrator 실행 실패: RuntimeError: SignalSource 'bn_btc_rv_highvol_long' failed: bn_btc_rv_highvol_long[DOGEUSDT]: BTC 1m leader too short — have 201440 bars (~139d), need ≥216000 (~150d) for 120d vol warmup + 30d usable window. Backfill BTCUSDT 1m before trusting this session."
+    },
+    {
+      "symbol": "COMPUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_oi_dynamics",
+        "bn_premium",
+        "bn_taker_flow",
+        "market_state",
+        "pattern",
+        "regime"
+      ],
+      "n_bars": 792,
+      "n_backtester": 138,
+      "n_orchestrator": 138,
+      "lookahead_leaks": 0,
+      "lookahead_checked": null,
+      "lookahead_skipped": "signal 컬럼 없음",
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "XRPUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_alt_volume_burst_neg_reversion_short"
+      ],
+      "n_bars": 2016,
+      "n_backtester": 1,
+      "n_orchestrator": 1,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "DATAIPUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_lifecycle_decay_bear_skip"
+      ],
+      "n_bars": 40,
+      "n_backtester": 1,
+      "n_orchestrator": 1,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_cross_lead_lag"
+      ],
+      "n_bars": 2016,
+      "n_backtester": 0,
+      "n_orchestrator": 0,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_btc_rv_highvol_long"
+      ],
+      "verdict": "SKIP",
+      "reason": "orchestrator 실행 실패: RuntimeError: SignalSource 'bn_btc_rv_highvol_long' failed: bn_btc_rv_highvol_long[ETHUSDT]: BTC 1m leader too short — have 201440 bars (~139d), need ≥216000 (~150d) for 120d vol warmup + 30d usable window. Backfill BTCUSDT 1m before trusting this session."
+    },
+    {
+      "symbol": "ARXUSDT",
+      "policy": "lifecycle_decay_early_exit",
+      "sources": [
+        "bn_lifecycle_decay_early_exit"
+      ],
+      "n_bars": 50,
+      "n_backtester": 1,
+      "n_orchestrator": 1,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "XRPUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_stablecoin_supply_flow"
+      ],
+      "n_bars": 797,
+      "n_backtester": 104,
+      "n_orchestrator": 104,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "CTRUSDT",
+      "policy": "lifecycle_decay_early_exit",
+      "sources": [
+        "bn_lifecycle_decay_early_exit"
+      ],
+      "n_bars": 76,
+      "n_backtester": 1,
+      "n_orchestrator": 1,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "GRAMUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_lifecycle_decay_bear_skip"
+      ],
+      "n_bars": 41,
+      "n_backtester": 0,
+      "n_orchestrator": 0,
+      "lookahead_leaks": 0,
+      "lookahead_checked": null,
+      "lookahead_skipped": "신호 발생 없음",
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "007210",
+      "policy": "long_only_threshold",
+      "sources": [
+        "kr_flow",
+        "market_state",
+        "pattern",
+        "regime"
+      ],
+      "n_bars": 372,
+      "n_backtester": 45,
+      "n_orchestrator": 45,
+      "lookahead_leaks": 0,
+      "lookahead_checked": null,
+      "lookahead_skipped": "signal 컬럼 없음",
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "FILUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_alt_volume_burst_neg_reversion_short"
+      ],
+      "n_bars": 2016,
+      "n_backtester": 9,
+      "n_orchestrator": 9,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "REUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_lifecycle_decay_bear_skip"
+      ],
+      "n_bars": 55,
+      "n_backtester": 0,
+      "n_orchestrator": 0,
+      "lookahead_leaks": 0,
+      "lookahead_checked": null,
+      "lookahead_skipped": "신호 발생 없음",
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "LINKUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_alt_volume_burst_pos_continuation_long"
+      ],
+      "n_bars": 2016,
+      "n_backtester": 0,
+      "n_orchestrator": 0,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "BTWUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_lifecycle_decay"
+      ],
+      "n_bars": 69,
+      "n_backtester": 6,
+      "n_orchestrator": 6,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "PHAROSUSDT",
+      "policy": "lifecycle_decay_early_exit",
+      "sources": [
+        "bn_lifecycle_decay_early_exit"
+      ],
+      "n_bars": 83,
+      "n_backtester": 1,
+      "n_orchestrator": 1,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "ARXUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_lifecycle_decay_bear_skip"
+      ],
+      "n_bars": 50,
+      "n_backtester": 0,
+      "n_orchestrator": 0,
+      "lookahead_leaks": 0,
+      "lookahead_checked": null,
+      "lookahead_skipped": "신호 발생 없음",
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "PYTHUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_oi_dynamics",
+        "bn_taker_flow",
+        "market_state",
+        "pattern",
+        "regime"
+      ],
+      "n_bars": 793,
+      "n_backtester": 184,
+      "n_orchestrator": 184,
+      "lookahead_leaks": 0,
+      "lookahead_checked": null,
+      "lookahead_skipped": "signal 컬럼 없음",
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "BCHUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_alt_volume_burst_neg_reversion_short"
+      ],
+      "n_bars": 2016,
+      "n_backtester": 1,
+      "n_orchestrator": 1,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "REUSDT",
+      "policy": "lifecycle_decay_early_exit",
+      "sources": [
+        "bn_lifecycle_decay_early_exit"
+      ],
+      "n_bars": 55,
+      "n_backtester": 3,
+      "n_orchestrator": 3,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "ETCUSDT",
+      "policy": "funding_reversal",
+      "sources": [
+        "bn_funding_dispersion"
+      ],
+      "n_bars": 2016,
+      "n_backtester": 76,
+      "n_orchestrator": 76,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "CAPUSDT",
+      "policy": "lifecycle_decay_early_exit",
+      "sources": [
+        "bn_lifecycle_decay_early_exit"
+      ],
+      "n_bars": 46,
+      "n_backtester": 3,
+      "n_orchestrator": 3,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_alt_volume_burst_neg_reversion_short"
+      ],
+      "n_bars": 2016,
+      "n_backtester": 4,
+      "n_orchestrator": 4,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "ARXUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_lifecycle_decay"
+      ],
+      "n_bars": 50,
+      "n_backtester": 2,
+      "n_orchestrator": 2,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "GRAMUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_lifecycle_decay"
+      ],
+      "n_bars": 41,
+      "n_backtester": 1,
+      "n_orchestrator": 1,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "LTCUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_alt_volume_burst_neg_reversion_short"
+      ],
+      "n_bars": 2016,
+      "n_backtester": 0,
+      "n_orchestrator": 0,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_btc_rv_highvol_long"
+      ],
+      "verdict": "SKIP",
+      "reason": "orchestrator 실행 실패: RuntimeError: SignalSource 'bn_btc_rv_highvol_long' failed: bn_btc_rv_highvol_long[WIFUSDT]: BTC 1m leader too short — have 201440 bars (~139d), need ≥216000 (~150d) for 120d vol warmup + 30d usable window. Backfill BTCUSDT 1m before trusting this session."
+    },
+    {
+      "symbol": "WIFUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_alt_volume_burst_neg_reversion_short"
+      ],
+      "n_bars": 2016,
+      "n_backtester": 2,
+      "n_orchestrator": 2,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_premium_velocity_zscore"
+      ],
+      "n_bars": 795,
+      "n_backtester": 110,
+      "n_orchestrator": 110,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "ARXUSDT",
+      "policy": "lifecycle_decay_early_exit",
+      "sources": [
+        "bn_lifecycle_decay_early_exit"
+      ],
+      "n_bars": 50,
+      "n_backtester": 1,
+      "n_orchestrator": 1,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "PHAROSUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_lifecycle_decay"
+      ],
+      "n_bars": 83,
+      "n_backtester": 3,
+      "n_orchestrator": 3,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "LTCUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_alt_volume_burst_pos_continuation_long"
+      ],
+      "n_bars": 2016,
+      "n_backtester": 0,
+      "n_orchestrator": 0,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "DOSUSDT",
+      "policy": "lifecycle_decay_early_exit",
+      "sources": [
+        "bn_lifecycle_decay_early_exit"
+      ],
+      "verdict": "SKIP",
+      "reason": "eval 바 부족"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_alt_volume_burst_pos_continuation_long"
+      ],
+      "n_bars": 2016,
+      "n_backtester": 5,
+      "n_orchestrator": 5,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "1000LUNCUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_oi_dynamics",
+        "bn_smart_money",
+        "bn_taker_flow",
+        "market_state",
+        "pattern",
+        "regime"
+      ],
+      "n_bars": 795,
+      "n_backtester": 146,
+      "n_orchestrator": 146,
+      "lookahead_leaks": 0,
+      "lookahead_checked": null,
+      "lookahead_skipped": "signal 컬럼 없음",
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "STARUSDT",
+      "policy": "lifecycle_decay_early_exit",
+      "sources": [
+        "bn_lifecycle_decay_early_exit"
+      ],
+      "n_bars": 83,
+      "n_backtester": 2,
+      "n_orchestrator": 2,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "COMPUSDT",
+      "policy": "funding_reversal",
+      "sources": [
+        "bn_funding_zscore"
+      ],
+      "n_bars": 2016,
+      "n_backtester": 28,
+      "n_orchestrator": 28,
+      "lookahead_leaks": 0,
+      "lookahead_checked": null,
+      "lookahead_skipped": "signal 컬럼 없음",
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_stablecoin_supply_flow"
+      ],
+      "n_bars": 795,
+      "n_backtester": 103,
+      "n_orchestrator": 103,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "ZESTUSDT",
+      "policy": "lifecycle_decay_early_exit",
+      "sources": [
+        "bn_lifecycle_decay_early_exit"
+      ],
+      "n_bars": 69,
+      "n_backtester": 3,
+      "n_orchestrator": 3,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "GRAMUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_lifecycle_decay"
+      ],
+      "n_bars": 41,
+      "n_backtester": 1,
+      "n_orchestrator": 1,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "CTRUSDT",
+      "policy": "lifecycle_decay_early_exit",
+      "sources": [
+        "bn_lifecycle_decay_early_exit"
+      ],
+      "n_bars": 76,
+      "n_backtester": 2,
+      "n_orchestrator": 2,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "OUSDT",
+      "policy": "lifecycle_decay_early_exit",
+      "sources": [
+        "bn_lifecycle_decay_early_exit"
+      ],
+      "n_bars": 49,
+      "n_backtester": 1,
+      "n_orchestrator": 1,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "REUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_lifecycle_decay"
+      ],
+      "n_bars": 55,
+      "n_backtester": 3,
+      "n_orchestrator": 3,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "CAPUSDT",
+      "policy": "lifecycle_decay_early_exit",
+      "sources": [
+        "bn_lifecycle_decay_early_exit"
+      ],
+      "n_bars": 46,
+      "n_backtester": 3,
+      "n_orchestrator": 3,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_alt_volume_burst_pos_continuation_long"
+      ],
+      "n_bars": 2016,
+      "n_backtester": 1,
+      "n_orchestrator": 1,
+      "lookahead_leaks": 0,
+      "lookahead_checked": 4,
+      "lookahead_skipped": null,
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "UNIUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_cascade_reversal",
+        "bn_event_detector",
+        "bn_mtf_alignment",
+        "bn_oi_dynamics",
+        "bn_taker_flow",
+        "market_state",
+        "pattern",
+        "regime"
+      ],
+      "n_bars": 795,
+      "n_backtester": 162,
+      "n_orchestrator": 162,
+      "lookahead_leaks": 0,
+      "lookahead_checked": null,
+      "lookahead_skipped": "signal 컬럼 없음",
+      "verdict": "PASS"
+    },
+    {
+      "symbol": "LINKUSDT",
+      "policy": "long_short_threshold",
+      "sources": [
+        "bn_btc_rv_highvol_long"
+      ],
+      "verdict": "SKIP",
+      "reason": "orchestrator 실행 실패: RuntimeError: SignalSource 'bn_btc_rv_highvol_long' failed: bn_btc_rv_highvol_long[LINKUSDT]: BTC 1m leader too short — have 201440 bars (~139d), need ≥216000 (~150d) for 120d vol warmup + 30d usable window. Backfill BTCUSDT 1m before trusting this session."
+    }
+  ]
+}
