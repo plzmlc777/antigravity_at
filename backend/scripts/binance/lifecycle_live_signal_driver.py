@@ -97,6 +97,21 @@ REAL_MAX_SYMBOL_FRACTION = 0.20
 # never re-enter. 30 = baseline hold; +1 grace bar.
 HARD_EXIT_DAYS = 31
 
+# 진입 창 — 상장 후 이 일수를 넘으면 **신규 진입을 금지**한다.
+#
+# 왜 (2026-08-12 발견)
+#   드라이버는 System-2 세션의 side 를 계좌에 미러링한다. 세션이 Day-1 에 숏을
+#   열고 계속 보유 중인데 계좌가 비어 있으면(링크가 늦게 생겼거나 REAL 이 꺼져
+#   있었으면), 드라이버는 **Day-12 에 뒤늦게 따라붙으려 한다**. 실제로 GRVTUSDT
+#   에서 `flat→short @Day-12` 가 계획됐다.
+#
+#   백테스트는 Day-1 종가 진입을 가정한다. 며칠 지난 값에 따라붙는 것은 검증된
+#   전략이 아니다 — 상장 직후 급락 구간을 이미 놓친 뒤 남은 위험만 떠안는다.
+#
+#   age>=31 강제청산 관문은 **나가는 쪽**만 막고 있었다. 이건 **들어가는 쪽**이다.
+#   이미 열린 포지션의 보유·청산에는 영향을 주지 않는다.
+ENTRY_WINDOW_DAYS = 3
+
 _ASYNC_LOOP = None
 
 
@@ -569,6 +584,16 @@ def run(args) -> int:
             if intended == desired:
                 log.info("%s %s (%s): in sync (side=%s)", s2_id, track, symbol, desired)
                 continue
+
+            # 진입 창 관문 — 창을 지난 **신규** 진입만 막는다.
+            # 보유/청산(desired=="flat")은 이 관문을 통과시킨다.
+            if intended == "flat" and desired == "short":
+                _age = _session_age_days(s2_id)
+                if _age is not None and _age > ENTRY_WINDOW_DAYS:
+                    log.warning("%s %s (%s): age %dd > %dd entry window — "
+                                "**late entry blocked** (backtest enters at Day-1)",
+                                s2_id, track, symbol, _age, ENTRY_WINDOW_DAYS)
+                    continue
 
             margin_used = 0.0  # REAL: how much of the shared budget this short consumes
             if desired == "short":

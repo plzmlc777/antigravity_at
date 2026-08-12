@@ -69,7 +69,31 @@ PYTHONPATH=. python3 -m scripts.paper_session_cli run --all --exchange binance 2
 EC="${PIPESTATUS[0]}"
 echo "[binance-paper] exit_code=${EC}" | tee -a "${LOG_FILE}"
 
-# lifecycle short — PAPER 전용 (2026-08-08 대표님 지시로 1군 → 2군 강등).
+# lifecycle short — PAPER + REAL (2026-08-12 대표님 지시로 REAL 재개).
+#
+# ── 2026-08-12 재개 ──────────────────────────────────────────────────
+# 재개되는 트랙은 이전과 **다른 물건**이다. 오늘 소스의 재진입 버그를 고쳤다:
+#   `bn_lifecycle_decay*` 가 -1.0 을 영원히 내보내 익절 뒤 즉시 재진입했다.
+#   실계좌는 REUSDT 한 종목에 8회, ARXUSDT 에 3회 진입했다. 패러다임은
+#   "상장 Day-1 종가 숏 **한 번**" 이다. 이제 진입 신호 창이 상장 후 3일만
+#   열린다(listing_date/entry_window_days). 조기청산 신호(양수)는 보존.
+#
+# 재개 근거와 한계 (2026-08-12 백테스트, 순수 규칙·재진입 없음, n=251):
+#   표본 안 (R-4 이전, 241건) 중앙 +18.32% / 승률 57.7% / t +5.70
+#   표본 밖 (이후,   10건)    중앙 +19.09% / 승률 60.0% / t +0.61
+#   → 알파 감쇠는 안 보이나 **표본 밖 10건으로는 통계 확인 불가**.
+#     상위 1건을 빼면 +0.73% 로 견고성이 없다. 20~25건에서 재판정한다.
+#
+# 이번 재개의 주목적은 수익이 아니라 **3자 동기화 검증**이다 —
+# 백테스트 / System-2 페이퍼 / 실계좌가 같은 규칙으로 같은 값을 내는지.
+# 대조 도구: scripts/research/lifecycle_three_way_sync.py
+#
+# 위험 통제 (기존, lifecycle_live_signal_driver.py):
+#   REAL_MAX_SYMBOL_FRACTION 0.20  — 종목당 지갑의 20% (MDD 플래토)
+#   REAL_MARGIN_FRACTION     0.97  — 가용 마진의 97%
+#   보유창 후 하드 강제청산       — 2026-07-27 고아 포지션 사고 대응
+#
+# ── 2026-08-08 정지 당시 기록 (보존) ─────────────────────────────────
 #
 # REAL 트랙을 끈 이유: 3개월 실계좌 운용에서 수익의 138%가 상위 4건에 몰렸고,
 # 그 4건조차 진입이 38시간 지연된 우연에 크게 기대고 있었다(최대이득 ARX는 지연
@@ -82,13 +106,35 @@ echo "[binance-paper] exit_code=${EC}" | tee -a "${LOG_FILE}"
 #   (2) reconcile 의 --include-real     → REAL 주문 실행
 # 하나만 끄면 세션은 계속 생기거나(1 누락), 주문이 계속 나간다(2 누락).
 # REAL 재개 시 두 플래그를 같이 되살릴 것.
-echo "[binance-paper] lifecycle auto-link new listings (paper only)..." | tee -a "${LOG_FILE}"
+echo "[binance-paper] lifecycle auto-link new listings (paper + REAL)..." | tee -a "${LOG_FILE}"
+# ── 2026-08-12: 추종 신호 earlyexit_d14 → **earlyexit_d7** (대표님 지시) ──
+#
+# `--name-filter` 기본값이 earlyexit_d14 라 지금까지 실계좌는 d14 를 따랐다.
+# 131건 캘린더 포트폴리오 시뮬(회귀 검사 통과, 현행 사이징 20%x1 고정):
+#
+#   신호            포착%   MDD%     최악$    총손익$   거래당$   SL%   조기%   놓침
+#   earlyexit_d7    80.2  -41.43  -202.19  1277.79   12.17  25.7  51.4   26
+#   h21             67.2  -35.73  -141.39   833.32    9.47  31.8   0.0   43
+#   earlyexit_d14   66.4  -50.39  -102.66   378.81    4.35  34.5  24.1   44   ← 종전
+#   base            61.1  -37.70   -80.31   325.82    4.07  38.8   0.0   51
+#
+# d7 은 d14 대비 포착률 +13.8%p(놓침 44→26), SL 34.5→25.7%, 총손익 3.4배,
+# **MDD 는 -50.4→-41.4% 로 개선**. 조기청산이 51.4% 발동해 자본이 빨리 돌아온다.
+# 단 최악 단일거래가 -102.66 → -202.19 로 2배다 — 자본 회전이 빨라 포지션이
+# 커지기 때문이다. 사이징(20%x1)은 이번 변경에서 건드리지 않는다.
+#
+# 참고: 거래 **단위** 백테스트(251건)에서는 d7 이 base 대비 -14.08%p(t -3.05)로
+# 최악이었다. 포트폴리오에서 뒤집힌 이유는 조기청산이 기회를 두 배로 늘리기
+# 때문이다. 거래당 지표만으로 판정하면 안 된다는 사례다.
 PYTHONPATH=. python3 scripts/binance/lifecycle_live_provision.py \
-  --auto-link --account-id 12 --notional 200 --initial-capital 10000 \
+  --auto-link --name-filter earlyexit_d7 \
+  --account-id 12 --notional 200 --initial-capital 10000 \
+  --real-account-id 8 \
   --commit 2>&1 | tee -a "${LOG_FILE}"
-# reconcile: System-2 의 현재 side 를 링크된 PAPER 세션에 미러링.
-echo "[binance-paper] lifecycle live signal reconcile (paper only)..." | tee -a "${LOG_FILE}"
-PYTHONPATH=. python3 scripts/binance/lifecycle_live_signal_driver.py --submit 2>&1 | tee -a "${LOG_FILE}"
+# reconcile: System-2 의 현재 side 를 링크된 PAPER + REAL 세션에 미러링.
+echo "[binance-paper] lifecycle live signal reconcile (paper + REAL)..." | tee -a "${LOG_FILE}"
+PYTHONPATH=. python3 scripts/binance/lifecycle_live_signal_driver.py \
+  --submit --include-real 2>&1 | tee -a "${LOG_FILE}"
 
 # Append a status snapshot for monitoring
 echo "" | tee -a "${LOG_FILE}"
