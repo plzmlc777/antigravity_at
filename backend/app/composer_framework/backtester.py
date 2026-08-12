@@ -86,10 +86,17 @@ class GenericBacktester:
         initial_capital: float = 1_000_000.0,
         size_pct: float = 0.95,
         fee_rate: float = 0.00015,
+        apply_fee_to_short: bool = True,
     ) -> None:
         self.initial_capital = float(initial_capital)
         self.size_pct = float(size_pct)
         self.fee_rate = float(fee_rate)
+        # 2026-08-12: 숏에 수수료가 아예 부과되지 않던 결함을 고쳤다(최초 커밋
+        # 70ffae67 이후 3개월간 방치). 롱 분기에만 fee_rate 가 곱해져 있었고
+        # 숏은 진입·청산 모두 무료였다 — 실자금 전략(신상저격수)이 숏 전용이다.
+        # 이 플래그는 **수정 전/후 A/B 측정용**이며 기본값 True 가 올바른 동작이다.
+        # False 는 구동작 재현 전용 — 운영에서 쓰지 말 것.
+        self.apply_fee_to_short = bool(apply_fee_to_short)
 
     # ------------------------------------------- static fit/test
 
@@ -294,7 +301,14 @@ class GenericBacktester:
             ret = (proceeds - cost) / cost
             cash_holder(proceeds)
         else:  # short
-            proceeds = qty * (entry_price - exit_price)
+            # 숏 수수료는 **양다리 모두 청산 시점에** 계상한다. 진입 시 차감하면
+            # 구방식으로 이미 열려 있는 포지션이 진입 수수료를 낸 적이 없는데
+            # 청산에서 빼게 돼 보고 수익률과 현금 변화가 어긋난다. 완결된 거래
+            # 기준으로는 진입 시 차감과 경제적으로 동일하다.
+            fee = self.fee_rate if self.apply_fee_to_short else 0.0
+            gross = qty * (entry_price - float(exit_price))
+            fees = qty * entry_price * fee + qty * float(exit_price) * fee
+            proceeds = gross - fees
             cost = qty * entry_price
             ret = proceeds / cost
             cash_holder(cost + proceeds)
