@@ -232,19 +232,28 @@ const agentApps = [
         max_restarts: 20,
         restart_delay: 10000
     },
-    {
-        // 3군 paradigm dispatch — 매일 03:45 KST 가설 1건 자율 발굴 (Phase B).
-        // queue.json pending 소비, 비면 SELF-RECOMMEND. headless claude로
-        // paradigm-architect 투입 (R-0→R-4), R-4 PASS는 승격 큐 등록. 2026-07-11 배선.
-        name: "paradigm-dispatch-daily",
-        script: SAS_WRAPPER,
-        args: `'45 18 * * *' ./scripts/research/run_paradigm_dispatch.sh`,
-        interpreter: "bash",
-        cwd: ".",
-        autorestart: true,
-        max_restarts: 10,
-        restart_delay: 5000
-    },
+    // ── 3군 자동 디스패치 — 2026-08-13 대표님 지시로 **정지** ──────────────
+    //
+    // 42일 연속 실행 / 판정 39건 중 **통과 0건** / 승격 큐 0건.
+    // 낮은 통과율 자체는 정상이다(대부분의 가설은 죽는 게 맞다). 문제는
+    // **죽은 이유를 믿을 수 없다**는 것이었다 — `runs/ohlcv_cache/` 가
+    // 14종목·2026-05-14 에서 멈춘 채(DB 는 214종목·오늘) R-1 일부가 그걸 읽었다.
+    // 2026-08-09 에 규명했고 p251 은 캐시를 고치자 FAIL→PASS 로 뒤집혔다.
+    //
+    // 당분간 3군 작업 없이 진행한다. 2군(tier-governor)은 그대로 돈다 —
+    // 승격 큐가 비면 `promote_from_queue` 가 빈 리스트를 돌려줄 뿐이다(확인함).
+    //
+    // 재개 조건: **캐시 백필 또는 R-1 로더의 DB 전환이 선행돼야 한다.**
+    // 안 하면 같은 오염이 반복된다. 재개는 아래 블록 주석 해제 후
+    //   ENABLE_AGENTS=1 pm2 start ecosystem.config.cjs --only paradigm-dispatch-daily
+    //
+    // {
+    //     name: "paradigm-dispatch-daily",
+    //     script: SAS_WRAPPER,
+    //     args: `'45 18 * * *' ./scripts/research/run_paradigm_dispatch.sh`,
+    //     interpreter: "bash", cwd: ".", autorestart: true,
+    //     max_restarts: 10, restart_delay: 5000
+    // },
     {
         // ── 초단기 트랙 (2026-08-09 신설) ────────────────────────────────
         // WS 실시간 수집기 — 상주 프로세스(크론 아님).
