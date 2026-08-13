@@ -39,7 +39,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
-from typing import Any, Optional
+from typing import Any, Mapping, Optional
 
 from .policy import Action, PolicyContext, TradingPolicy
 
@@ -49,7 +49,14 @@ class KernelConfig:
     """실행 회계 파라미터. 두 드라이버의 현행 격차를 값으로 표현한다."""
 
     size_pct: float = 0.95
-    fee_rate: float = 0.0004
+    fee_rate: float = 0.0004                    # 테이커 (기본)
+    # 메이커 요율. None 이면 fee_rate 를 양쪽에 쓴다 = 종전 동작.
+    #
+    # 2026-08-13: LimitFill 을 넣고 보니 지정가 체결도 테이커로 계산되고 있었다.
+    # 방향이 보수적(비용 과대)이라 위험하진 않지만 틀렸고, 메이커가 수익원인
+    # 전략(MM·그리드)에서는 결론이 뒤집힌다.
+    # 바이낸스 선물 VIP0: 메이커 2bp / 테이커 5bp.
+    fee_rate_maker: Optional[float] = None
     # 2026-08-12 수정: 숏에 수수료가 아예 부과되지 않던 결함. False 는 구동작
     # 재현(A/B 측정) 전용이며 운영에서 쓰지 말 것.
     apply_fee_to_short: bool = True
@@ -75,6 +82,9 @@ class KernelState:
     bars_held: int = 0
     sl_price: float = 0.0              # 0.0 = 비활성
     tp_price: float = 0.0
+    # 진입이 메이커였는가. 숏은 진입 수수료도 **청산 시** 계상하므로(3a) 상태가
+    # 기억해야 한다.
+    entry_maker: bool = False
 
 
 @dataclass
@@ -101,6 +111,13 @@ class StepResult:
     side_before: str = "flat"
 
 
+def _fee(cfg: KernelConfig, maker: bool) -> float:
+    """유효 수수료율. 메이커 요율이 없으면 종전대로 단일 요율을 쓴다."""
+    if maker and cfg.fee_rate_maker is not None:
+        return float(cfg.fee_rate_maker)
+    return float(cfg.fee_rate)
+
+
 def _forced_exit(st: KernelState, high: float, low: float) -> Optional[tuple[float, str]]:
     """SL/TP 가 바 안에서 닿았는지. 0.0 은 비활성이므로 수준으로 읽지 않는다."""
     if st.side == "long":
@@ -117,7 +134,8 @@ def _forced_exit(st: KernelState, high: float, low: float) -> Optional[tuple[flo
 
 
 def close(st: KernelState, exit_price: float, exit_ts: Any, reason: str,
-          cfg: KernelConfig, frac: float = 1.0) -> tuple[KernelState, ClosedTrade]:
+          cfg: KernelConfig, frac: float = 1.0,
+          exit_maker: bool = False) -> tuple[KernelState, ClosedTrade]:
     """포지션 청산. 롱/숏 회계는 여기 한 곳에만 있다.
 
     `frac` < 1.0 이면 **부분 청산**이다. 그만큼만 실현하고 나머지는 진입가와
@@ -127,9 +145,10 @@ def close(st: KernelState, exit_price: float, exit_ts: Any, reason: str,
     exit_price = float(exit_price)
     frac = max(0.0, min(1.0, float(frac)))
     qty, entry = st.qty * frac, st.entry_price
+    f_in, f_out = _fee(cfg, st.entry_maker), _fee(cfg, exit_maker)
     if st.side == "long":
-        proceeds = qty * exit_price * (1 - cfg.fee_rate)
-        cost = qty * entry * (1 + cfg.fee_rate)
+        proceeds = qty * exit_price * (1 - f_out)
+        cost = qty * entry * (1 + f_in)
         ret = (proceeds - cost) / cost
         pnl = proceeds - cost
         cash = st.cash + proceeds
@@ -138,9 +157,11 @@ def close(st: KernelState, exit_price: float, exit_ts: Any, reason: str,
         # 구방식으로 이미 열려 있는 포지션이 진입 수수료를 낸 적 없는데 청산에서
         # 빼게 돼 보고 수익률과 현금 변화가 어긋난다. 완결 거래 기준으로는
         # 경제적으로 동일하다.
-        f = cfg.fee_rate if cfg.apply_fee_to_short else 0.0
         gross = qty * (entry - exit_price)
-        fees = qty * entry * f + qty * exit_price * f
+        if cfg.apply_fee_to_short:
+            fees = qty * entry * f_in + qty * exit_price * f_out
+        else:
+            fees = 0.0
         proceeds = gross - fees
         cost = qty * entry
         ret = proceeds / cost
@@ -196,12 +217,15 @@ def open_position(st: KernelState, kind: str, bar: dict, ts: Any,
     tp = _bracket(action.tp_price, px, cfg.default_tp_pct, sign_tp)
 
     qty = action.sizing.qty(cash=st.cash, price=px, sl_price=sl,
-                            size_pct=cfg.size_pct, fee_rate=cfg.fee_rate, side=side)
+                            size_pct=cfg.size_pct,
+                            fee_rate=_fee(cfg, bool(getattr(action.fill, "is_maker", False))),
+                            side=side)
     if qty <= 0:
         return st
 
+    maker = bool(getattr(action.fill, "is_maker", False))
     if side == "long":
-        cost = qty * px * (1 + cfg.fee_rate)
+        cost = qty * px * (1 + _fee(cfg, maker))
     else:
         cost = qty * px                # 담보만. 수수료는 청산 시 계상(3a 참조)
     if cost > st.cash:                 # 규칙이 과하게 잡으면 가용까지만
@@ -215,7 +239,8 @@ def open_position(st: KernelState, kind: str, bar: dict, ts: Any,
 
     if st.side == "flat":
         return KernelState(cash=st.cash - cost, side=side, qty=qty, entry_price=px,
-                           entry_ts=ts, bars_held=0, sl_price=sl, tp_price=tp)
+                           entry_ts=ts, bars_held=0, sl_price=sl, tp_price=tp,
+                           entry_maker=maker)
 
     # 추가 진입 — 가중평균 진입가. 보유바수는 **최초 진입 기준을 유지**한다
     # (보유 상한이 추가 진입 때마다 초기화되면 max_hold 가 무력해진다).
@@ -238,7 +263,8 @@ def mark(st: KernelState, close_price: float) -> float:
 
 def step(state: KernelState, *, ts: Any, open_price: float, high_price: float,
          low_price: float, close_price: float, prediction: float,
-         policy: TradingPolicy, cfg: KernelConfig) -> tuple[KernelState, StepResult]:
+         policy: TradingPolicy, cfg: KernelConfig,
+         features: Optional[Mapping[str, Any]] = None) -> tuple[KernelState, StepResult]:
     """바 하나를 처리한다. 순수 함수 — 부작용 없음.
 
     순서 (이 순서 자체가 계약이다):
@@ -264,7 +290,8 @@ def step(state: KernelState, *, ts: Any, open_price: float, high_price: float,
     ctx = PolicyContext(
         timestamp=ts, prediction=prediction,
         in_position=(st.side != "flat"), side=st.side,
-        entry_price=st.entry_price, bars_held=st.bars_held, **bar,
+        entry_price=st.entry_price, bars_held=st.bars_held,
+        features=features if features is not None else {}, **bar,
     )
     decided = policy.decide(ctx)
     actions = tuple(decided) if isinstance(decided, (list, tuple)) else (decided,)
@@ -272,7 +299,9 @@ def step(state: KernelState, *, ts: Any, open_price: float, high_price: float,
 
     closed: list[ClosedTrade] = []
     if forced is not None:
-        st, tr = close(st, forced[0], ts, forced[1], cfg)
+        # TP 는 쉬고 있던 지정가가 채워진 것(메이커), SL 은 스톱 발동(테이커).
+        st, tr = close(st, forced[0], ts, forced[1], cfg,
+                       exit_maker=(forced[1] == "tp"))
         closed.append(tr)
 
     opened = False

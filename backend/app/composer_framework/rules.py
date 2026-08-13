@@ -100,7 +100,15 @@ class RiskSizing(SizingRule):
 # ─────────────────────────── 체결 규칙 ───────────────────────────
 
 class FillRule(ABC):
-    """그 바에서 체결되는가, 되면 얼마에. 안 되면 None."""
+    """그 바에서 체결되는가, 되면 얼마에. 안 되면 None.
+
+    `is_maker` 는 그 체결이 **호가를 제공한 쪽**인지를 말한다. 지정가는 메이커,
+    시장가·스톱은 테이커다. 수수료가 이걸 알아야 한다 — 모르면 지정가 체결도
+    테이커 요율로 계산돼 MM·그리드처럼 메이커가 수익원인 전략에서 결론이 뒤집힌다.
+    """
+
+    #: 호가를 제공한 체결인가 (메이커). 기본은 테이커.
+    is_maker: bool = False
 
     @abstractmethod
     def price(self, *, kind: str, open_price: float, high_price: float,
@@ -133,6 +141,7 @@ class LimitFill(FillRule):
     """
 
     limit_price: float
+    is_maker: bool = True          # 호가를 제공하고 기다린다 → 메이커 요율
 
     def price(self, *, kind, open_price, high_price, low_price, close_price):
         L = float(self.limit_price)

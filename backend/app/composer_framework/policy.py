@@ -15,9 +15,9 @@ volatility-targeting, regime-conditional, pyramiding, etc.).
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal, Mapping
 
 import numpy as np
 
@@ -72,6 +72,18 @@ class PolicyContext:
     side: Literal["long", "short", "flat"]
     entry_price: float = 0.0
     bars_held: int = 0
+    # 그 바의 **피처 행**. 파이프라인이 이미 바마다 계산해 두는 것을 그대로 넘긴다.
+    #
+    # 2026-08-13 이전에는 정책이 `prediction` 하나와 OHLC 만 봤다. 그래서 ATR
+    # 손절을 쓸 수가 없었다 — `Action(sl_price=...)` 는 아무 숫자나 받는데
+    # **계산할 재료가 없었다.** 결과적으로 4개 정책 전부 `open_price * (1-sl_pct)`
+    # 같은 고정 %를 쓴다. 정본이 %를 강요한 게 아니라 정책에 선택지가 없었다.
+    #
+    # 이걸 뚫으면 ATR 손절·변동성 타깃팅·레짐 조건부 판단이 **정본 수정 없이**
+    # 정책에서 표현된다. 기본값이 빈 매핑이라 기존 정책은 영향받지 않는다.
+    #
+    # 읽기 전용으로 다뤄야 한다 — 정책이 여기 쓰면 정본의 순수성이 깨진다.
+    features: Mapping[str, Any] = field(default_factory=dict)
 
 
 class TradingPolicy(ABC):
