@@ -18,6 +18,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Literal, Optional
 
+from .kernel import DEFAULT_FEE_RATE
+
 logger = logging.getLogger(__name__)
 
 
@@ -42,7 +44,17 @@ class PaperSession:
     # Runtime knobs
     initial_capital: float = 1_000_000.0
     refit_interval_days: int = 30
-    fee_rate: float = 0.00015
+    fee_rate: float = DEFAULT_FEE_RATE
+    # 3d — 종전에는 orchestrator 가 0.95 를 하드코딩했다. 세션마다 다르게 둘 수
+    # 있어야 하고, 무엇보다 값이 코드가 아니라 기록에 남아야 재현이 된다.
+    size_pct: float = 0.95
+    # 3e — 바 커버리지. 종전에는 orchestrator 안의 지역 상수였다.
+    #   catchup_cap_bars: 한 사이클이 몰아 재생할 최대 바 수(5분봉 약 1주).
+    #                     긴 장애 뒤 첫 실행이 무한정 길어지지 않게 한다.
+    #   fresh_start_bars: 새 세션이 몇 바 전부터 시작하는가. 1 = 최신 바만
+    #                     (라이브 세션이지 백테스트가 아니므로 과거를 재생하지 않는다).
+    catchup_cap_bars: int = 2016
+    fresh_start_bars: int = 1
 
     # Position state
     cash: float = 0.0
