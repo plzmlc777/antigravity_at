@@ -59,13 +59,26 @@ class TestBracketZeroMeansDisabled(unittest.TestCase):
         PaperOrchestrator._open_long(ORCH, s, 100.0, pd.Timestamp("2026-08-03"), act, 1.0)
         self.assertEqual(s.tp_price, 0.0)
 
-    def test_none_means_unset_and_default_applies(self):
-        """None은 "정책이 안 정함" → 기본값. 0.0과 구분돼야 한다."""
+    def test_none_means_unset_and_no_bracket_is_armed(self):
+        """None(정책 미지정)에도 **아무 브래킷도 장착하지 않는다.** (3b, 2026-08-13)
+
+        종전에는 None 을 "기본값 적용"으로 읽어 SL 4% / TP 10% 를 임의로 달았다.
+        backtester 는 같은 경우 비활성으로 뒀으므로, 같은 policy 가 두 실행기에서
+        다른 전략이 됐다(격차 D2). 2026-08-08 사고 — 선언한 적 없는 10% 익절이
+        실자금 43일을 오염시킨 것 — 이 바로 이 계열이다.
+
+        이제 브래킷은 **policy 가 선언한 것만** 존재한다. 0.0(명시적 비활성)과
+        None(미지정)은 여전히 구분되지만, 결과는 둘 다 "브래킷 없음"이다.
+
+        대신 "선언을 잊으면 손절이 없다"는 위험이 생기므로,
+        `test_short_fee.TestKnownDivergence.test_no_shipped_policy_omits_brackets`
+        가 출하 policy 들이 브래킷을 반드시 채우는지 강제한다.
+        """
         s = _session()
         act = Action(kind="enter_short", sl_price=None, tp_price=None)
         PaperOrchestrator._open_short(ORCH, s, 100.0, pd.Timestamp("2026-08-03"), act, -1.0)
-        self.assertAlmostEqual(s.sl_price, 104.0, places=9)
-        self.assertAlmostEqual(s.tp_price, 90.0, places=9)
+        self.assertEqual(s.sl_price, 0.0, "선언한 적 없는 손절이 장착됐다")
+        self.assertEqual(s.tp_price, 0.0, "선언한 적 없는 익절이 장착됐다 — D2 재발")
 
 
 class TestForcedExitIgnoresDisabledBrackets(unittest.TestCase):

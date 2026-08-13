@@ -169,27 +169,59 @@ class TestKnownDivergence(unittest.TestCase):
     증거다 — 격차가 조용히 사라지거나 조용히 되살아나지 않는다.
     """
 
-    def test_default_bracket_still_diverges(self):
-        """D2 — 미설정(None) 브래킷 처리가 두 실행기에서 다르다. **미해소**
+    def test_default_bracket_converges(self):
+        """D2 — 미설정(None) 브래킷 처리가 두 실행기에서 **같아졌다**. (3b, 2026-08-13)
 
-          backtester  : action.sl_price or 0.0   → 비활성
-          orchestrator: price*1.04 / price*0.90  → SL 4% / TP 10% 부여
+          종전 backtester  : action.sl_price or 0.0   → 비활성
+          종전 orchestrator: price*1.04 / price*0.90  → SL 4% / TP 10% 를 임의 부여
+          현재 양쪽        : 비활성. 브래킷은 policy 가 선언한 것만 존재한다.
 
-        정책이 절대 청산하지 않게 두고(hold=999) 가격을 계속 떨어뜨리면,
-        선언한 적 없는 익절이 있는 쪽만 중간에 빠져나온다. 두 실행기가
-        **다른 전략**이 된다는 것을 거래 결과로 직접 보인다.
+        정책이 절대 청산하지 않게 두고(hold=999) 가격을 계속 떨어뜨린다.
+        종전에는 선언한 적 없는 익절이 있는 쪽만 중간에 빠져나와 두 실행기가
+        **다른 전략**이 됐다. 이제 양쪽 다 끝까지 들고 간다.
         """
-        df = bars(40, drift=-0.01)          # 숏에 유리 → 팬텀 TP(-10%)에 닿는다
+        df = bars(40, drift=-0.01)          # 숏에 유리 → 예전이라면 팬텀 TP 에 닿는다
         k = bt_run(df, ShortHold(hold=999, unset=True))
         with tempfile.TemporaryDirectory() as td:
             _, trades = orch_run(df, ShortHold(hold=999, unset=True), td)
-        # backtester: 브래킷 없음 → 끝까지 들고 `eod` 로만 정리
         self.assertTrue(all(t.exit_reason not in ("sl", "tp") for t in k.trades),
                         "backtester 가 미설정 브래킷을 수준으로 읽었다")
-        # orchestrator: 선언한 적 없는 10% 익절이 실제로 발동한다
         self.assertTrue(
-            any(t["exit_reason"] == "tp" for t in trades),
-            "D2 격차가 사라졌다. 3b 를 수행했다면 이 테스트를 converges 로 뒤집어라")
+            all(t["exit_reason"] not in ("sl", "tp") for t in trades),
+            "orchestrator 가 선언한 적 없는 브래킷을 장착했다 — D2 가 되살아났다")
+        # 청산 자체가 없어야 한다 (policy 도 청산 안 하고 브래킷도 없다)
+        self.assertEqual(len(trades), 0,
+                         "브래킷이 없는데 청산이 발생했다")
+
+    def test_no_shipped_policy_omits_brackets(self):
+        """브래킷 기본값이 사라졌으므로, policy 가 빠뜨리면 **보호 장치가 없다.**
+
+        3b 는 "선언한 적 없는 익절"이라는 함정을 없앴지만, 반대로 "선언을
+        잊으면 손절이 없다"는 함정을 연다. 출하되는 policy 가 진입 시 브래킷을
+        반드시 채우는지 여기서 강제한다.
+        """
+        from app.composer_framework import policy as P
+
+        cases = [
+            (P.LongOnlyThresholdPolicy(), 1.0),
+            (P.LongShortThresholdPolicy(), 1.0),
+            (P.LongShortThresholdPolicy(), -1.0),
+            (P.LifecycleDecayEarlyExitPolicy(), -1.0),
+            (P.FundingReversalPolicy(), 5.0),
+            (P.FundingReversalPolicy(), -5.0),
+        ]
+        for pol, pred in cases:
+            c = PolicyContext(timestamp=None, prediction=pred, open_price=100.0,
+                              high_price=101.0, low_price=99.0, close_price=100.5,
+                              in_position=False, side="flat")
+            a = pol.decide(c)
+            if not a.kind.startswith("enter"):
+                continue
+            name = type(pol).__name__
+            self.assertIsNotNone(a.sl_price, f"{name}: 진입인데 sl_price 가 None")
+            self.assertIsNotNone(a.tp_price, f"{name}: 진입인데 tp_price 가 None")
+            self.assertGreater(float(a.sl_price), 0.0,
+                               f"{name}: 손절이 비활성(0.0) — 무방비 진입")
 
     def test_backtester_force_closes_residual_at_end(self):
         """D6 — backtester 만 마지막 바에서 잔여 포지션을 `eod` 로 청산한다.
