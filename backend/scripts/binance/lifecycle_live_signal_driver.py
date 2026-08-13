@@ -600,12 +600,28 @@ def run(args) -> int:
             continue
         # 정본(Canon)의 전체 상태. side 1비트가 아니라 진입시각·보유바수까지 본다.
         canon = _read_canon_state(s2_id)
-        desired = _desired_side(cycle)
+        # desired 도 **정본에서** 가져온다.
+        #
+        # 2026-08-13: 처음엔 진입 관문만 정본을 보고 desired 는 여전히
+        # `predictions.jsonl` 의 side_after 를 읽었다. 둘의 출처가 달라 어긋난다 —
+        # GRVT 를 수동 청산하자 세션은 flat 인데 사이클 로그는 아직 short 여서
+        # 드라이버가 "뒤늦은 진입 차단"을 계속 외쳤다. 지금은 무해했지만,
+        # 반대 방향(정본 short / 로그 flat)이면 **멀쩡한 포지션을 청산**한다.
+        # 정본이 유일한 판본이라면 side 도 거기서 나와야 한다.
+        if canon is not None:
+            desired = "short" if canon["side"] == "short" else "flat"
+        else:
+            log.warning("%s: session.json 을 못 읽어 사이클 로그로 대체", s2_id)
+            desired = _desired_side(cycle)
         symbol = link.get("symbol") or cycle.get("symbol") or ""
         ref_price = float(cycle.get("bar_close") or 0.0)
         notional = float(link.get("notional_usdt", 0.0))
 
         link_state = state.setdefault(s2_id, {})
+        if isinstance(link_state, dict) and canon is not None and canon["side"] == "flat":
+            # 정본이 평평해지면 차단 이력을 지운다. 남겨두면 다음 상장에서
+            # 정상 진입까지 "경보 기발송"으로 조용히 넘어간다.
+            link_state.pop("catchup_blocked", None)
         # migrate any legacy non-dict state value
         if not isinstance(link_state, dict):
             link_state = {}
@@ -652,6 +668,8 @@ def run(args) -> int:
                                 s2_id, track, symbol)
                     continue
                 if not _is_fresh_entry(canon):
+                    # 정본이 flat 이면 애초에 여기 오지 않는다(desired=flat).
+                    # 여기 온다는 건 정본이 보유 중이라는 뜻이다.
                     # 정본은 이전 바에 이미 들어가 보유 중이다. 지금 따라 들어가면
                     # 검증한 진입가·진입시각이 아니다. 매 사이클 반복되므로 경보는
                     # 링크당 한 번만 낸다.
