@@ -56,6 +56,7 @@ log = logging.getLogger("lc_3way")
 
 LISTINGS = ROOT / "runs" / "research_track" / "lifecycle_phase" / "listing_dates.json"
 REAL_ACCOUNT = 8
+PAPER_ACCOUNT = 12      # System-1 페이퍼 — 실거래와 **동일 조건**(수량만 다름)
 HOLD_DAYS = 30
 SL_PCT = 0.50
 FRIC_BP = 10.0
@@ -113,25 +114,34 @@ def paper_layer() -> dict:
     return out
 
 
-def real_layer(conn) -> dict:
-    """실계좌 층 — account 8 의 실제 체결."""
+def account_layer(conn, account_id: int, is_paper: bool) -> dict:
+    """계좌 층 — 실제 체결 기록(System-1).
+
+    실거래(8)와 페이퍼(12)가 **같은 드라이버·같은 시각·같은 가격**으로 체결된다.
+    다른 것은 수량뿐이다(페이퍼 고정 $200 / 실거래 지갑 20%). 그래서 이 둘을
+    나란히 놓으면 **사이징만의 효과**가 분리되고, System-2(정본)와 비교하면
+    **체결 지연의 효과**가 분리된다.
+    """
     from sqlalchemy import text
     ids = [r[0] for r in conn.execute(text(
-        "select id from live_bot_sessions where account_id=:a"), {"a": REAL_ACCOUNT})]
+        "select id from live_bot_sessions where account_id=:a"), {"a": account_id})]
     if not ids:
         return {}
     q = ",".join("'" + str(i) + "'" for i in ids)
     rows = conn.execute(text(
-        f"select symbol, signal_type, order_filled_at, realized_pnl "
+        f"select symbol, signal_type, order_filled_at, realized_pnl, executed_price "
         f"from live_trade_executions where session_id in ({q}) "
-        f"and coalesce(is_paper,false)=false order by order_filled_at")).fetchall()
+        f"and coalesce(is_paper,false)=:ip order by order_filled_at"),
+        {"ip": is_paper}).fetchall()
     out = {}
-    for sym, sig, ts, pnl in rows:
-        e = out.setdefault(sym, {"n": 0, "pnl": 0.0, "entry": None, "fills": []})
+    for sym, sig, ts, pnl, px in rows:
+        e = out.setdefault(sym, {"n": 0, "pnl": 0.0, "entry": None,
+                                 "entry_px": None, "fills": []})
         e["n"] += 1
         e["pnl"] += float(pnl or 0)
         if e["entry"] is None:
             e["entry"] = str(ts)[:10]
+            e["entry_px"] = float(px or 0)
         e["fills"].append(str(ts)[:10])
     return out
 
@@ -148,7 +158,8 @@ def main() -> int:
     from app.db.session import engine
     rows = []
     with engine.connect() as conn:
-        real = real_layer(conn)
+        real = account_layer(conn, REAL_ACCOUNT, is_paper=False)
+        pacct = account_layer(conn, PAPER_ACCOUNT, is_paper=True)
         keys = sorted(pap.keys(), key=lambda k: k[1])
         for sym, ld in keys:
             if ld < args.since:
@@ -166,17 +177,27 @@ def main() -> int:
                 "real_n": real.get(sym, {}).get("n", 0),
                 "real_pnl": real.get(sym, {}).get("pnl", 0.0),
                 "real_entry": real.get(sym, {}).get("entry", "—"),
+                "real_px": real.get(sym, {}).get("entry_px"),
+                # System-1 페이퍼(계좌 12) — 실거래와 **동일 조건**, 수량만 다름
+                "pa_n": pacct.get(sym, {}).get("n", 0),
+                "pa_entry": pacct.get(sym, {}).get("entry", "—"),
+                "pa_px": pacct.get(sym, {}).get("entry_px"),
             })
 
     D = pd.DataFrame(rows)
     print("\n" + "=" * 108)
-    print(f"신상저격수 3자 동기화 — 상장 {args.since} 이후 {len(D)}건")
+    print(f"신상저격수 4자 동기화 — 상장 {args.since} 이후 {len(D)}건")
     print("=" * 108)
-    print("  BT=백테스트(순수규칙) / PAP=System-2 페이퍼 / REAL=실계좌")
+    print("  BT=백테스트(순수규칙)  CANON=System-2 정본(바 시가 체결)")
+    print("  PA=System-1 페이퍼(계좌12)  REAL=실계좌(계좌8)")
+    print("  ** PA 와 REAL 은 같은 드라이버·같은 시각·같은 가격. 다른 건 수량뿐 **")
+    print("  ** 따라서 CANON↔PA 차이 = 체결 지연,  PA↔REAL 차이 = 사이징 **")
     print("  ** 거래 횟수가 1 이 아니면 재진입 — 규칙이 다르므로 수익률 비교 무의미 **")
+    print("  ** CAN n=0 은 '거래 없음'이 아니라 **무효 처리됨**일 수 있다 "
+          "(2026-08-13 lifecycle 498건 전량 무효) **")
     print("-" * 108)
-    print(f"{'종목':<13}{'상장':<12}{'BT n':>5}{'BT %':>9}{'PAP n':>7}{'PAP %':>9}"
-          f"{'REAL n':>8}{'REAL $':>10}   {'진입일 (BT/PAP/REAL)'}")
+    print(f"{'종목':<13}{'상장':<12}{'BT n':>5}{'BT %':>9}{'CAN n':>6}"
+          f"{'PA n':>6}{'REAL n':>7}{'REAL $':>10}   {'진입일 (BT/CANON/PA/REAL)'}")
     print("-" * 108)
     for _, r in D.iterrows():
         flag = ""
@@ -186,12 +207,34 @@ def main() -> int:
             flag += " ⚠재진입(REAL)"
         btr = f"{r.bt_ret:+9.2f}" if r.bt_ret is not None else f"{'—':>9}"
         print(f"{r.symbol:<13}{r.listing:<12}{str(r.bt_n or '—'):>5}{btr}"
-              f"{r.pap_n:>7}{r.pap_ret:>+9.2f}{r.real_n:>8}{r.real_pnl:>+10.2f}"
-              f"   {r.bt_entry}/{r.pap_entry}/{r.real_entry}{flag}")
+              f"{r.pap_n:>6}{r.pa_n:>6}{r.real_n:>7}{r.real_pnl:>+10.2f}"
+              f"   {r.bt_entry}/{r.pap_entry}/{r.pa_entry}/{r.real_entry}{flag}")
     print("-" * 108)
     n_re_pap = int(((D.pap_n != 1) & (D.pap_n > 0)).sum())
+    n_re_pa = int((D.pa_n > 2).sum())
     n_re_real = int((D.real_n > 2).sum())
-    print(f"  ** 재진입 감지 — 페이퍼 {n_re_pap}/{len(D)}  실계좌 {n_re_real}/{len(D)} **")
+    print(f"  ** 재진입 감지 — CANON {n_re_pap}/{len(D)}  "
+          f"PA(페이퍼계좌) {n_re_pa}/{len(D)}  REAL {n_re_real}/{len(D)} **")
+
+    # 네 층이 모두 1회인 사건만이 진짜 비교 대상이다.
+    clean = D[(D.bt_n == 1) & (D.pa_n == 1) & (D.real_n == 1)]
+    print(f"  ** BT·PA·REAL 이 모두 1회 진입인 사건: {len(clean)}건 "
+          f"{list(clean.symbol) if len(clean) else ''} **")
+    for _, r in clean.iterrows():
+        gap = ""
+        if r.bt_entry != "—" and r.real_entry != "—":
+            from datetime import date as _d
+            try:
+                d1 = _d.fromisoformat(str(r.bt_entry)); d2 = _d.fromisoformat(str(r.real_entry))
+                gap = f"  진입 지연 {(d2 - d1).days}일"
+            except Exception:
+                pass
+        px = ""
+        if r.pa_px and r.real_px:
+            px = f"  체결가 PA {r.pa_px:.6g} / REAL {r.real_px:.6g}"
+            if abs(r.pa_px - r.real_px) < 1e-12:
+                px += " (동일)"
+        print(f"     {r.symbol}: BT {r.bt_ret:+.2f}%{gap}{px}")
     ok = D[(D.pap_n == 1) & (D.bt_n == 1)]
     if len(ok):
         d = (ok.pap_ret - ok.bt_ret)
