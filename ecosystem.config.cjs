@@ -255,6 +255,19 @@ const agentApps = [
     //     max_restarts: 10, restart_delay: 5000
     // },
     {
+        // 3군 디스패치를 대체하는 **일일 1군/2군 리포트** (2026-08-13 대표님 지시).
+        // 주간·월간 리포트와 같은 아침 시간대. '15 22 * * *' UTC = 07:15 KST.
+        // 읽기 전용 — 계좌 조회 1회 + DB 읽기. 거래하지 않는다.
+        name: "daily-tier-report",
+        script: SAS_WRAPPER,
+        args: `'15 22 * * *' ./scripts/binance/run_daily_tier_report.sh`,
+        interpreter: "bash",
+        cwd: ".",
+        autorestart: true,
+        max_restarts: 10,
+        restart_delay: 5000
+    },
+    {
         // ── 초단기 트랙 (2026-08-09 신설) ────────────────────────────────
         // WS 실시간 수집기 — 상주 프로세스(크론 아님).
         //   bookTicker 후보 24종목 → runs/ws_quotes/*.jsonl (분 스프레드·큐잔량)
