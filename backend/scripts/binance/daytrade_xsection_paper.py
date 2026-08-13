@@ -84,6 +84,35 @@ SUB_INTERVAL = 0.5
 # 나머지 시간엔 `@trade` 만 있으면 체결 감지가 된다.
 #
 # → bookTicker 를 **창 안에서만** 구독하고 밖에서는 해제한다.
+# ── 유동성 게이트 (2026-08-11 추가) ──────────────────────────────────
+# 라운드 1 실측이 설계 결함을 그대로 드러냈다. 체결 20건 중:
+#   HOMEUSDT 숏 +2,156bp / BEATUSDT 롱 -2,538bp  (8시간에 ±20~25%)
+# 합산 +111.68bp 는 실력이 아니라 **HOMEUSDT 한 건**이 만든 숫자였다.
+#
+# 원인은 구조적이다. 횡단면 극단값은 정의상 "가장 많이 움직인 종목" 이고,
+# 그건 곧 **가장 얇은 종목**이다. 순위를 매기는 행위 자체가 미소형주를
+# 골라온다. 일 $3M 필터로는 안 걸러진다 (Lesson #78 재현).
+#
+# 두 겹으로 막는다:
+#   (1) 순위 후보를 **실시간 24h 거래대금 상위 N**으로 제한 — 정적 파일이
+#       아니라 매 리밸런싱마다 다시 잰다. 종목의 유동성은 변한다.
+#   (2) 종목당 **손실 상한** — 한 종목이 라운드 전체를 삼키지 못하게 한다.
+#       평균회귀 전략에 손절을 다는 것은 설계 변경이므로 기록에 exit_reason
+#       으로 남겨 손절 건을 따로 셀 수 있게 한다.
+# 유동성 게이트는 **정적 파일**로 건다 (configs/daytrade_xsection_universe.txt).
+# 24h 거래대금을 실시간으로 재서 상위 N 을 뽑는 방식은 실패했다 — 오늘 20% 튄
+# 미소형주는 회전율이 4~7배 폭발해 상위로 올라오고, 게이트가 걸러야 할 바로 그
+# 종목을 통과시킨다. 유동성은 **평소**를 재야 하므로 30일 중앙값을 쓴다.
+#
+# 라운드1 사후분석에서 두 원인이 갈렸다:
+#   · CLO($5M) / SKYAI($6M) — 진짜 얇았다        → 유동성 게이트가 잡는다
+#   · HOME($23M) / BEAT($39M) — 얇지 않았다      → **손절**이 잡아야 한다
+# 유동성 게이트로 변동성 꼬리까지 막으려 하면 안 된다. 도구가 다르다.
+STOP_PCT = 0.05             # 종목당 손실 상한 (5%)
+# 손절은 호가창 없이 체결가로 판정한다(보유 중엔 bookTicker 구독을 끈다).
+# 실제 시장가 손절은 스프레드를 밟으므로 그만큼을 보수적으로 더 물린다.
+STOP_SLIP_BP = 5.0
+
 BOOK_WARM_SEC = 90          # 리밸런싱/청산 몇 초 전부터 켤까
 BOOK_HOLD_SEC = 300         # 그 뒤 몇 초까지 유지할까
 
@@ -116,17 +145,22 @@ class Leg:
     exit_mid: float = 0.0
     exit_taker: bool = False
     closed: bool = False
+    exit_reason: str = "time"
 
 
 class XSectionPaper:
     def __init__(self, symbols: list[str], notional: float, top_k: int,
-                 lookback_h: int, hold_h: int, out_dir: Path):
+                 lookback_h: int, hold_h: int, out_dir: Path,
+                 universe: set | None = None, stop_pct: float = STOP_PCT):
         self.symbols = symbols
         self.notional = notional
         self.top_k = top_k
         self.lookback_h = lookback_h
         self.hold_h = hold_h
         self.out_dir = out_dir
+        self.stop_pct = stop_pct
+        self.rank_universe: set = set(universe or [])
+        self.n_stopped = 0
         self.book = {s: Book() for s in symbols}
         self.legs: dict[str, Leg] = {}
         self.records: list = []
@@ -163,6 +197,14 @@ class XSectionPaper:
                 b.hist.append((now, b.mid))
 
     def on_trade(self, sym: str, price: float, qty: float, buyer_maker: bool) -> None:
+        # 바이낸스는 @trade 에 **가짜 체결**을 섞어 보낸다:
+        #   {"e":"trade","p":"0","q":"0","X":"NA","st":1}
+        # 스트림 유지용 표식이지 실제 체결이 아니다 (ADAUSDT 90초에 2건 실측).
+        # 체결 판정은 수량 0 이라 큐가 안 줄어 무사히 넘어가지만, **손절은
+        # 이 0 을 진짜 가격으로 읽어 즉시 -100% 로 발화한다** (2026-08-11 사고:
+        # PAXG/XAUT/BEAT/US 4건이 진입 직후 -100% 손절 처리됨).
+        if price <= 0.0 or qty <= 0.0:
+            return
         lg = self.legs.get(sym)
         if lg is None:
             return
@@ -177,24 +219,42 @@ class XSectionPaper:
                     lg.filled = True
                     lg.entry_mid = b.mid or lg.entry_px
                     lg.entry_ts = time.time()
-        elif lg.exit_px > 0 and not lg.closed:
-            hit = (((not buyer_maker) and price >= lg.exit_px) if lg.side == "long"
-                   else (buyer_maker and price <= lg.exit_px))
-            if hit:
-                lg.exit_queue -= n
-                if lg.exit_queue <= 0:
-                    self._close(sym, lg, taker=False)
+        elif not lg.closed:
+            # 손실 상한 — 청산 창 여부와 무관하게 항상 감시한다. 보유 중엔
+            # bookTicker 구독이 꺼져 있으므로 체결가로 판정한다.
+            sign = 1.0 if lg.side == "long" else -1.0
+            adverse = (price / lg.entry_px - 1.0) * sign
+            if self.stop_pct > 0 and adverse <= -self.stop_pct:
+                self.n_stopped += 1
+                log.warning("[손절] %s %s 진입 %.6f → %.6f (%.2f%%)",
+                            sym, lg.side, lg.entry_px, price, adverse * 100)
+                self._close(sym, lg, taker=True, px_override=price,
+                            extra_slip_bp=STOP_SLIP_BP, reason="stop")
+                return
+            if lg.exit_px > 0:
+                hit = (((not buyer_maker) and price >= lg.exit_px) if lg.side == "long"
+                       else (buyer_maker and price <= lg.exit_px))
+                if hit:
+                    lg.exit_queue -= n
+                    if lg.exit_queue <= 0:
+                        self._close(sym, lg, taker=False)
 
-    def _close(self, sym: str, lg: Leg, taker: bool) -> None:
+    def _close(self, sym: str, lg: Leg, taker: bool, px_override: float = 0.0,
+               extra_slip_bp: float = 0.0, reason: str = "time") -> None:
         b = self.book[sym]
         sign = 1.0 if lg.side == "long" else -1.0
-        if taker:
+        lg.exit_reason = reason
+        if px_override > 0:
+            lg.exit_px = px_override
+            lg.exit_taker = True
+        elif taker:
             lg.exit_px = (b.bid if lg.side == "long" else b.ask) or lg.entry_px
             lg.exit_taker = True
         lg.exit_mid = b.mid or lg.exit_px
         lg.closed = True
         gross = ((lg.exit_px / lg.entry_px - 1.0) * sign) if lg.entry_px > 0 else 0.0
-        fee = (MAKER_FEE_BP + (TAKER_FEE_BP if taker else MAKER_FEE_BP)) / 1e4
+        fee = (MAKER_FEE_BP + (TAKER_FEE_BP if lg.exit_taker else MAKER_FEE_BP)
+               + extra_slip_bp) / 1e4
         edge_in = (((lg.entry_mid - lg.entry_px) / lg.entry_mid * 1e4 * sign)
                    if lg.entry_mid else 0.0)
         self.records.append({
@@ -202,7 +262,8 @@ class XSectionPaper:
             "round": self.rounds, "symbol": sym, "side": lg.side,
             "gross_bp": round(gross * 1e4, 3), "fee_bp": round(fee * 1e4, 3),
             "net_bp": round((gross - fee) * 1e4, 3),
-            "edge_in_bp": round(edge_in, 3), "exit_taker": taker,
+            "edge_in_bp": round(edge_in, 3), "exit_taker": lg.exit_taker,
+            "exit_reason": lg.exit_reason,
             "queue_wait_sec": (round(lg.entry_ts - lg.posted_at, 1)
                                if lg.entry_ts else None),
         })
@@ -213,6 +274,8 @@ class XSectionPaper:
         cutoff = time.time() - self.lookback_h * 3600
         rets = {}
         for s, b in self.book.items():
+            if self.rank_universe and s not in self.rank_universe:
+                continue     # 유동성 게이트 — 얇은 종목은 순위에서 아예 뺀다
             past = [m for (t, m) in b.hist if t <= cutoff]
             if not past or b.mid <= 0:
                 continue
@@ -231,8 +294,8 @@ class XSectionPaper:
                 continue
             self.legs[s] = Leg(s, side, px, q0 + self.notional, time.time())
         self.rounds += 1
-        log.info("[리밸런싱 %d] 순위 %d종목 → 롱 %d / 숏 %d 지정가 게시",
-                 self.rounds, len(rets), len(longs), len(shorts))
+        log.info("[리밸런싱 %d] 순위 %d종목(게이트 통과 %d) → 롱 %d / 숏 %d 지정가 게시",
+                 self.rounds, len(rets), len(self.rank_universe), len(longs), len(shorts))
         return {"skipped": False, "n_rank": len(rets), "posted": len(self.legs)}
 
     def start_exit(self) -> None:
@@ -340,11 +403,16 @@ async def _conn(xp: XSectionPaper, trade_streams: list, book_streams: list,
 async def amain(args) -> int:
     syms = [ln.strip().upper() for ln in Path(args.symbols).read_text().splitlines()
             if ln.strip() and not ln.strip().startswith("#")]
+    uni = {ln.strip().upper() for ln in Path(args.universe).read_text().splitlines()
+           if ln.strip() and not ln.strip().startswith("#")} if args.universe else set()
     xp = XSectionPaper(syms, args.notional, args.top_k, args.lookback_h,
-                       args.hold_h, Path(args.out_dir))
-    log.info("단기 페이퍼 [횡단면 되돌림] — %d종목 | 주문 $%.0f | "
-             "과거 %dh 로 순위 → 하위/상위 %d종목 롱숏 | 보유 %dh",
-             len(syms), args.notional, args.lookback_h, args.top_k, args.hold_h)
+                       args.hold_h, Path(args.out_dir),
+                       uni, args.stop_pct)
+    log.info("단기 페이퍼 [횡단면 되돌림] — 구독 %d종목 / **순위 후보 %d종목** | "
+             "주문 $%.0f | 과거 %dh 로 순위 → 하위/상위 %d종목 롱숏 | 보유 %dh | "
+             "종목당 손실 상한 %.1f%%",
+             len(syms), len(uni), args.notional, args.lookback_h, args.top_k,
+             args.hold_h, args.stop_pct * 100)
 
     stop = asyncio.Event()
     loop = asyncio.get_running_loop()
@@ -427,6 +495,11 @@ def main() -> int:
     p.add_argument("--lookback-h", type=int, default=2, help="순위 매길 과거 구간")
     p.add_argument("--hold-h", type=int, default=8)
     p.add_argument("--top-k", type=int, default=10, help="한쪽 종목 수")
+    p.add_argument("--universe", default=str(ROOT / "configs" /
+                   "daytrade_xsection_universe.txt"),
+                   help="순위 후보 파일 — 유동성 게이트 통과 종목")
+    p.add_argument("--stop-pct", type=float, default=STOP_PCT,
+                   help="종목당 손실 상한 (0 이면 끔)")
     p.add_argument("--out-dir", default=str(ROOT / "runs" / "daytrade_xsection_paper"))
     args = p.parse_args()
     try:

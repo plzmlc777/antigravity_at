@@ -177,7 +177,7 @@ class GenericBacktester:
 
         cfg = self._kernel_config()
         st = KernelState(cash=self.initial_capital)
-        pred_at_entry = 0.0          # 커널은 예측을 들고 다니지 않는다 — 드라이버 몫
+        pred_at_entry = 0.0          # 정본은 예측을 들고 다니지 않는다 — 드라이버 몫
 
         def _py(t):
             return t.to_pydatetime() if hasattr(t, "to_pydatetime") else t
@@ -207,7 +207,7 @@ class GenericBacktester:
             eq.append((_py(ts), res.equity))
 
         # close residual at last bar — 백테스트만의 규칙(라이브 세션은 열어 둔다).
-        # 통합 계획에서 `close_at_end` 설정으로 표현할 항목(D6).
+        # 정본 계획에서 `close_at_end` 설정으로 표현할 항목(D6).
         if st.side != "flat":
             st, tr = kernel_close(st, float(bars.iloc[-1]["close"]), bars.index[-1],
                                   "eod", cfg)
@@ -232,7 +232,7 @@ class GenericBacktester:
     # -- helpers --
 
     def _kernel_config(self) -> KernelConfig:
-        """백테스터의 현행 회계를 커널 설정으로 표현한다.
+        """백테스터의 현행 회계를 정본(Canon) 설정으로 표현한다.
 
         브래킷 기본값 없음 — 예전 코드의 `action.sl_price or 0.0` 과 같다
         (None 도 0.0 도 비활성). orchestrator 는 SL4%/TP10% 를 넣는데, 그

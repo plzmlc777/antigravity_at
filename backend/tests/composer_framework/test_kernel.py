@@ -1,16 +1,16 @@
-"""ExecutionKernel 계약 테스트 (통합 실행기 2단계).
+"""정본(Canon) 계약 테스트 — 정본 엔진 2단계.
 
-커널이 거래 판단의 유일한 구현이 됐으므로, 그 계약을 코드로 강제한다.
+정본이 거래 판단의 유일한 구현이 됐으므로, 그 계약을 코드로 강제한다.
 계약이 깨지면 두 실행기가 **동시에** 틀린다 — 파리티 게이트는 통과하는데
 현실과 어긋나는 상태가 된다. 골든/파리티로는 못 잡는 층이다.
 
-계약 (kernel.py 상단과 같은 목록):
+계약 (kernel.py = 정본, 상단 docstring 과 같은 목록):
   1. step() 은 순수 함수 — 같은 입력이면 같은 출력, 입력 상태를 변형하지 않음
   2. 강제청산(SL/TP) 판정은 policy.decide 보다 먼저
   3. bars_held 는 policy.decide 가 보기 전에 증가
   4. 브래킷 0.0 은 비활성이며 가격 수준으로 읽히지 않음
   5. 진입은 그 바의 시가에 체결
-  6. 두 드라이버의 현행 격차는 KernelConfig 로 표현된다 (행동 변경 0)
+  6. 두 사본의 현행 격차는 KernelConfig 로 표현된다 (행동 변경 0)
 
 실행:
   cd backend && python3 -m unittest tests.composer_framework.test_kernel -v

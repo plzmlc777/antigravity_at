@@ -116,6 +116,34 @@ DEPTH_TICKS = 3             # 최우선에서 몇 **단계** 물러설까
 #
 # 가설 2 와 다른 점: 가설 2 는 이미 일어난 **체결 흐름**(60초 과거)을 봤다.
 # 가설 6 은 **대기 중인 물량**(현재 상태)을 본다. 후행 대 선행이다.
+# ── 가설 8: 국면 조건부 (2026-08-11) ──────────────────────────────────
+# 가설 1~7 은 전부 "호가창 안 어디에 어떻게 설까" 였고 전부 음수였다. 공통으로
+# 깔고 있던 가정이 **"항상 호가를 댄다"** 였다 — "언제 아예 쉴까" 는 안 정했다.
+#
+# 283종목 60일 국면 분석 (셀당 표본 100만~400만, 오차 ±0.02bp):
+#   실현변동성   십분위 차 0.05bp   → **무의미**
+#   체결도착률   0.27bp             → 무의미
+#   대형체결비중 0.34bp             → 작음
+#   **스프레드   4.04bp 단조**       ← 압도적
+# 즉 "조용할 때 쉬어라" 가 아니라 **"스프레드가 좁을 때 쉬어라"** 다.
+# 정보성 주문 얘기가 아니라 단순히 **받는 돈이 큰가**의 문제였다.
+#
+# 2차원에서 대형체결의 부호가 **뒤집힌다**:
+#   스프레드 좁은 국면 → 대형체결 적을수록 좋다 (-3.11 vs -4.60)
+#   스프레드 넓은 국면 → 대형체결 **많을수록** 좋다 (-1.07 vs **-0.30**)
+# 스프레드가 넓을 때의 큰 주문은 "정보" 가 아니라 "다급함" 이기 때문이다.
+# 유동성이 걷힌 국면에 굳이 큰 주문을 내는 쪽은 사정이 급한 것이고, 메이커에겐
+# 가장 좋은 손님이다.
+#
+# 3차원(국면 x 가격이동=깊이 대리) 최고 칸 **-0.18 ± 0.04bp** (표본 42만).
+# 전체 평균 -2.5 에서 93% 를 줄였으나 0 을 못 넘는다. 수수료 2bp 를 빼기 전엔
+# +1.82bp 로 흑자 — **메이커 수수료가 정확히 그걸 삼킨다.**
+# 백테스트는 음수지만 라이브가 다를 수 있어 실측한다.
+REGIME_WIN = 1440           # 국면 백분위 창 (분) = 24시간, 백테스트와 동일
+REGIME_MIN = 120            # 이만큼 쌓이면 판정 시작 (그 전엔 호가 안 댄다)
+REGIME_SPREAD_PCT = 0.80    # 스프레드 백분위 이상일 때만
+REGIME_LARGE_PCT = 0.60     # 대형체결 백분위 이상일 때만 (넓은 국면에선 많을수록 좋다)
+
 IMB_LEVELS = 5              # 불균형 계산에 쓸 호가 단계 수
 IMB_TH = 0.20               # |불균형| 이 이보다 크면 불리한 쪽을 걷는다
 
@@ -231,6 +259,13 @@ class SymState:
     flat_cost_usd: float = 0.0
     n_fills: int = 0
     n_flat: int = 0
+    # 가설 8 — 분 단위 국면 관측 (스프레드, 대형체결 비중)
+    reg_hist: deque = field(default_factory=lambda: deque(maxlen=REGIME_WIN))
+    reg_min: int = 0
+    reg_sp: float = 0.0
+    reg_lg_num: float = 0.0
+    reg_lg_den: float = 0.0
+    n_skip_regime: int = 0
     flow: deque = field(default_factory=deque)   # (ts, +buy_usd, -sell_usd) 최근 흐름
     flow_buy: float = 0.0
     flow_sell: float = 0.0
@@ -273,6 +308,32 @@ class PaperMM:
         a = sum(u for _, u in s.book_asks[:IMB_LEVELS])
         return (b - a) / (b + a) if (b + a) > 0 else 0.0
 
+    def regime_ok(self, s: SymState) -> bool:
+        """가설 8 — 지금이 호가를 댈 국면인가. 상세는 상단 상수 주석 참조."""
+        if self.strategy != "regime":
+            return True
+        if len(s.reg_hist) < REGIME_MIN:
+            return False               # 관측이 모자라면 **대지 않는다** (조용한 오판 금지)
+        sp = [h[0] for h in s.reg_hist]
+        lg = [h[1] for h in s.reg_hist]
+        cur_sp = (s.ask - s.bid) / s.mid * 1e4 if s.mid > 0 else 0.0
+        cur_lg = (s.reg_lg_num / s.reg_lg_den) if s.reg_lg_den > 0 else 0.0
+        p_sp = sum(1 for x in sp if x <= cur_sp) / len(sp)
+        p_lg = sum(1 for x in lg if x <= cur_lg) / len(lg)
+        return p_sp >= REGIME_SPREAD_PCT and p_lg >= REGIME_LARGE_PCT
+
+    def roll_regime(self) -> None:
+        """분마다 국면 관측을 남긴다. 백분위의 재료."""
+        now_min = int(time.time()) // 60
+        for s in self.st.values():
+            if s.reg_min == now_min or s.mid <= 0:
+                continue
+            s.reg_min = now_min
+            sp = (s.ask - s.bid) / s.mid * 1e4
+            lg = (s.reg_lg_num / s.reg_lg_den) if s.reg_lg_den > 0 else 0.0
+            s.reg_hist.append((sp, lg))
+            s.reg_lg_num = s.reg_lg_den = 0.0
+
     def _sides_allowed(self, s: SymState) -> tuple:
         """(매수호가를 댈까, 매도호가를 댈까). 가설 1 은 항상 양방향."""
         if self.strategy in ("book_imb", "depth_imb"):
@@ -282,6 +343,8 @@ class PaperMM:
             if imb < -IMB_TH:     # 매도 두꺼움 → 하락 압력 → 매수호가가 당한다
                 return False, True
             return True, True
+        if self.strategy == "regime":
+            return (True, True) if self.regime_ok(s) else (False, False)
         if self.strategy not in ("flow_skew", "combo"):
             return True, True
         tot = s.flow_buy + s.flow_sell
@@ -394,6 +457,12 @@ class PaperMM:
     # ── 체결 스트림 ────────────────────────────────────────────
     def on_trade(self, sym: str, price: float, qty: float, buyer_maker: bool) -> None:
         """buyer_maker=True → 테이커 **매도** (내 매수호가를 소진)."""
+        # 바이낸스는 @trade 에 가짜 체결을 섞어 보낸다 — {"p":"0","q":"0",
+        # "X":"NA","st":1}. 스트림 유지용 표식이지 실제 체결이 아니다.
+        # 수량 0 이라 큐 판정은 무사하지만 가격 비교에 섞이면 위험하다
+        # (2026-08-11 횡단면 러너에서 손절이 -100% 로 오발화한 원인).
+        if price <= 0.0 or qty <= 0.0:
+            return
         s = self.st.get(sym)
         if s is None:
             return
@@ -404,6 +473,10 @@ class PaperMM:
             s.flow.append((now, 0.0, notional)); s.flow_sell += notional
         else:
             s.flow.append((now, notional, 0.0)); s.flow_buy += notional
+        # 국면용 대형체결 비중 누적 — 그 분의 큰 체결 금액 / 전체 금액
+        s.reg_lg_den += notional
+        if notional >= s.quote_usd * 5:
+            s.reg_lg_num += notional
         cut = now - FLOW_WIN_SEC
         while s.flow and s.flow[0][0] < cut:
             _, b, sl = s.flow.popleft()
@@ -558,6 +631,7 @@ class PaperMM:
                 "markout_settled": s.markout_n,
                 "inv_usd": round(s.inv_usd, 1), "n_flat": s.n_flat,
                 "skip_bid": s.n_skip_bid, "skip_ask": s.n_skip_ask, "flee": s.n_flee,
+                "regime_obs": len(s.reg_hist),
                 "fills_per_hour": round(s.n_fills / max((time.time() - self.t0) / 3600, 1e-6), 1),
             })
         return out
@@ -689,7 +763,9 @@ async def amain(args) -> int:
               else f" | 호가 {IMB_LEVELS}단계 불균형 임계 {IMB_TH}"
               if args.strategy == "book_imb"
               else f" | {DEPTH_TICKS}단계 물러섬 + 불균형 임계 {IMB_TH}"
-              if args.strategy == "depth_imb" else ""))
+              if args.strategy == "depth_imb"
+              else f" | 스프레드 백분위>={REGIME_SPREAD_PCT} & 대형체결>={REGIME_LARGE_PCT}"
+              if args.strategy == "regime" else ""))
 
     stop = asyncio.Event()
     loop = asyncio.get_running_loop()
@@ -727,6 +803,7 @@ async def amain(args) -> int:
         while not stop.is_set():
             await asyncio.sleep(FUNDING_SETTLE_SEC)
             try:
+                mm.roll_regime()          # 분 단위 국면 관측
                 mm.settle_funding()
             except Exception as e:
                 log.warning("펀딩 정산 실패: %s", e)
@@ -753,12 +830,12 @@ def main() -> int:
     p.add_argument("--out-dir", default=str(ROOT / "runs" / "ultra_mm_paper"))
     p.add_argument("--strategy",
                    choices=["touch", "flow_skew", "queue_flee", "combo", "depth",
-                            "book_imb", "depth_imb"],
+                            "book_imb", "depth_imb", "regime"],
                    default="touch",
                    help="touch=가설1 / flow_skew=가설2 / queue_flee=가설3 / "
                         "combo=가설4(2+3) / depth=가설5 물러선 호가 / "
                         "book_imb=가설6 호가창 불균형 조건부 / "
-                        "depth_imb=가설7 깊이+불균형 결합")
+                        "depth_imb=가설7 깊이+불균형 / regime=가설8 국면 조건부")
     p.add_argument("--depth-ticks", type=int, default=DEPTH_TICKS,
                    help="가설5 — 최우선에서 몇 틱 물러설까")
     p.add_argument("--stats-sec", type=int, default=STATS_SEC, help="요약 보고 주기(초)")

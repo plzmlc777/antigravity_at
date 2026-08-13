@@ -332,7 +332,14 @@ def build_session_spec(
     if policy_variant == POLICY_BASELINE:
         hold_days = int(baseline_hold_days)
         name_suffix = "" if hold_days == 30 else f"_h{hold_days}"
-        sources = [{"type": "bn_lifecycle_decay", "kwargs": {}}]
+        # 재진입 차단 (2026-08-12). 소스가 -1.0 을 영원히 내보내 익절 뒤 즉시
+        # 재진입했다 — DATAIPUSDT 는 30일 안에 네 번, REUSDT 실계좌는 8회
+        # 진입했다. 패러다임은 "상장 Day-1 종가 숏 **한 번**" 이다.
+        # listing_date 를 넘겨 진입 신호 창을 상장 직후 3일로 닫는다.
+        sources = [{"type": "bn_lifecycle_decay",
+                    "kwargs": {"listing_date": str(listing_date),
+                               "max_age_days": hold_days,
+                               "entry_window_days": 3}}]
         composer = {"type": "passthrough",
                     "kwargs": {"feature_col": "bnld_signal", "scale": 1.0}}
         policy = {
@@ -356,6 +363,10 @@ def build_session_spec(
             "kwargs": {
                 "check_day": int(early_exit_check_day),
                 "vol_cliff_hi_threshold": float(early_exit_vc_threshold),
+                # 재진입 차단 — 상세는 BASELINE 분기 주석 참조
+                "listing_date": str(listing_date),
+                "max_age_days": 30,
+                "entry_window_days": 3,
             },
         }]
         composer = {"type": "passthrough",
@@ -390,6 +401,10 @@ def build_session_spec(
             "kwargs": {
                 "btc_30d_pre_ret": pre_ret,
                 "bear_threshold": thr,
+                # 재진입 차단 — 상세는 BASELINE 분기 주석 참조
+                "listing_date": str(listing_date),
+                "max_age_days": 30,
+                "entry_window_days": 3,
             },
         }]
         composer = {"type": "passthrough",
