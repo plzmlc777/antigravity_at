@@ -305,10 +305,35 @@ def _build_bn_wick_reversal_multibar(kwargs: dict, runtime: dict) -> SignalSourc
     )
 
 
+def _lifecycle_window_kwargs(kwargs: dict) -> dict:
+    """상장 창 인자(listing_date / max_age_days / entry_window_days)를 전달한다.
+
+    ⚠ 2026-08-13 발견 — 이 팩토리들이 해당 인자를 **통째로 버리고 있었다.**
+    2026-08-12 에 소스 클래스에 넣은 재진입 차단이 실제 경로에서는 한 번도
+    동작하지 않았다. 클래스 단위로는 "진입 신호 4일 켜짐, 41일 0.0" 으로
+    검증까지 했는데, `build_pipeline` 을 지나면 `listing_date=None` 이라
+    조건문이 통째로 건너뛰어졌다. 스펙에는 값이 멀쩡히 적혀 있었다.
+
+    그 사이 GRVTUSDT 는 상장 11일차에 **세 번째 진입**을 했다. 패러다임은
+    "상장 Day-1 종가 숏 한 번" 이다.
+
+    교훈: 소스 클래스만 고치고 검증하면 안 된다. **스펙 → build_pipeline →
+    인스턴스** 경로로 값이 도달하는지까지 봐야 한다.
+    """
+    out: dict = {}
+    if kwargs.get("listing_date"):
+        out["listing_date"] = str(kwargs["listing_date"])
+    if kwargs.get("max_age_days") is not None:
+        out["max_age_days"] = int(kwargs["max_age_days"])
+    if kwargs.get("entry_window_days") is not None:
+        out["entry_window_days"] = int(kwargs["entry_window_days"])
+    return out
+
+
 @register_source("bn_lifecycle_decay")
 def _build_bn_lifecycle_decay(kwargs: dict, runtime: dict) -> SignalSource:
     from .sources import BinanceLifecycleDecaySource
-    return BinanceLifecycleDecaySource()
+    return BinanceLifecycleDecaySource(**_lifecycle_window_kwargs(kwargs))
 
 
 @register_source("bn_lifecycle_decay_early_exit")
@@ -317,6 +342,7 @@ def _build_bn_lifecycle_decay_early_exit(kwargs: dict, runtime: dict) -> SignalS
     return BinanceLifecycleDecayEarlyExitSource(
         check_day=int(kwargs.get("check_day", 14)),
         vol_cliff_hi_threshold=float(kwargs.get("vol_cliff_hi_threshold", 0.40)),
+        **_lifecycle_window_kwargs(kwargs),
     )
 
 
@@ -326,6 +352,7 @@ def _build_bn_lifecycle_decay_bear_skip(kwargs: dict, runtime: dict) -> SignalSo
     return BinanceLifecycleDecayBearSkipSource(
         btc_30d_pre_ret=float(kwargs["btc_30d_pre_ret"]),
         bear_threshold=float(kwargs.get("bear_threshold", -0.05)),
+        **_lifecycle_window_kwargs(kwargs),
     )
 
 
