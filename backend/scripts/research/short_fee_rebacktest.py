@@ -98,6 +98,8 @@ def main() -> int:
                 continue
             if t.get("side") != "short":
                 continue
+            # 이 스크립트는 **오염 자체를 분석**하는 쪽이라 무효 기록도 본다.
+            # 다만 수치를 인용할 때 그 사실을 알고 써야 한다.
             if args.since and str(t.get("entry_ts", ""))[:10] < args.since:
                 continue
             shorts.append(float(t["return_pct"]))

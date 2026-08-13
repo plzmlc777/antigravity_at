@@ -58,9 +58,12 @@ def _load_trades(sid: str) -> list[dict]:
         ln = ln.strip()
         if ln:
             try:
-                out.append(json.loads(ln))
+                _t = json.loads(ln)
             except Exception:
-                pass
+                continue
+            if _t.get("invalid"):        # 무효 표시 제외 (INVALID_TRADES.json)
+                continue
+            out.append(_t)
     return out
 
 

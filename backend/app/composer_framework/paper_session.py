@@ -23,6 +23,40 @@ from .kernel import DEFAULT_FEE_RATE
 logger = logging.getLogger(__name__)
 
 
+def load_trades(path, include_invalid: bool = False) -> list[dict]:
+    """trades.jsonl 을 읽되 **무효 표시된 거래는 뺀다.**
+
+    2026-08-13 (대표님 지시) — lifecycle 페이퍼 454거래를 무효 처리했다.
+    팬텀 익절(354건) · 재진입(395건) · 숏 수수료 미부과가 겹쳐, 백테스트와
+    **다른 전략이 돌아간 기록**이기 때문이다. 상세는
+    `runs/paper_sessions/INVALID_TRADES.json`.
+
+    기록은 지우지 않고 `invalid` 를 덧붙였다. 그런데 **읽는 쪽이 걸러내지 않으면
+    무효 처리는 장식**이다 — 실제로 소비자 6곳이 전부 무시하고 있었다.
+    그래서 걸러내는 자리를 로더 한 곳으로 모은다.
+
+    성과를 인용하는 코드는 기본값(제외)을 쓰고, 오염 자체를 분석하는 코드만
+    `include_invalid=True` 로 명시한다.
+    """
+    from pathlib import Path as _P
+    p = _P(path)
+    if not p.exists():
+        return []
+    out = []
+    for line in p.read_text().splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            t = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if not include_invalid and t.get("invalid"):
+            continue
+        out.append(t)
+    return out
+
+
 SessionStatus = Literal["active", "paused", "terminated"]
 SessionMode = Literal["paper", "live"]
 PositionSide = Literal["flat", "long", "short"]
@@ -190,17 +224,10 @@ class SessionStore:
         with open(self._dir(session_id) / "equity.jsonl", "a") as f:
             f.write(json.dumps({"timestamp": ts, "equity": equity}, default=str) + "\n")
 
-    def read_trades(self, session_id: str) -> list[dict]:
-        path = self.root / session_id / "trades.jsonl"
-        if not path.exists():
-            return []
-        out = []
-        with open(path) as f:
-            for line in f:
-                line = line.strip()
-                if line:
-                    out.append(json.loads(line))
-        return out
+    def read_trades(self, session_id: str, include_invalid: bool = False) -> list[dict]:
+        """거래 기록. **무효 표시된 것은 기본으로 제외**한다."""
+        return load_trades(self.root / session_id / "trades.jsonl",
+                           include_invalid=include_invalid)
 
     def read_equity(self, session_id: str) -> list[dict]:
         path = self.root / session_id / "equity.jsonl"
