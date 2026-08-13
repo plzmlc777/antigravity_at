@@ -44,6 +44,8 @@ import json
 import logging
 import sys
 from pathlib import Path
+
+import pandas as pd
 from typing import Any, Optional
 
 import requests
@@ -96,6 +98,17 @@ REAL_MAX_SYMBOL_FRACTION = 0.20
 # driving session is older than this, force flat AND retire the link so it can
 # never re-enter. 30 = baseline hold; +1 grace bar.
 HARD_EXIT_DAYS = 31
+
+# 진입 유예 — 정본이 진입한 바로부터 이만큼까지는 실계좌 진입을 허용한다.
+#
+# 4단계 (2026-08-13): 종전에는 `ENTRY_WINDOW_DAYS = 3`(상장 후 3일)이라는
+# **lifecycle 전용 상수**를 드라이버가 들고 있었다. 드라이버는 여러 전략을
+# 태울 자리인데 특정 전략의 보유 규칙을 알고 있는 셈이라, 전략이 하나 늘 때마다
+# 틀린다. 이제는 정본 상태로 판정한다 — "정본이 방금 그 바에서 진입했는가".
+#
+# 0 = 엄격(같은 바에서만). 백테스트가 진입 바 시가 체결을 가정하므로 이것이
+# 기본값이다. 늦게 따라붙는 것은 검증한 전략이 아니다.
+ENTRY_GRACE_BARS = 0
 
 _ASYNC_LOOP = None
 
@@ -458,6 +471,60 @@ def _read_last_cycle(session_id: str) -> Optional[dict[str, Any]]:
         return None
 
 
+def _read_canon_state(session_id: str) -> Optional[dict[str, Any]]:
+    """System-2 세션이 저장한 **정본(Canon) 전체 상태**를 읽는다.
+
+    4단계 (2026-08-13) — 종전에는 `predictions.jsonl` 의 `side_after` **1비트**만
+    읽었다. 그래서 드라이버는 "지금 숏이다"는 알아도 "언제 어느 가격에 들어갔고
+    며칠째 들고 있는가"를 몰랐고, 그 공백을 lifecycle 전용 상수
+    (ENTRY_WINDOW_DAYS=3)로 메워야 했다. 상수는 전략이 하나 늘 때마다 틀린다.
+
+    `session.json` 에는 정본 상태가 통째로 있다:
+      side / qty / entry_price / entry_ts / bars_held / sl_price / tp_price
+    이걸 읽으면 드라이버가 전략 지식을 들고 있을 필요가 없다.
+    """
+    path = STORE_ROOT / session_id / "session.json"
+    if not path.exists():
+        return None
+    try:
+        j = json.loads(path.read_text())
+    except json.JSONDecodeError as exc:
+        log.error("session.json 파손 %s: %s", session_id, exc)
+        return None
+    return {
+        "side": (j.get("side") or "flat").lower(),
+        "qty": float(j.get("qty") or 0.0),
+        "entry_price": float(j.get("entry_price") or 0.0),
+        "entry_ts": j.get("entry_ts"),
+        "bars_held": int(j.get("bars_held") or 0),
+        "sl_price": float(j.get("sl_price") or 0.0),
+        "tp_price": float(j.get("tp_price") or 0.0),
+        "last_cycle_ts": j.get("last_cycle_ts"),
+        "name": j.get("name", ""),
+    }
+
+
+def _is_fresh_entry(canon: dict[str, Any]) -> bool:
+    """정본이 **방금 그 바에서** 진입했는가.
+
+    백테스트는 진입 바의 시가에 체결한다. 정본이 이전 바에 이미 들어가 보유
+    중인데 실계좌가 지금 따라 들어가면, 그건 검증한 진입가도 진입시각도 아니다
+    — 급락 구간을 이미 놓친 뒤 남은 위험만 떠안는 것이다.
+    실제로 GRVTUSDT 가 Day-12 에 따라 들어갈 뻔했다(2026-08-12).
+
+    비교는 시각으로 한다. `bars_held == 0` 으로 판정하면 안 된다 — 오케스트레이터가
+    한 사이클에 여러 바를 몰아 재생(catch-up replay)하면 진입 후에도 bars_held 가
+    커진 채 끝나기 때문이다.
+    """
+    e, c = canon.get("entry_ts"), canon.get("last_cycle_ts")
+    if not e or not c:
+        return False
+    try:
+        return pd.Timestamp(e) == pd.Timestamp(c)
+    except Exception:
+        return str(e)[:19] == str(c)[:19]
+
+
 def _desired_side(cycle: dict[str, Any]) -> str:
     """System-2 current position side → desired live side. 'short' or 'flat'."""
     after = (cycle.get("side_after") or "flat").lower()
@@ -531,6 +598,8 @@ def run(args) -> int:
         cycle = _read_last_cycle(s2_id)
         if cycle is None:
             continue
+        # 정본(Canon)의 전체 상태. side 1비트가 아니라 진입시각·보유바수까지 본다.
+        canon = _read_canon_state(s2_id)
         desired = _desired_side(cycle)
         symbol = link.get("symbol") or cycle.get("symbol") or ""
         ref_price = float(cycle.get("bar_close") or 0.0)
@@ -550,8 +619,13 @@ def run(args) -> int:
         else:
             age = _session_age_days(s2_id)
             if age is not None and age >= HARD_EXIT_DAYS and desired == "short":
-                log.warning("%s (%s): age %dd >= %dd hold cap — force final exit + retire",
-                            s2_id, symbol, age, HARD_EXIT_DAYS)
+                # 여기 걸리면 **전략 층이 제 일을 못 한 것**이다 — policy 의
+                # max_hold_bars 가 이미 청산했어야 한다. 조용히 보정하지 않고
+                # 모순으로 기록한다. 백스톱은 남기되, 걸렸다는 사실이 신호다.
+                log.error("%s (%s): **모순** — 정본이 %d바째 숏을 유지 중인데 보유 상한 "
+                          "%d일을 넘었다. policy.max_hold_bars 를 확인하라. "
+                          "백스톱으로 강제청산 후 링크를 은퇴시킨다.",
+                          s2_id, symbol, (canon or {}).get("bars_held", -1), HARD_EXIT_DAYS)
                 desired = "flat"
                 link_state["retired"] = True
 
@@ -569,6 +643,38 @@ def run(args) -> int:
             if intended == desired:
                 log.info("%s %s (%s): in sync (side=%s)", s2_id, track, symbol, desired)
                 continue
+
+            # 진입 관문 — 정본이 **방금 그 바에서** 진입한 경우에만 따라간다.
+            # 보유/청산(desired=="flat")은 이 관문을 통과시킨다.
+            if intended == "flat" and desired == "short":
+                if canon is None:
+                    log.warning("%s %s (%s): 정본 상태를 읽지 못함 — 진입 보류",
+                                s2_id, track, symbol)
+                    continue
+                if not _is_fresh_entry(canon):
+                    # 정본은 이전 바에 이미 들어가 보유 중이다. 지금 따라 들어가면
+                    # 검증한 진입가·진입시각이 아니다. 매 사이클 반복되므로 경보는
+                    # 링크당 한 번만 낸다.
+                    if not link_state.get("catchup_blocked"):
+                        link_state["catchup_blocked"] = True
+                        log.error("%s %s (%s): **뒤늦은 진입 차단** — 정본 진입 %s, "
+                                  "현재 바 %s (보유 %d바). 백테스트는 진입 바 시가에 "
+                                  "체결한다.", s2_id, track, symbol,
+                                  str(canon.get("entry_ts"))[:16],
+                                  str(canon.get("last_cycle_ts"))[:16],
+                                  canon.get("bars_held", 0))
+                        if track == "real":
+                            _telegram_notify(
+                                int(link.get("real_account_id") or 0),
+                                f"⚠️ <b>{symbol} 실계좌 진입 건너뜀</b>\n\n"
+                                f"정본은 {str(canon.get('entry_ts'))[:16]} 에 진입해 "
+                                f"{canon.get('bars_held', 0)}바째 보유 중인데 실계좌가 "
+                                f"비어 있습니다.\n뒤늦게 따라 들어가면 백테스트가 검증한 "
+                                f"진입가가 아니므로 건너뜁니다.")
+                    else:
+                        log.info("%s %s (%s): 뒤늦은 진입 차단(경보 기발송)",
+                                 s2_id, track, symbol)
+                    continue
 
             margin_used = 0.0  # REAL: how much of the shared budget this short consumes
             if desired == "short":
