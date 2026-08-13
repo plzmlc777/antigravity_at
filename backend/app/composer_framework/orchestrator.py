@@ -46,19 +46,29 @@ logger = logging.getLogger(__name__)
 # 커널 상태 사이의 변환뿐이다.
 
 def _kernel_config(session: PaperSession) -> KernelConfig:
-    """오케스트레이터의 **현행** 회계를 설정으로 표현한다.
+    """오케스트레이터의 회계를 설정으로 표현한다.
 
-    브래킷 기본값 SL 4% / TP 10% 는 backtester(비활성)와 다르다 — 격차 D2 이고
-    통합 계획 3b 에서 해소한다. 2단계는 행동을 바꾸지 않으므로 여기서는 지금
-    값을 그대로 유지한다. `policy_exit_reason` 도 마찬가지(backtester 는
-    "policy", 여기는 "policy_exit").
+    3b (2026-08-13) — 브래킷 기본값 격차 D2 해소.
+      종전: policy 가 브래킷을 지정하지 않으면(None) SL 4% / TP 10% 를 **임의로**
+            장착했다. backtester 는 같은 경우 비활성으로 뒀다. 같은 policy 가
+            두 실행기에서 다른 전략이 되는 상태였고, 2026-08-08 사고(선언한 적
+            없는 10% 익절이 실자금 43일을 오염)가 정확히 이 계열의 사고다.
+      현재: 양쪽 모두 **비활성**. 브래킷은 policy 가 선언한 것만 존재한다.
+
+      실측 영향 0 — 현행 4개 policy(LongOnly / LongShort / LifecycleDecayEarlyExit
+      / FundingReversal)는 모두 진입 시 sl/tp 를 명시적으로 넣는다. 골든 재생
+      112/112 · 파리티 PASS 136/FAIL 0 로 확인했다. 즉 이 수정은 **잠재 함정을
+      제거**하는 것이지 지금 전략을 바꾸는 것이 아니다.
+
+    `policy_exit_reason` 격차("policy" vs "policy_exit")는 아직 남아 있다 —
+    별도 항목으로 따로 처리한다(한 커밋에 한 격차).
     """
     return KernelConfig(
         size_pct=0.95,
         fee_rate=session.fee_rate,
         apply_fee_to_short=True,
-        default_sl_pct=0.04,
-        default_tp_pct=0.10,
+        default_sl_pct=None,
+        default_tp_pct=None,
         policy_exit_reason="policy_exit",
     )
 
