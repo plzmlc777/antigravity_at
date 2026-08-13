@@ -60,6 +60,11 @@ BAR = dict(open_price=100.0, high_price=105.0, low_price=95.0, close_price=101.0
 CFG = KernelConfig(size_pct=0.95, fee_rate=0.0004)
 
 
+def bar_at(px: float) -> dict:
+    """가격 하나짜리 최소 바 — 시장가 규칙은 시가만 본다."""
+    return {"open_price": px, "high_price": px, "low_price": px, "close_price": px}
+
+
 class TestPurity(unittest.TestCase):
 
     def test_step_does_not_mutate_input_state(self):
@@ -87,8 +92,8 @@ class TestOrdering(unittest.TestCase):
         pol = Recorder(lambda c: Action.hold())          # 정책은 계속 보유하려 한다
         new, res = step(st, ts=TS, prediction=1.0, policy=pol, cfg=CFG, **BAR)
         self.assertEqual(res.forced_exit_reason, "sl")
-        self.assertIsNotNone(res.closed)
-        self.assertEqual(res.closed.exit_price, 104.0)
+        self.assertEqual(len(res.closed), 1)
+        self.assertEqual(res.closed[0].exit_price, 104.0)
         self.assertEqual(new.side, "flat")
 
     def test_bars_held_incremented_before_policy_sees_it(self):
@@ -119,23 +124,23 @@ class TestBrackets(unittest.TestCase):
                          entry_ts=TS, sl_price=0.0, tp_price=0.0)
         _, res = step(st, ts=TS, prediction=1.0, policy=Recorder(), cfg=CFG, **BAR)
         self.assertIsNone(res.forced_exit_reason)
-        self.assertIsNone(res.closed)
+        self.assertEqual(res.closed, ())
 
     def test_none_bracket_uses_config_default(self):
         """policy 미지정(None) → 설정 기본값. 오케스트레이터의 SL4%/TP10% 재현."""
         cfg = replace(CFG, default_sl_pct=0.04, default_tp_pct=0.10)
-        st = open_position(KernelState(cash=1000.0), "enter_short", 100.0, TS,
+        st = open_position(KernelState(cash=1000.0), "enter_short", bar_at(100.0), TS,
                            Action(kind="enter_short"), cfg)
         self.assertAlmostEqual(st.sl_price, 104.0)
         self.assertAlmostEqual(st.tp_price, 90.0)
-        stl = open_position(KernelState(cash=1000.0), "enter_long", 100.0, TS,
+        stl = open_position(KernelState(cash=1000.0), "enter_long", bar_at(100.0), TS,
                             Action(kind="enter_long"), cfg)
         self.assertAlmostEqual(stl.sl_price, 96.0)
         self.assertAlmostEqual(stl.tp_price, 110.0)
 
     def test_none_bracket_without_default_is_disabled(self):
         """백테스터 재현 — 기본값이 없으면 브래킷은 비활성(0.0)이다."""
-        st = open_position(KernelState(cash=1000.0), "enter_short", 100.0, TS,
+        st = open_position(KernelState(cash=1000.0), "enter_short", bar_at(100.0), TS,
                            Action(kind="enter_short"), CFG)
         self.assertEqual(st.sl_price, 0.0)
         self.assertEqual(st.tp_price, 0.0)
@@ -147,7 +152,7 @@ class TestBrackets(unittest.TestCase):
         10% 익절이 장착됐다.
         """
         cfg = replace(CFG, default_sl_pct=0.04, default_tp_pct=0.10)
-        st = open_position(KernelState(cash=1000.0), "enter_short", 100.0, TS,
+        st = open_position(KernelState(cash=1000.0), "enter_short", bar_at(100.0), TS,
                            Action(kind="enter_short", sl_price=0.0, tp_price=0.0), cfg)
         self.assertEqual(st.sl_price, 0.0)
         self.assertEqual(st.tp_price, 0.0)
@@ -166,7 +171,7 @@ class TestExecution(unittest.TestCase):
         self.assertEqual(st.entry_price, BAR["open_price"])
 
     def test_no_entry_when_cash_exhausted(self):
-        st = open_position(KernelState(cash=0.0), "enter_short", 100.0, TS,
+        st = open_position(KernelState(cash=0.0), "enter_short", bar_at(100.0), TS,
                            Action(kind="enter_short"), CFG)
         self.assertEqual(st.side, "flat")
 
@@ -196,7 +201,7 @@ class TestPolicyExitReason(unittest.TestCase):
                          entry_ts=TS)
         _, res = step(st, ts=TS, prediction=1.0,
                       policy=Recorder(lambda c: Action.exit_("")), cfg=cfg, **BAR)
-        return res.closed.exit_reason
+        return res.closed[0].exit_reason
 
     def test_backtester_default(self):
         self.assertEqual(self._exit_once(CFG), "policy")
@@ -210,7 +215,7 @@ class TestPolicyExitReason(unittest.TestCase):
                          entry_ts=TS)
         _, res = step(st, ts=TS, prediction=1.0,
                       policy=Recorder(lambda c: Action.exit_("max_hold")), cfg=CFG, **BAR)
-        self.assertEqual(res.closed.exit_reason, "max_hold")
+        self.assertEqual(res.closed[0].exit_reason, "max_hold")
 
 
 if __name__ == "__main__":

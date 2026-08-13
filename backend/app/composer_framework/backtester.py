@@ -200,8 +200,8 @@ class GenericBacktester:
                 low_price=float(row["low"]), close_price=float(row["close"]),
                 prediction=pred, policy=policy, cfg=cfg)
 
-            if res.closed is not None:
-                _record(res.closed)
+            for _tr in res.closed:
+                _record(_tr)
             if res.opened:
                 pred_at_entry = 0.0 if (pred is None or np.isnan(pred)) else float(pred)
             eq.append((_py(ts), res.equity))
