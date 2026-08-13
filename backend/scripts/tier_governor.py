@@ -448,8 +448,24 @@ def main():
         for name in promoted:
             actions.append(f"⬆️ 리그 승격 {name} (3군 R-4 PASS → 2군 시드)")
         seated_count = len(seated) + len(promoted)
+        promoted_ids = []          # 승격분은 다음 실행에서 seated 로 잡힌다
     else:
         seated_count = len(seated)
+        promoted_ids = []
+
+    # state["sessions"] 정리 — 좌석에서 내려간 세션의 체크포인트 흔적을 지운다.
+    #
+    # 2026-08-13: 이 dict 는 setdefault 로 **추가만** 됐다. 강등된 세션이 남고,
+    # 아직 Day-30 체크포인트에 도달 못 한 현역 좌석은 빠져 있어서, 크기를 좌석
+    # 수로 오해하기 쉬웠다(sessions 13 = terminated 7 + 누락 5, 실제 좌석 11).
+    # 좌석 수의 정답은 언제나 아래 seats.used 다.
+    live_ids = {s["sid"] for s in seated} | set(promoted_ids)
+    dropped = [k for k in state.get("sessions", {}) if k not in live_ids]
+    for k in dropped:
+        state["sessions"].pop(k, None)
+    if dropped:
+        logger.info("[%s] 좌석에서 내려간 세션 %d개의 체크포인트 기록 정리",
+                    market, len(dropped))
 
     queue_len = len(load_json(queue_path, {"queue": []}).get("queue", []))
     state["seats"] = {"max": seats_max, "used": seated_count, "queue": queue_len,
