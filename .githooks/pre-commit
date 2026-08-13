@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# 실행기 회귀 방지 훅 (통합 실행기 계획 5단계).
+#
+# `backend/app/composer_framework/` 는 백테스트·페이퍼·실거래가 **공유하는
+# 커널**이다. 여기가 바뀌면 세 경로가 동시에 바뀐다. 커밋 전에 막는다.
+#
+# 왜 훅으로 두는가: 2026-08-08 사고 당시에도 검사 도구(engine_parity_gate)는
+# 있었지만 호출처가 0개였다. 사람이 기억해서 돌리는 검사는 결국 안 돌아간다.
+#
+# 의도적 행동 변경이면 테스트·기준을 함께 고쳐라. 우회: git commit --no-verify
+set -uo pipefail
+
+CHANGED=$(git diff --cached --name-only --diff-filter=ACM | grep -E '^backend/app/composer_framework/' || true)
+[ -z "$CHANGED" ] && exit 0
+
+echo "[pre-commit] composer_framework 변경 감지 — 실행기 검사"
+cd backend 2>/dev/null || exit 0
+PY=./venv/bin/python3
+[ -x "$PY" ] || PY=python3
+
+if ! $PY -m unittest discover -s tests/composer_framework -p 'test_*.py' > /tmp/precommit_unit.log 2>&1; then
+  echo "[pre-commit] ✗ 단위 테스트 실패"
+  tail -25 /tmp/precommit_unit.log
+  echo "[pre-commit] 우회: git commit --no-verify"
+  exit 1
+fi
+echo "[pre-commit] ✓ 단위 테스트 $(grep -oE 'Ran [0-9]+ tests' /tmp/precommit_unit.log | tail -1)"
+
+# 골든은 DB 를 읽는다. 없는 환경(로컬 랩톱)에서는 건너뛰되 **조용히는 아니다**.
+if $PY -c 'import sys; sys.path.insert(0,"."); from app.db.session import engine; engine.connect().close()' 2>/dev/null; then
+  if ! $PY -m scripts.research.golden_replay --verify --filter lifecycle > /tmp/precommit_golden.log 2>&1; then
+    # "기준 파일 없음" 과 "기준과 어긋남" 은 다른 사건이다. 전자로 커밋을 막으면
+    # 기준이 없는 개발 머신에서는 아무것도 커밋할 수 없다(실제로 그렇게 됐다).
+    # 진짜 관문은 민트에서 매일 도는 run_engine_gates.sh 다.
+    if grep -q '기준 파일 없음' /tmp/precommit_golden.log; then
+      echo "[pre-commit] ! 골든 기준 파일 없음 — 재생 건너뜀 (단위 테스트만 확인됨)"
+      echo "[pre-commit]   이 머신에서 기준을 만들려면: golden_replay --build"
+    else
+      echo "[pre-commit] ✗ 골든 재생 불일치 — $(grep -oE '일치 [0-9]+ / 불일치 [0-9]+.*' /tmp/precommit_golden.log | tail -1)"
+      echo "[pre-commit] 행동을 바꿨다면 기준 재생성: golden_replay --build"
+      echo "[pre-commit] 우회: git commit --no-verify"
+      exit 1
+    fi
+  else
+    echo "[pre-commit] ✓ 골든 재생 $(grep -oE '일치 [0-9]+ / 불일치 [0-9]+.*' /tmp/precommit_golden.log | tail -1)"
+  fi
+else
+  echo "[pre-commit] ! DB 없음 — 골든 재생 건너뜀 (단위 테스트만 확인됨)"
+fi
+exit 0

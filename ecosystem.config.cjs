@@ -426,6 +426,20 @@ const agentApps = [
         // TERMINATE 자동 / PROMOTE·RESEED는 Telegram 통보 (1군 진입은 수동 승인).
         // Daily 03:40 UTC (12:40 KST) — paper-cycle(02:30) + spawner(03:00) 이후
         // 당일 최신 equity/trades 반영 상태에서 판정. 2026-07-11 신설.
+        // 실행기 전량 검사 — 일요일 21:00 KST (12:00 UTC).
+        // 매일 도는 사전 관문(run_engine_gates.sh, 35초)은 lifecycle 서브셋만 본다.
+        // 나머지 87건과 파리티 게이트(154케이스, 45분)는 주문 앞을 막을 수 없을
+        // 만큼 느리므로 여기서 주 1회 돈다. 실패 시 텔레그램 경보.
+        name: "engine-gate-weekly",
+        script: SAS_WRAPPER,
+        args: `'0 12 * * 0' ./scripts/binance/run_engine_gates_full.sh`,
+        interpreter: "bash",
+        cwd: ".",
+        autorestart: true,
+        max_restarts: 10,
+        restart_delay: 5000
+    },
+    {
         name: "tier-governor",
         script: SAS_WRAPPER,
         args: `'40 3 * * *' ./scripts/binance/run_tier_governor.sh`,
