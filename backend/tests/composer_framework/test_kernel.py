@@ -194,7 +194,15 @@ class TestExecution(unittest.TestCase):
 
 
 class TestPolicyExitReason(unittest.TestCase):
-    """드라이버별 청산 사유 기본값이 설정으로 표현되는지 (행동 변경 0)."""
+    """청산 사유 기본값 — 3c~3f(2026-08-13)에서 **통일**했다.
+
+    종전: backtester "policy" / orchestrator "policy_exit" — 같은 상황을 두
+    실행기가 다른 이름으로 기록했다. 골든 1,025거래에 둘 다 0건이라(모든 정책이
+    명시적 note 를 넘긴다) 통일해도 행동은 안 바뀌는 **잠재 격차**였다.
+
+    통일 전 이 클래스는 격차를 살아 있는 채로 못박고 있었고, 통일하자 실패했다.
+    그 실패가 곧 수정의 증거다.
+    """
 
     def _exit_once(self, cfg):
         st = KernelState(cash=1000.0, side="short", qty=1.0, entry_price=100.0,
@@ -203,12 +211,13 @@ class TestPolicyExitReason(unittest.TestCase):
                       policy=Recorder(lambda c: Action.exit_("")), cfg=cfg, **BAR)
         return res.closed[0].exit_reason
 
-    def test_backtester_default(self):
-        self.assertEqual(self._exit_once(CFG), "policy")
+    def test_default_is_unified(self):
+        self.assertEqual(self._exit_once(CFG), "policy_exit")
 
-    def test_orchestrator_default(self):
-        self.assertEqual(self._exit_once(replace(CFG, policy_exit_reason="policy_exit")),
-                         "policy_exit")
+    def test_still_configurable(self):
+        """통일했다고 설정을 없애진 않았다 — 다른 드라이버가 생기면 필요하다."""
+        self.assertEqual(self._exit_once(replace(CFG, policy_exit_reason="custom")),
+                         "custom")
 
     def test_explicit_note_wins(self):
         st = KernelState(cash=1000.0, side="short", qty=1.0, entry_price=100.0,
@@ -216,6 +225,24 @@ class TestPolicyExitReason(unittest.TestCase):
         _, res = step(st, ts=TS, prediction=1.0,
                       policy=Recorder(lambda c: Action.exit_("max_hold")), cfg=CFG, **BAR)
         self.assertEqual(res.closed[0].exit_reason, "max_hold")
+
+
+class TestConfigUnification(unittest.TestCase):
+    """3c~3f — 코드에 박혀 있던 값들이 설정으로 나왔는가."""
+
+    def test_close_at_end_is_config(self):
+        """백테스트는 끝에서 정리, 라이브는 들고 간다 — 코드가 아니라 설정이 정한다."""
+        self.assertFalse(KernelConfig().close_at_end)          # 기본 = 라이브
+        self.assertTrue(replace(KernelConfig(), close_at_end=True).close_at_end)
+
+    def test_fee_constants_are_named_per_market(self):
+        """시장마다 요율이 다르므로 하나로 통일할 수 없다 — 이름으로 드러낸다."""
+        from app.composer_framework.kernel import (
+            DEFAULT_FEE_RATE, FEE_KR_EQUITY, FEE_MAKER_BINANCE_FUTURES,
+            FEE_TAKER_BINANCE_FUTURES,
+        )
+        self.assertLess(FEE_MAKER_BINANCE_FUTURES, FEE_TAKER_BINANCE_FUTURES)
+        self.assertEqual(DEFAULT_FEE_RATE, FEE_KR_EQUITY)      # 종전 기본값 보존
 
 
 if __name__ == "__main__":

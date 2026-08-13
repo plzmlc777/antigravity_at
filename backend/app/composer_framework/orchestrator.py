@@ -64,12 +64,13 @@ def _kernel_config(session: PaperSession) -> KernelConfig:
     별도 항목으로 따로 처리한다(한 커밋에 한 격차).
     """
     return KernelConfig(
-        size_pct=0.95,
+        size_pct=session.size_pct,          # 3d — 코드 하드코딩 → 세션 기록
         fee_rate=session.fee_rate,
         apply_fee_to_short=True,
         default_sl_pct=None,
         default_tp_pct=None,
         policy_exit_reason="policy_exit",
+        close_at_end=False,                 # 3f — 라이브 세션은 들고 간다
     )
 
 
@@ -217,17 +218,22 @@ class PaperOrchestrator:
                 last_ts = pd.Timestamp(session.last_cycle_ts)
                 start_pos = int(eval_index.searchsorted(last_ts, side="right"))
             except Exception:
-                start_pos = n_bars - 1
+                # last_cycle_ts 가 깨졌다 — 신규 세션과 같은 규칙으로 떨어뜨린다
+                start_pos = n_bars - session.fresh_start_bars
         else:
             # fresh session: start clean from the latest bar (do NOT replay all
             # of history — this is a live paper session, not a backtest).
-            start_pos = n_bars - 1
+            start_pos = n_bars - session.fresh_start_bars
         gap_positions = list(range(max(start_pos, 0), n_bars))
         # Safety bound: cap one cycle's replay at ~1 week of 5m bars (e.g. the
         # first run after a long outage) so a single cycle stays bounded.
-        MAX_CATCHUP_BARS = 2016
-        if len(gap_positions) > MAX_CATCHUP_BARS:
-            gap_positions = gap_positions[-MAX_CATCHUP_BARS:]
+        # 3e — 종전에는 여기 박힌 지역 상수였다. 세션 기록으로 옮겨야 "그때 무슨
+        # 설정으로 돌았나"를 나중에 알 수 있다.
+        cap = int(session.catchup_cap_bars)
+        if cap > 0 and len(gap_positions) > cap:
+            logger.warning("세션 %s: 재생 %d바 → 상한 %d바로 자름 (설정 catchup_cap_bars)",
+                           session.session_id, len(gap_positions), cap)
+            gap_positions = gap_positions[-cap:]
         if not gap_positions:
             # Already up to date (no new bar) — no-op, do not re-execute.
             return self._record_no_op(session, feat, "no_new_bar")

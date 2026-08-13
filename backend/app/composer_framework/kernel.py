@@ -44,6 +44,22 @@ from typing import Any, Mapping, Optional
 from .policy import Action, PolicyContext, TradingPolicy
 
 
+# 수수료 기본값 — **시장마다 다르다.** 하나로 통일할 수 없다.
+#
+# 3c (2026-08-13): 같은 뜻의 기본값이 세 곳에 서로 다르게 박혀 있었다
+#   KernelConfig 0.0004 / GenericBacktester 0.00015 / PaperSession 0.00015
+# 값을 하나로 맞추면 KR 세션과 바이낸스 세션 중 한쪽이 틀린다. 그래서 **출처만**
+# 일원화하고 값은 시장별로 이름을 붙여 드러낸다.
+#
+# ⚠ 프레임워크의 소스 33종 중 대부분이 바이낸스인데 기본값이 KR 주식 요율이다.
+#    새 세션을 만들 때 요율을 명시하지 않으면 조용히 1.5bp 로 계산된다.
+#    실제 바이낸스 선물 VIP0: 메이커 2bp / 테이커 5bp.
+FEE_TAKER_BINANCE_FUTURES = 0.0005
+FEE_MAKER_BINANCE_FUTURES = 0.0002
+FEE_KR_EQUITY = 0.00015
+DEFAULT_FEE_RATE = FEE_KR_EQUITY      # 종전 기본값 — 바꾸면 행동이 바뀐다
+
+
 @dataclass(frozen=True)
 class KernelConfig:
     """실행 회계 파라미터. 두 드라이버의 현행 격차를 값으로 표현한다."""
@@ -67,7 +83,13 @@ class KernelConfig:
     # policy 가 note 없이 exit 한 경우의 사유 문자열. 두 드라이버가 서로 다른
     # 기본값을 써 왔다(backtester "policy" / orchestrator "policy_exit").
     # 2단계는 행동을 바꾸지 않으므로 값으로 표현만 한다. 통일은 3단계 몫.
-    policy_exit_reason: str = "policy"
+    # policy 가 note 없이 exit 한 경우의 사유. 3c~3f(2026-08-13)에서 통일했다 —
+    # 종전 backtester "policy" / orchestrator "policy_exit". 골든 1,025거래에
+    # 둘 다 0건이라(모든 정책이 명시적 note 를 넘긴다) 통일해도 행동은 안 바뀐다.
+    policy_exit_reason: str = "policy_exit"
+    # 데이터 끝에서 잔여 포지션을 강제청산하는가. 백테스트는 True(`eod` 거래로
+    # 남긴다), 라이브 세션은 False(들고 간다). 종전에는 드라이버 코드로 갈렸다.
+    close_at_end: bool = False
 
 
 @dataclass(frozen=True)

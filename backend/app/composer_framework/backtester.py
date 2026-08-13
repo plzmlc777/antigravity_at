@@ -23,7 +23,7 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 
-from .kernel import KernelConfig, KernelState
+from .kernel import DEFAULT_FEE_RATE, KernelConfig, KernelState
 from .kernel import close as kernel_close
 from .kernel import step as kernel_step
 from .pipeline import Pipeline
@@ -88,7 +88,7 @@ class GenericBacktester:
         *,
         initial_capital: float = 1_000_000.0,
         size_pct: float = 0.95,
-        fee_rate: float = 0.00015,
+        fee_rate: float = DEFAULT_FEE_RATE,
         apply_fee_to_short: bool = True,
     ) -> None:
         self.initial_capital = float(initial_capital)
@@ -211,9 +211,8 @@ class GenericBacktester:
                 pred_at_entry = 0.0 if (pred is None or np.isnan(pred)) else float(pred)
             eq.append((_py(ts), res.equity))
 
-        # close residual at last bar — 백테스트만의 규칙(라이브 세션은 열어 둔다).
-        # 정본 계획에서 `close_at_end` 설정으로 표현할 항목(D6).
-        if st.side != "flat":
+        # 잔여 포지션 정리 — `close_at_end` 설정이 정한다 (3f).
+        if cfg.close_at_end and st.side != "flat":
             st, tr = kernel_close(st, float(bars.iloc[-1]["close"]), bars.index[-1],
                                   "eod", cfg)
             _record(tr)
@@ -245,7 +244,11 @@ class GenericBacktester:
         """
         return KernelConfig(size_pct=self.size_pct, fee_rate=self.fee_rate,
                             apply_fee_to_short=self.apply_fee_to_short,
-                            default_sl_pct=None, default_tp_pct=None)
+                            default_sl_pct=None, default_tp_pct=None,
+                            # 백테스트는 데이터 끝에서 잔여 포지션을 정리한다.
+                            # 라이브 세션은 들고 간다 — 3f 에서 설정으로 표현했다.
+                            close_at_end=True,
+                            policy_exit_reason="policy_exit")
 
     def _fill_kpis(self, k: BacktestKPIs) -> None:
         n = len(k.trades)
