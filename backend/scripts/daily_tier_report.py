@@ -131,13 +131,42 @@ def tier1() -> list[str]:
 
 # ─────────────────────────── 2군 ───────────────────────────
 
+def _league_session_ids() -> set[str]:
+    """현재 리그 좌석에 앉아 있는 세션.
+
+    `tier_governor.is_governed` 를 그대로 쓴다 — "무엇이 리그 세션인가"의 정의가
+    두 곳에 있으면 갈린다. 상태 파일의 `sessions` 는 쓰지 않는다(위 주석 참조).
+    """
+    import glob as _g
+    try:
+        from tier_governor import SESS_DIR, is_governed
+    except Exception:
+        return set()
+    out = set()
+    for sdir in _g.glob(os.path.join(SESS_DIR, "*")):
+        sj = os.path.join(sdir, "session.json")
+        if not os.path.exists(sj):
+            continue
+        try:
+            meta = json.load(open(sj))
+        except Exception:
+            continue
+        if is_governed(meta, "binance") and meta.get("status") == "active":
+            out.add(meta["session_id"])
+    return out
+
+
 def tier2() -> list[str]:
     out = ["", "<b>[2군] 리그</b>"]
     try:
         st = json.loads(LEAGUE_STATE.read_text())
         seats = st.get("seats", {})
+        # ⚠ `state["sessions"]` 를 좌석 수로 쓰면 안 된다. 그건 Day-30 체크포인트
+        # 추적용 dict 이고 `setdefault` 로 **추가만** 된다 — 강등된 세션이 남고,
+        # 아직 체크포인트에 도달 못 한 현役 좌석은 빠진다.
+        # 실측(2026-08-13): sessions 13 = terminated 7 + 누락 5, 실제 좌석은 11.
         out.append(f"  좌석 {seats.get('used','?')}/{seats.get('max','?')} · "
-                   f"큐 {seats.get('queue','?')} · 세션 {len(st.get('sessions', {}))}")
+                   f"큐 {seats.get('queue','?')}")
         rounds = (st.get("league") or {}).get("rounds") or []
         if rounds:
             r = rounds[-1]
@@ -151,7 +180,7 @@ def tier2() -> list[str]:
     try:
         from app.composer_framework.paper_session import load_trades
         today = datetime.now(KST).date()
-        league_ids = set((json.loads(LEAGUE_STATE.read_text()).get("sessions") or {}).keys())
+        league_ids = _league_session_ids()
         n_valid = n_today = 0
         for sid in league_ids:
             tf = SESS / sid / "trades.jsonl"
@@ -162,7 +191,7 @@ def tier2() -> list[str]:
                 if str(t.get("exit_ts", ""))[:10] == str(today):
                     n_today += 1
         out.append(f"  유효 거래 누적 {n_valid} · 오늘 청산 {n_today} "
-                   f"(리그 {len(league_ids)}세션)")
+                   f"(좌석 {len(league_ids)}세션)")
         out.append("  <i>무효 표시 거래는 제외 (INVALID_TRADES.json)</i>")
     except Exception as exc:
         out.append(f"  거래 집계 실패: {esc(type(exc).__name__)}")
