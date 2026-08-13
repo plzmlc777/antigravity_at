@@ -123,7 +123,8 @@ class GenericBacktester:
         preds = pd.Series(preds, index=test.index)
 
         return self._simulate(symbol=ctx.symbol, bars=bars_test,
-                              predictions=preds, policy=pipeline.policy)
+                              predictions=preds, policy=pipeline.policy,
+                              features=test)
 
     # ------------------------------------------- walk-forward
 
@@ -156,7 +157,8 @@ class GenericBacktester:
                 logger.warning("Pipeline.predict failed at i=%d: %s", i, exc)
 
         return self._simulate(symbol=ctx.symbol, bars=ctx.ohlcv_eval,
-                              predictions=preds, policy=pipeline.policy)
+                              predictions=preds, policy=pipeline.policy,
+                              features=feat)
 
     # ------------------------------------------- simulator
 
@@ -167,6 +169,7 @@ class GenericBacktester:
         bars: pd.DataFrame,
         predictions: pd.Series,
         policy: TradingPolicy,
+        features: Optional[pd.DataFrame] = None,
     ) -> BacktestKPIs:
         trades: list[BacktestTrade] = []
         eq: list[tuple[datetime, float]] = []
@@ -198,7 +201,9 @@ class GenericBacktester:
             st, res = kernel_step(
                 st, ts=ts, open_price=float(row["open"]), high_price=float(row["high"]),
                 low_price=float(row["low"]), close_price=float(row["close"]),
-                prediction=pred, policy=policy, cfg=cfg)
+                prediction=pred, policy=policy, cfg=cfg,
+                features=(features.loc[ts] if features is not None and ts in features.index
+                          else None))
 
             for _tr in res.closed:
                 _record(_tr)

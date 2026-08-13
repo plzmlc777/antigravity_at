@@ -258,7 +258,8 @@ class PaperOrchestrator:
                 ts=bar_ts.to_pydatetime() if hasattr(bar_ts, "to_pydatetime") else bar_ts,
                 open_price=float(bar["open"]), high_price=float(bar["high"]),
                 low_price=float(bar["low"]), close_price=float(bar["close"]),
-                prediction=prediction, policy=pipeline.policy, cfg=cfg)
+                prediction=prediction, policy=pipeline.policy, cfg=cfg,
+                features=feat.iloc[pos])          # 그 바의 피처 행 — 읽기 전용
 
             side_before = res.side_before
             action = res.action

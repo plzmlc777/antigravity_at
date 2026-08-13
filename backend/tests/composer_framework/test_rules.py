@@ -248,5 +248,97 @@ class TestPyramidAndPartial(unittest.TestCase):
         self.assertEqual(a, b)
 
 
+class TestFeaturesAndFees(unittest.TestCase):
+    """정책이 피처를 보는가 / 수수료가 체결 방식을 아는가."""
+
+    def test_policy_receives_features(self):
+        """ATR 손절이 가능해지는 지점 — 정책이 그 바의 피처를 본다."""
+        seen = {}
+
+        class Peek(TradingPolicy):
+            def decide(self, c):
+                seen.update(dict(c.features))
+                return Action.hold()
+
+        step(KernelState(cash=1000.0), ts=TS, prediction=0.0, policy=Peek(),
+             cfg=CFG, features={"atr": 3.5, "regime": 1.0}, **BAR)
+        self.assertEqual(seen.get("atr"), 3.5)
+
+    def test_features_default_empty(self):
+        """features 를 안 넘기면 빈 매핑 — 기존 정책은 영향 없다."""
+        seen = {}
+
+        class Peek(TradingPolicy):
+            def decide(self, c):
+                seen["n"] = len(c.features)
+                return Action.hold()
+
+        step(KernelState(cash=1000.0), ts=TS, prediction=0.0, policy=Peek(),
+             cfg=CFG, **BAR)
+        self.assertEqual(seen["n"], 0)
+
+    def test_atr_stop_is_expressible(self):
+        """피처로 받은 ATR 로 손절을 잡는다 — 정본 수정 없이."""
+
+        class AtrStop(TradingPolicy):
+            def decide(self, c):
+                if c.in_position:
+                    return Action.hold()
+                atr = float(c.features.get("atr", 0.0))
+                return Action(kind="enter_short", sl_price=c.open_price + 2 * atr)
+
+        st, _ = step(KernelState(cash=1000.0), ts=TS, prediction=-1.0,
+                     policy=AtrStop(), cfg=CFG, features={"atr": 3.0}, **BAR)
+        self.assertAlmostEqual(st.sl_price, 100.0 + 6.0)
+
+    def test_maker_rate_applies_to_limit_fill(self):
+        cfg = replace(CFG, fee_rate=0.0005, fee_rate_maker=0.0002)
+        st = KernelState(cash=10000.0)
+        st = open_position(st, "enter_short", BAR, TS,
+                           Action(kind="enter_short", fill=LimitFill(104.0)), cfg)
+        self.assertTrue(st.entry_maker)
+        _, tr = close(st, 104.0, TS, "t", cfg, exit_maker=True)
+        # 가격 변화 없음 → 왕복 메이커 수수료만
+        self.assertAlmostEqual(tr.return_pct, -2 * 0.0002, places=12)
+
+    def test_taker_rate_applies_to_market_fill(self):
+        cfg = replace(CFG, fee_rate=0.0005, fee_rate_maker=0.0002)
+        st = open_position(KernelState(cash=10000.0), "enter_short", bar_at(100.0), TS,
+                           Action(kind="enter_short"), cfg)
+        self.assertFalse(st.entry_maker)
+        _, tr = close(st, 100.0, TS, "t", cfg, exit_maker=False)
+        self.assertAlmostEqual(tr.return_pct, -2 * 0.0005, places=12)
+
+    def test_no_maker_rate_means_single_rate(self):
+        """fee_rate_maker=None 이면 종전과 동일 — 행동 변경 0."""
+        st = open_position(KernelState(cash=10000.0), "enter_short", BAR, TS,
+                           Action(kind="enter_short", fill=LimitFill(104.0)), CFG)
+        _, tr = close(st, 104.0, TS, "t", CFG, exit_maker=True)
+        self.assertAlmostEqual(tr.return_pct, -2 * CFG.fee_rate, places=12)
+
+    def test_tp_is_maker_sl_is_taker(self):
+        """TP 는 쉬던 지정가가 채워진 것, SL 은 스톱 발동."""
+        cfg = replace(CFG, fee_rate=0.0005, fee_rate_maker=0.0002)
+        base = KernelState(cash=0.0, side="short", qty=1.0, entry_price=100.0,
+                           entry_ts=TS, sl_price=105.0, tp_price=95.0)
+
+        class Hold(TradingPolicy):
+            def decide(self, c):
+                return Action.hold()
+
+        _, res_tp = step(base, ts=TS, prediction=0.0, policy=Hold(), cfg=cfg,
+                         open_price=100.0, high_price=101.0, low_price=94.0,
+                         close_price=95.0)
+        _, res_sl = step(base, ts=TS, prediction=0.0, policy=Hold(), cfg=cfg,
+                         open_price=100.0, high_price=106.0, low_price=99.0,
+                         close_price=105.0)
+        self.assertEqual(res_tp.forced_exit_reason, "tp")
+        self.assertEqual(res_sl.forced_exit_reason, "sl")
+        # 청산 쪽 요율이 다르므로 수수료 총액이 다르다
+        self.assertNotAlmostEqual(
+            res_tp.closed[0].return_pct + 0.05,      # tp: +5% 수익
+            res_sl.closed[0].return_pct - 0.05, places=6)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
