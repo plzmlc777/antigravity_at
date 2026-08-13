@@ -175,24 +175,33 @@ def tier2() -> list[str]:
     except Exception as exc:
         out.append(f"  리그 상태 읽기 실패: {esc(type(exc).__name__)}")
 
-    # 유효 거래 (무효 표시 제외) — **리그 세션만** 센다.
-    # 전 세션을 세면 2군과 무관한 것까지 섞여 리포트가 부풀려진다.
+    # 유효 거래 — **DB 한 곳**에서 읽는다.
+    #
+    # 2026-08-13: 처음엔 파일을 직접 읽었는데 "리그 세션"의 정의를 잘못 잡아
+    # 251 → 136 으로 정정해야 했다. 정의가 두 곳에 있으면 갈린다. 이제 적재된
+    # `paper_trade` 를 `WHERE invalid = false` 로 조회한다 — 무효 필터가 한 줄이다.
     try:
-        from app.composer_framework.paper_session import load_trades
-        today = datetime.now(KST).date()
+        from sqlalchemy import func
+
+        from app.db.session import SessionLocal
+        from app.models.tier_result import PaperTrade
         league_ids = _league_session_ids()
-        n_valid = n_today = 0
-        for sid in league_ids:
-            tf = SESS / sid / "trades.jsonl"
-            if not tf.exists():
-                continue
-            for t in load_trades(tf):
-                n_valid += 1
-                if str(t.get("exit_ts", ""))[:10] == str(today):
-                    n_today += 1
+        today = datetime.now(KST).date()
+        db = SessionLocal()
+        try:
+            base = db.query(func.count(PaperTrade.id)).filter(
+                PaperTrade.invalid.is_(False),
+                PaperTrade.session_id.in_(league_ids) if league_ids else False)
+            n_valid = base.scalar() or 0
+            n_today = (db.query(func.count(PaperTrade.id)).filter(
+                PaperTrade.invalid.is_(False),
+                PaperTrade.session_id.in_(league_ids) if league_ids else False,
+                func.date(PaperTrade.exit_ts) == today).scalar() or 0)
+        finally:
+            db.close()
         out.append(f"  유효 거래 누적 {n_valid} · 오늘 청산 {n_today} "
                    f"(좌석 {len(league_ids)}세션)")
-        out.append("  <i>무효 표시 거래는 제외 (INVALID_TRADES.json)</i>")
+        out.append("  <i>DB paper_trade · 무효 표시 제외</i>")
     except Exception as exc:
         out.append(f"  거래 집계 실패: {esc(type(exc).__name__)}")
 

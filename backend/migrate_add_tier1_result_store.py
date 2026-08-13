@@ -56,12 +56,49 @@ def verify() -> int:
     return 0 if ok else 1
 
 
+def _fix_paper_trade_key(conn) -> None:
+    """paper_trade 자연키를 row_idx 로 교정 (2026-08-13).
+
+    처음엔 (session_id, entry_ts, exit_ts, side) 를 유일키로 잡았는데, 적재가
+    UNIQUE 위반으로 통째로 실패했다 — 한 세션에 **진입·청산 시각이 완전히 같은
+    거래가 2건** 있었다(같은 바 왕복 2회). 시각·방향만으로는 거래를 구분할 수 없다.
+
+    ⚠ 여기서 DROP 하는 것은 **제약 조건**이지 테이블·데이터가 아니다. 이 테이블은
+      같은 날 만들어졌고 이 시점에 0행이다(확인 후 진행).
+    """
+    cols = {r[0] for r in conn.execute(text(
+        "SELECT column_name FROM information_schema.columns "
+        "WHERE table_name='paper_trade'"))}
+    if "row_idx" not in cols:
+        n = conn.execute(text("SELECT count(*) FROM paper_trade")).scalar()
+        if n:
+            raise SystemExit(
+                f"paper_trade 에 {n}행이 있다 — row_idx 를 NOT NULL 로 추가할 수 없다. "
+                "수동 확인 필요.")
+        conn.execute(text("ALTER TABLE paper_trade ADD COLUMN row_idx INTEGER NOT NULL DEFAULT 0"))
+        conn.execute(text("ALTER TABLE paper_trade ALTER COLUMN row_idx DROP DEFAULT"))
+        print("  + paper_trade.row_idx 추가")
+    cons = {r[0] for r in conn.execute(text(
+        "SELECT constraint_name FROM information_schema.table_constraints "
+        "WHERE table_name='paper_trade' AND constraint_type='UNIQUE'"))}
+    if "uq_paper_trade_natural" in cons:
+        conn.execute(text("ALTER TABLE paper_trade DROP CONSTRAINT uq_paper_trade_natural"))
+        print("  - 옛 유일키(uq_paper_trade_natural) 제거")
+    if "uq_paper_trade_session_row" not in cons:
+        conn.execute(text("ALTER TABLE paper_trade ADD CONSTRAINT "
+                          "uq_paper_trade_session_row UNIQUE (session_id, row_idx)"))
+        print("  + 새 유일키(session_id, row_idx) 추가")
+    conn.commit()
+
+
 def migrate() -> int:
     insp = inspect(engine)
     existing = set(insp.get_table_names())
     todo = [t for t in TABLES if t not in existing]
     if not todo:
-        print("모든 테이블이 이미 존재한다 — 할 일 없음")
+        print("모든 테이블이 이미 존재한다 — 스키마 교정만 확인")
+        with engine.connect() as conn:
+            _fix_paper_trade_key(conn)
         return verify()
 
     print(f"생성 대상: {todo}")
@@ -71,6 +108,8 @@ def migrate() -> int:
         tables=[Base.metadata.tables[t] for t in todo],
         checkfirst=True,
     )
+    with engine.connect() as conn:
+        _fix_paper_trade_key(conn)
     print("생성 완료\n검증:")
     return verify()
 
