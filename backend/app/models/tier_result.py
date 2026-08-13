@@ -42,6 +42,13 @@ class PaperTrade(Base):
     id = Column(Integer, primary_key=True, index=True)
 
     session_id = Column(String, nullable=False, index=True)
+    # trades.jsonl 의 **행 번호**. 이게 진짜 자연키다.
+    #
+    # 2026-08-13: 처음엔 (session_id, entry_ts, exit_ts, side) 를 유일키로 잡았다가
+    # 적재가 UNIQUE 위반으로 통째로 실패했다 — 한 세션에 **진입·청산 시각이 완전히
+    # 같은 거래가 2건** 있었다(같은 바 왕복 2회). 시각·방향만으로는 거래를 구분할 수
+    # 없다. 파일의 행이 곧 그 거래의 정체다.
+    row_idx = Column(Integer, nullable=False)
     # 비정규화 — 세션 파일이 없어도 조회가 되게 한다(세션은 은퇴·삭제될 수 있다)
     session_name = Column(String, nullable=False, index=True)
     symbol = Column(String, nullable=False, index=True)
@@ -68,8 +75,7 @@ class PaperTrade(Base):
 
     __table_args__ = (
         # 재적재 멱등 — 같은 거래를 두 번 넣지 않는다
-        UniqueConstraint("session_id", "entry_ts", "exit_ts", "side",
-                         name="uq_paper_trade_natural"),
+        UniqueConstraint("session_id", "row_idx", name="uq_paper_trade_session_row"),
         Index("ix_paper_trade_valid", "invalid", "strategy", "exit_ts"),
     )
 

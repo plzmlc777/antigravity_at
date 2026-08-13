@@ -16,6 +16,11 @@ echo "[daily-tier-report] ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)" | tee -a "${LOG_FIL
 cd "$(pwd)/backend" || exit 1
 # shellcheck disable=SC1091
 source venv/bin/activate
+# 적재 먼저 — 리포트가 DB 를 읽으므로 순서가 중요하다.
+# 적재가 실패해도 리포트는 돈다(어제 수치가 나갈 뿐). 거래에는 영향이 없다.
+PYTHONPATH=. python3 -m scripts.ingest_tier_results 2>&1 | tee -a "${LOG_FILE}"
+echo "[daily-tier-report] ingest_exit=${PIPESTATUS[0]}" | tee -a "${LOG_FILE}"
+
 PYTHONPATH=. python3 -m scripts.daily_tier_report 2>&1 | tee -a "${LOG_FILE}"
 EC="${PIPESTATUS[0]}"
 echo "[daily-tier-report] exit_code=${EC}" | tee -a "${LOG_FILE}"
