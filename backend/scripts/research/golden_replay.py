@@ -64,17 +64,15 @@ for noisy in ("app.composer_framework.orchestrator", "paper_session_cli",
 from app.composer_framework.orchestrator import PaperOrchestrator  # noqa: E402
 from app.composer_framework.paper_session import PaperSession, SessionStore  # noqa: E402
 
-import paper_session_cli as PSC  # noqa: E402
 from paper_session_cli import build_runtime_bundle  # noqa: E402
 from scripts.research.engine_parity_gate import collect  # noqa: E402
 
 # 운영 로더는 `days=800` 을 **현재 시각 기준**으로 읽어 창 시작이 매일 밀린다.
 # 골든은 시작을 절대 시각으로 고정해야 하므로 넉넉히 읽어 둔 뒤 잘라 쓴다.
-# 800(운영) + 여유 100일. 창 시작은 하루에 하루씩만 밀리므로 이 정도면 충분하고,
-# 45GB ohlcv 를 크게 더 긁지 않는다 (1600일로 잡았더니 한 심볼도 못 끝냈다).
-LOAD_DAYS = 900
-_ORIG_LOAD_1M = PSC.load_1m
-PSC.load_1m = lambda symbol, days=LOAD_DAYS: _ORIG_LOAD_1M(symbol, days=LOAD_DAYS)
+# 로더는 **운영과 동일하게** 둔다. 넓히면(900·1600일) 45GB ohlcv 가 I/O 로 막혀
+# 25분에 20건도 못 끝낸다. 대신 기준 시작점을 창 경계에서 안쪽으로 당겨 잡아
+# 여유를 만든다 — 아래 START_MARGIN_DAYS 참조.
+START_MARGIN_DAYS = 100
 
 GOLDEN_DIR = ROOT / "tests" / "golden"
 
@@ -109,7 +107,14 @@ def _truncate(bundle, bar_start: str | None, bar_end: str | None):
     if bundle.ohlcv_eval is None or not len(bundle.ohlcv_eval):
         return bundle
     avail = bundle.ohlcv_eval.index[0]
-    lo = pd.Timestamp(bar_start) if bar_start else avail
+    if bar_start:
+        lo = pd.Timestamp(bar_start)
+    else:
+        # 기준 생성 시: 창 경계에 딱 붙이면 다음 날 바로 밖으로 밀려난다.
+        # `load_1m` 이 now-800d 부터 읽으므로, 안쪽으로 START_MARGIN_DAYS 만큼
+        # 당겨 잡아 두면 그만큼(약 100일) 검증이 유효하다.
+        lo = max(avail, bundle.ohlcv_eval.index[-1]
+                 - pd.Timedelta(days=800 - START_MARGIN_DAYS))
     hi = pd.Timestamp(bar_end) if bar_end else bundle.ohlcv_eval.index[-1]
     if bar_start and lo < avail:
         # 요구한 시작점이 로드 범위 밖 — 잘라도 기준 구간을 복원할 수 없다.
