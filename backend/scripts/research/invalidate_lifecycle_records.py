@@ -119,6 +119,9 @@ def main() -> int:
                          "return_pct": t.get("return_pct"), "defects": dfs})
         sessions.append({"dir": d, "name": name, "n": len(trades)})
         if commit:
+            # 백업은 **파일**로 만든다. 디렉터리로 만들면 `runs/paper_sessions/`
+            # 를 훑는 코드가 그걸 **살아 있는 세션으로 센다**(2026-08-13 실제 발생 —
+            # 청산 백업을 copytree 로 세션 트리 안에 만들어 157→158 로 셌다).
             bak = tf.with_suffix(".jsonl.bak_invalidate_20260813")
             if not bak.exists():
                 shutil.copy(tf, bak)
