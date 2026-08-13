@@ -219,8 +219,10 @@ def measure(sdir: str, meta: dict, now: datetime):
     sess_ret, last_eq_ts = window_ret(valid_from)
     league_ret, _ = window_ret(league_from)
 
+    # 2026-08-13: 무효 표시된 거래는 좌석 판정에서 뺀다 (INVALID_TRADES.json).
     trades = [t for t in read_jsonl(os.path.join(sdir, "trades.jsonl"))
-              if datetime.fromisoformat(t["entry_ts"]) >= valid_from]
+              if not t.get("invalid")
+              and datetime.fromisoformat(t["entry_ts"]) >= valid_from]
     rets = [t["return_pct"] for t in trades]
     edge = st.mean(rets) * 100.0 if rets else None
     span_days = max((last_eq_ts - valid_from).days, 1) if last_eq_ts else 1

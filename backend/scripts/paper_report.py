@@ -177,9 +177,12 @@ def _load_sessions() -> list[dict]:
                 ln = ln.strip()
                 if ln:
                     try:
-                        trades.append(json.loads(ln))
+                        _t = json.loads(ln)
                     except Exception:
-                        pass
+                        continue
+                    if _t.get("invalid"):    # 무효 표시 제외 (INVALID_TRADES.json)
+                        continue
+                    trades.append(_t)
         out.append({"sid": sid, "symbol": sym, "name": name, "cat": cat, "trades": trades})
     return out
 
