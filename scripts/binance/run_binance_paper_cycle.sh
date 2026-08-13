@@ -131,10 +131,34 @@ PYTHONPATH=. python3 scripts/binance/lifecycle_live_provision.py \
   --account-id 12 --notional 200 --initial-capital 10000 \
   --real-account-id 8 \
   --commit 2>&1 | tee -a "${LOG_FILE}"
-# reconcile: System-2 의 현재 side 를 링크된 PAPER + REAL 세션에 미러링.
-echo "[binance-paper] lifecycle live signal reconcile (paper + REAL)..." | tee -a "${LOG_FILE}"
-PYTHONPATH=. python3 scripts/binance/lifecycle_live_signal_driver.py \
-  --submit --include-real 2>&1 | tee -a "${LOG_FILE}"
+# ── 실행기 사전 관문 (통합 실행기 계획 5단계, 2026-08-13) ──────────────
+#
+# 골든·파리티 검사는 만들어 놓고 아무도 부르지 않으면 없는 것과 같다. 실제로
+# `engine_parity_gate.py` 는 작성 후 3개월간 호출처가 0개였고, 그 사이
+# 2026-08-08 사고(같은 policy, 다른 실행기, 다른 전략)로 실자금이 43일간
+# 미검증 규칙으로 돌았다. 사람이 기억해서 돌리는 검사는 결국 안 돌아간다.
+#
+# 그래서 **주문 바로 앞**에 세운다. 단위 테스트 + 골든 재생(lifecycle 67건),
+# 약 35초. 실패하면 reconcile 을 건너뛰고 텔레그램으로 알린다 — 검사에 실패한
+# 엔진으로 실자금을 굴리는 것보다 하루 쉬는 편이 낫다.
+#
+# 실패 검증 완료: 커널을 일부러 깨뜨리자 단위 2실패 + 골든 54/67 불일치로
+# 종료코드 1 을 냈다. 막지 못하는 관문은 관문이 아니므로 반드시 확인해야 한다.
+echo "[binance-paper] 실행기 사전 관문..." | tee -a "${LOG_FILE}"
+# `cmd | tee` 의 종료코드는 기본적으로 **tee** 의 것이다. 이 파일 상단에
+# `set -o pipefail` 이 있어 지금은 옳게 동작하지만, 그 설정이 130행 위에 있어
+# 나중에 누가 지우면 **관문이 항상 통과로 읽힌다**. PIPESTATUS 로 못박는다.
+./scripts/binance/run_engine_gates.sh 2>&1 | tee -a "${LOG_FILE}"
+GATE_RC=${PIPESTATUS[0]}
+
+if [ "${GATE_RC}" -eq 0 ]; then
+  # reconcile: System-2 의 현재 side 를 링크된 PAPER + REAL 세션에 미러링.
+  echo "[binance-paper] lifecycle live signal reconcile (paper + REAL)..." | tee -a "${LOG_FILE}"
+  PYTHONPATH=. python3 scripts/binance/lifecycle_live_signal_driver.py \
+    --submit --include-real 2>&1 | tee -a "${LOG_FILE}"
+else
+  echo "[binance-paper] **관문 실패 — reconcile/주문 건너뜀**" | tee -a "${LOG_FILE}"
+fi
 
 # Append a status snapshot for monitoring
 echo "" | tee -a "${LOG_FILE}"

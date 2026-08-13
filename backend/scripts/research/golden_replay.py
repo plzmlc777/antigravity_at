@@ -264,6 +264,13 @@ def cmd_verify(args) -> int:
                             encoding="utf-8")
         log.warning("컴포저 %s 제외: %d → %d건", sorted(drop_comp), before, len(entries))
 
+    if args.filter:
+        entries = {k: v for k, v in entries.items() if args.filter in k}
+        log.info("필터 '%s' → %d건만 검증", args.filter, len(entries))
+        if not entries:
+            log.error("필터에 걸리는 케이스가 없다 — 관문이 아무것도 검사하지 않는다")
+            return 1
+
     log.info("골든 검증: %d 기준 (%s)", len(entries), ref_path)
 
     ok, bad, gone = 0, [], []
@@ -300,6 +307,9 @@ def cmd_verify(args) -> int:
     if gone:
         print(f"\n  재생불가 {len(gone)}건: {[g[0] for g in gone[:5]]}")
 
+    if args.prune and args.filter:
+        log.error("--filter 와 --prune 을 같이 쓰면 걸러진 케이스가 기준에서 사라진다")
+        return 1
     if args.prune:
         # 코드가 바뀌지 않은 상태에서의 불일치 = 비결정성이지 회귀가 아니다.
         # 기준 생성 직후에만 쓸 것. 리팩터링 뒤에 쓰면 진짜 회귀를 지운다.
@@ -329,6 +339,9 @@ def main() -> int:
     ap.add_argument("--prune", action="store_true",
                     help="불일치 케이스를 기준에서 제거 (기준 생성 직후에만! "
                          "리팩터링 뒤에 쓰면 진짜 회귀를 지운다)")
+    ap.add_argument("--filter", default="",
+                    help="키에 이 문자열이 든 케이스만 검증 (예: lifecycle). "
+                         "매일 도는 사전 관문용 빠른 부분검사")
     ap.add_argument("--drop-composers", default="",
                     help="이 컴포저 타입들을 기준에서 통째로 제외 (예: lgbm,xgb). "
                          "증상이 아니라 원인으로 거르는 용도")
