@@ -64,8 +64,17 @@ for noisy in ("app.composer_framework.orchestrator", "paper_session_cli",
 from app.composer_framework.orchestrator import PaperOrchestrator  # noqa: E402
 from app.composer_framework.paper_session import PaperSession, SessionStore  # noqa: E402
 
+import paper_session_cli as PSC  # noqa: E402
 from paper_session_cli import build_runtime_bundle  # noqa: E402
 from scripts.research.engine_parity_gate import collect  # noqa: E402
+
+# 운영 로더는 `days=800` 을 **현재 시각 기준**으로 읽어 창 시작이 매일 밀린다.
+# 골든은 시작을 절대 시각으로 고정해야 하므로 넉넉히 읽어 둔 뒤 잘라 쓴다.
+# 800(운영) + 여유 100일. 창 시작은 하루에 하루씩만 밀리므로 이 정도면 충분하고,
+# 45GB ohlcv 를 크게 더 긁지 않는다 (1600일로 잡았더니 한 심볼도 못 끝냈다).
+LOAD_DAYS = 900
+_ORIG_LOAD_1M = PSC.load_1m
+PSC.load_1m = lambda symbol, days=LOAD_DAYS: _ORIG_LOAD_1M(symbol, days=LOAD_DAYS)
 
 GOLDEN_DIR = ROOT / "tests" / "golden"
 
@@ -77,20 +86,44 @@ def _norm(t: dict) -> list:
             round(float(t["return_pct"]), 10), t["exit_reason"]]
 
 
-def _truncate(bundle, bar_end: str | None):
-    """바를 기준 시각까지 잘라 재현성을 확보한다."""
-    if not bar_end:
+class _WindowUnavailable(RuntimeError):
+    """기준 바 구간을 현재 데이터로 복원할 수 없음."""
+
+
+def _truncate(bundle, bar_start: str | None, bar_end: str | None):
+    """바 구간을 **양끝 절대 시각으로** 고정한다.
+
+    ⚠ 2026-08-13: 처음엔 끝(`bar_end`)만 고정했는데 그것으로는 부족했다.
+    운영 로더 `load_1m(symbol, days=800)` 의 조회 창이 **현재 시각 기준**이라
+    하루가 지나면 맨 앞 바가 떨어져 나간다:
+
+        2026-08-12 23:40 → 창 시작 2024-06-03
+        2026-08-13 09:20 → 창 시작 2024-06-04
+
+    그래서 데이터 시작점에 걸친 세션은 **첫 거래가 사라지고** 골든이 오탐을 냈다
+    (DOGE 프리미엄지수 32→31건, AVAX 프리미엄속도 111→110건. 둘 다 첫 거래가
+    2024-06-04, 즉 그날의 창 시작 경계였다). 코드 회귀로 오독할 뻔했다.
+
+    시작을 고정하려면 창을 넉넉히 읽어야 하므로 `LOAD_DAYS` 로 넓혀 둔다.
+    """
+    if bundle.ohlcv_eval is None or not len(bundle.ohlcv_eval):
         return bundle
-    end = pd.Timestamp(bar_end)
-    if bundle.ohlcv_eval is not None:
-        bundle.ohlcv_eval = bundle.ohlcv_eval.loc[:end]
+    avail = bundle.ohlcv_eval.index[0]
+    lo = pd.Timestamp(bar_start) if bar_start else avail
+    hi = pd.Timestamp(bar_end) if bar_end else bundle.ohlcv_eval.index[-1]
+    if bar_start and lo < avail:
+        # 요구한 시작점이 로드 범위 밖 — 잘라도 기준 구간을 복원할 수 없다.
+        # 조용히 짧은 구간으로 돌면 "코드가 바뀌었다"로 오독된다. 명시적으로 실패시킨다.
+        raise _WindowUnavailable(
+            f"기준 시작 {lo.date()} 이 로드 범위({avail.date()}~) 밖 — LOAD_DAYS 를 늘려라")
+    bundle.ohlcv_eval = bundle.ohlcv_eval.loc[lo:hi]
     if bundle.ohlcv_1m is not None and len(bundle.ohlcv_1m):
-        bundle.ohlcv_1m = bundle.ohlcv_1m.loc[:end + pd.Timedelta(days=1)]
+        bundle.ohlcv_1m = bundle.ohlcv_1m.loc[lo:hi + pd.Timedelta(days=1)]
     return bundle
 
 
 def replay(symbol: str, spec: dict, cap: float, fee: float,
-           bar_end: str | None) -> dict:
+           bar_end: str | None, bar_start: str | None = None) -> dict:
     """한 케이스를 전 구간 재생하고 거래 시퀀스를 반환."""
     eval_freq = int(spec.get("config", {}).get("eval_freq_minutes", 1440))
     srcs = [s.get("type") for s in (spec.get("sources") or [])]
@@ -98,7 +131,10 @@ def replay(symbol: str, spec: dict, cap: float, fee: float,
         bundle = build_runtime_bundle(symbol, eval_freq, srcs)
     except Exception as exc:
         return {"skipped": f"런타임 구성 실패: {type(exc).__name__}: {exc}"}
-    bundle = _truncate(bundle, bar_end)
+    try:
+        bundle = _truncate(bundle, bar_start, bar_end)
+    except _WindowUnavailable as exc:
+        return {"skipped": f"구간 복원 불가: {exc}"}
     df_eval = bundle.ohlcv_eval
     if df_eval is None or len(df_eval) < 5:
         return {"skipped": "eval 바 부족"}
@@ -116,7 +152,8 @@ def replay(symbol: str, spec: dict, cap: float, fee: float,
         except Exception as exc:
             return {"skipped": f"재생 실패: {type(exc).__name__}: {exc}"}
         trades = [_norm(t) for t in store.read_trades("golden")]
-    return {"bar_end": str(pd.Timestamp(df_eval.index[-1])),
+    return {"bar_start": str(pd.Timestamp(df_eval.index[0])),
+            "bar_end": str(pd.Timestamp(df_eval.index[-1])),
             "n_bars": int(len(df_eval)), "trades": trades,
             "final_equity": round(float(sess.final_equity), 8),
             "side_after": sess.side}
@@ -148,7 +185,7 @@ def cmd_build(args) -> int:
             skipped.append((k, r1["skipped"]))
             continue
         # 같은 바 구간으로 한 번 더 — 자기 자신과 일치해야 기준이 될 수 있다
-        r2 = replay(symbol, spec, cap, fee, r1["bar_end"])
+        r2 = replay(symbol, spec, cap, fee, r1["bar_end"], r1.get("bar_start"))
         if r2.get("skipped"):
             skipped.append((k, f"2회차 {r2['skipped']}"))
             continue
@@ -226,7 +263,8 @@ def cmd_verify(args) -> int:
 
     ok, bad, gone = 0, [], []
     for k, e in entries.items():
-        r = replay(e["symbol"], e["spec"], float(e["cap"]), float(e["fee"]), e["bar_end"])
+        r = replay(e["symbol"], e["spec"], float(e["cap"]), float(e["fee"]),
+                   e["bar_end"], e.get("bar_start"))
         if r.get("skipped"):
             gone.append((k, r["skipped"]))
             continue
