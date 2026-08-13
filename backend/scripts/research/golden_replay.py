@@ -167,6 +167,23 @@ def replay(symbol: str, spec: dict, cap: float, fee: float,
             "side_after": sess.side}
 
 
+# 에쿼티는 **파생값**이라 산술 순서가 바뀌면 마지막 자리가 흔들린다.
+# 거래 시퀀스(진입·청산 시각·가격·사유)는 행동이므로 **완전 일치**를 요구하고,
+# 에쿼티는 상대오차로 본다.
+#
+# 2026-08-13 실측: 규칙 다형화(rules.py) 후 112건 중 4건이 8번째 소수에서 1 차이.
+# 거래는 전부 동일했다. 값이 1e6 대라 1e-8 은 배정밀도 한계 근처다. 이걸
+# 불일치로 세면 산술을 한 줄만 옮겨도 관문이 오탐을 낸다.
+#
+# 허용치는 상대 1e-9 로 **의미 있는 차이는 반드시 잡히게** 좁게 잡는다.
+EQUITY_RTOL = 1e-9
+
+
+def _equity_same(a: float, b: float) -> bool:
+    a, b = float(a), float(b)
+    return abs(a - b) <= EQUITY_RTOL * max(abs(a), abs(b), 1.0)
+
+
 def key_of(symbol: str, spec: dict) -> str:
     """케이스 유일키.
 
@@ -197,7 +214,7 @@ def cmd_build(args) -> int:
         if r2.get("skipped"):
             skipped.append((k, f"2회차 {r2['skipped']}"))
             continue
-        if r1["trades"] != r2["trades"] or r1["final_equity"] != r2["final_equity"]:
+        if r1["trades"] != r2["trades"] or not _equity_same(r1["final_equity"], r2["final_equity"]):
             nondet.append(k)
             log.warning("%-52s 비결정적 — 기준에서 제외 (거래 %d vs %d)",
                         k[:52], len(r1["trades"]), len(r2["trades"]))
@@ -283,7 +300,7 @@ def cmd_verify(args) -> int:
         if r.get("skipped"):
             gone.append((k, r["skipped"]))
             continue
-        if r["trades"] == e["trades"] and r["final_equity"] == e["final_equity"]:
+        if r["trades"] == e["trades"] and _equity_same(r["final_equity"], e["final_equity"]):
             ok += 1
             continue
         d = None
