@@ -93,7 +93,8 @@ class ClosedTrade:
 @dataclass
 class StepResult:
     action: Action
-    closed: Optional[ClosedTrade] = None
+    # 한 바에 여러 청산이 날 수 있다(강제청산 + 부분청산, 사다리 정리 등).
+    closed: tuple[ClosedTrade, ...] = ()
     opened: bool = False
     forced_exit_reason: Optional[str] = None
     equity: float = 0.0
@@ -116,10 +117,16 @@ def _forced_exit(st: KernelState, high: float, low: float) -> Optional[tuple[flo
 
 
 def close(st: KernelState, exit_price: float, exit_ts: Any, reason: str,
-          cfg: KernelConfig) -> tuple[KernelState, ClosedTrade]:
-    """포지션 청산. 롱/숏 회계는 여기 한 곳에만 있다."""
+          cfg: KernelConfig, frac: float = 1.0) -> tuple[KernelState, ClosedTrade]:
+    """포지션 청산. 롱/숏 회계는 여기 한 곳에만 있다.
+
+    `frac` < 1.0 이면 **부분 청산**이다. 그만큼만 실현하고 나머지는 진입가와
+    보유바수를 유지한다 — 남은 포지션은 같은 거래의 연속이지 새 거래가 아니다.
+    기본값 1.0 이 현행(전량 청산)이다.
+    """
     exit_price = float(exit_price)
-    qty, entry = st.qty, st.entry_price
+    frac = max(0.0, min(1.0, float(frac)))
+    qty, entry = st.qty * frac, st.entry_price
     if st.side == "long":
         proceeds = qty * exit_price * (1 - cfg.fee_rate)
         cost = qty * entry * (1 + cfg.fee_rate)
@@ -143,9 +150,14 @@ def close(st: KernelState, exit_price: float, exit_ts: Any, reason: str,
     trade = ClosedTrade(side=st.side, entry_ts=st.entry_ts, exit_ts=exit_ts,
                         entry_price=entry, exit_price=exit_price, qty=qty,
                         return_pct=float(ret), pnl_cash=float(pnl), exit_reason=reason)
-    flat = KernelState(cash=cash, side="flat", qty=0.0, entry_price=0.0,
-                       entry_ts=None, bars_held=0, sl_price=0.0, tp_price=0.0)
-    return flat, trade
+    left = st.qty - qty
+    if left <= 1e-12:
+        after = KernelState(cash=cash, side="flat", qty=0.0, entry_price=0.0,
+                            entry_ts=None, bars_held=0, sl_price=0.0, tp_price=0.0)
+    else:
+        # 부분 청산 — 남은 수량은 진입가·진입시각·보유바수·브래킷을 그대로 잇는다.
+        after = replace(st, cash=cash, qty=left)
+    return after, trade
 
 
 def _bracket(action_price: Optional[float], entry: float,
@@ -158,28 +170,60 @@ def _bracket(action_price: Optional[float], entry: float,
     return entry * (1.0 + sign * float(default_pct))
 
 
-def open_position(st: KernelState, kind: str, price: float, ts: Any,
+def open_position(st: KernelState, kind: str, bar: dict, ts: Any,
                   action: Action, cfg: KernelConfig) -> KernelState:
-    price = float(price)
-    if kind == "enter_long":
-        denom = price * (1 + cfg.fee_rate)
-        qty = (st.cash * cfg.size_pct) / denom
-        if qty <= 0:
+    """진입 또는 **추가 진입**. 체결가·수량은 규칙이 정한다 — 여기 분기는 없다.
+
+    추가 진입(피라미딩)은 거래소와 같은 방식이다: 바이낸스 선물 단방향 모드는
+    심볼당 포지션을 하나로 넷팅하고 진입가를 **가중평균**으로 관리한다. leg 를
+    따로 들면 오히려 실제보다 세분화돼 실거래와 어긋난다.
+
+    반대 방향 진입은 무시한다 — 뒤집으려면 먼저 청산해야 한다. 정본이 조용히
+    뒤집으면 정책이 의도하지 않은 거래가 생긴다.
+    """
+    side = "long" if kind == "enter_long" else "short"
+    if st.side != "flat" and st.side != side:
+        return st
+
+    px = action.fill.price(kind=kind, **bar)
+    if px is None or px <= 0:
+        return st                      # 지정가 미체결 등 — 정상 경로다
+    px = float(px)
+
+    sign_sl = -1.0 if side == "long" else +1.0
+    sign_tp = +1.0 if side == "long" else -1.0
+    sl = _bracket(action.sl_price, px, cfg.default_sl_pct, sign_sl)
+    tp = _bracket(action.tp_price, px, cfg.default_tp_pct, sign_tp)
+
+    qty = action.sizing.qty(cash=st.cash, price=px, sl_price=sl,
+                            size_pct=cfg.size_pct, fee_rate=cfg.fee_rate, side=side)
+    if qty <= 0:
+        return st
+
+    if side == "long":
+        cost = qty * px * (1 + cfg.fee_rate)
+    else:
+        cost = qty * px                # 담보만. 수수료는 청산 시 계상(3a 참조)
+    if cost > st.cash:                 # 규칙이 과하게 잡으면 가용까지만
+        if px <= 0:
             return st
-        cash = st.cash - qty * denom
-        sl = _bracket(action.sl_price, price, cfg.default_sl_pct, -1.0)
-        tp = _bracket(action.tp_price, price, cfg.default_tp_pct, +1.0)
-        side = "long"
-    else:  # enter_short — 담보만 예치, 수수료는 청산 시 계상
-        qty = (st.cash * cfg.size_pct) / price
-        if qty <= 0:
-            return st
-        cash = st.cash - qty * price
-        sl = _bracket(action.sl_price, price, cfg.default_sl_pct, +1.0)
-        tp = _bracket(action.tp_price, price, cfg.default_tp_pct, -1.0)
-        side = "short"
-    return KernelState(cash=cash, side=side, qty=qty, entry_price=price,
-                       entry_ts=ts, bars_held=0, sl_price=sl, tp_price=tp)
+        scale = st.cash / cost
+        qty *= scale
+        cost = st.cash
+    if qty <= 0:
+        return st
+
+    if st.side == "flat":
+        return KernelState(cash=st.cash - cost, side=side, qty=qty, entry_price=px,
+                           entry_ts=ts, bars_held=0, sl_price=sl, tp_price=tp)
+
+    # 추가 진입 — 가중평균 진입가. 보유바수는 **최초 진입 기준을 유지**한다
+    # (보유 상한이 추가 진입 때마다 초기화되면 max_hold 가 무력해진다).
+    total = st.qty + qty
+    avg = (st.qty * st.entry_price + qty * px) / total
+    return replace(st, cash=st.cash - cost, qty=total, entry_price=avg,
+                   sl_price=sl if action.sl_price is not None else st.sl_price,
+                   tp_price=tp if action.tp_price is not None else st.tp_price)
 
 
 def mark(st: KernelState, close_price: float) -> float:
@@ -201,9 +245,12 @@ def step(state: KernelState, *, ts: Any, open_price: float, high_price: float,
       1) 보유 중이면 bars_held 증가  ← policy 가 보기 전에
       2) 강제청산(SL/TP) 판정        ← policy.decide 보다 먼저
       3) policy.decide
-      4) 청산 적용 (강제 우선, 없으면 policy 의 exit)
-      5) 플랫이면 진입
-      6) 평가
+      4) 지시를 **순서대로** 적용 (청산 → 진입)
+      5) 평가
+
+    `policy.decide` 는 지시 **하나 또는 여러 개**를 반환할 수 있다. 여러 개는
+    한 바에 사다리를 놓거나(그리드·마틴게일) 분할 진입할 때 쓴다. 하나만
+    반환하면 예전과 완전히 같다.
     """
     st = state
     if st.side != "flat":
@@ -212,28 +259,34 @@ def step(state: KernelState, *, ts: Any, open_price: float, high_price: float,
 
     forced = _forced_exit(st, float(high_price), float(low_price))
 
+    bar = {"open_price": float(open_price), "high_price": float(high_price),
+           "low_price": float(low_price), "close_price": float(close_price)}
     ctx = PolicyContext(
         timestamp=ts, prediction=prediction,
-        open_price=float(open_price), high_price=float(high_price),
-        low_price=float(low_price), close_price=float(close_price),
         in_position=(st.side != "flat"), side=st.side,
-        entry_price=st.entry_price, bars_held=st.bars_held,
+        entry_price=st.entry_price, bars_held=st.bars_held, **bar,
     )
-    action = policy.decide(ctx)
+    decided = policy.decide(ctx)
+    actions = tuple(decided) if isinstance(decided, (list, tuple)) else (decided,)
+    primary = actions[0] if actions else Action.hold()
 
-    closed: Optional[ClosedTrade] = None
+    closed: list[ClosedTrade] = []
     if forced is not None:
-        st, closed = close(st, forced[0], ts, forced[1], cfg)
-    elif action.kind == "exit" and st.side != "flat":
-        st, closed = close(st, float(open_price), ts,
-                           action.note or cfg.policy_exit_reason, cfg)
+        st, tr = close(st, forced[0], ts, forced[1], cfg)
+        closed.append(tr)
 
     opened = False
-    if st.side == "flat" and action.kind in ("enter_long", "enter_short"):
-        before = st
-        st = open_position(st, action.kind, float(open_price), ts, action, cfg)
-        opened = st is not before and st.side != "flat"
+    for action in actions:
+        if action.kind == "exit" and st.side != "flat" and forced is None:
+            st, tr = close(st, float(open_price), ts,
+                           action.note or cfg.policy_exit_reason, cfg,
+                           frac=action.exit_frac)
+            closed.append(tr)
+        elif action.kind in ("enter_long", "enter_short"):
+            before = st
+            st = open_position(st, action.kind, bar, ts, action, cfg)
+            opened = opened or (st is not before)
 
-    return st, StepResult(action=action, closed=closed, opened=opened,
+    return st, StepResult(action=primary, closed=tuple(closed), opened=opened,
                           forced_exit_reason=(forced[1] if forced else None),
                           equity=mark(st, close_price), side_before=side_before)

@@ -263,19 +263,19 @@ class PaperOrchestrator:
             side_before = res.side_before
             action = res.action
             trade_id: Optional[str] = None
-            if res.closed is not None:
+            for _c in res.closed:
                 session.n_trades += 1
                 trade = TradeRecord(
-                    trade_id=str(uuid.uuid4())[:12], side=res.closed.side,
-                    entry_ts=(pd.Timestamp(res.closed.entry_ts).isoformat()
-                              if res.closed.entry_ts is not None else ""),
-                    exit_ts=pd.Timestamp(res.closed.exit_ts).isoformat(),
-                    entry_price=res.closed.entry_price, exit_price=res.closed.exit_price,
-                    qty=res.closed.qty, return_pct=res.closed.return_pct,
-                    pnl_cash=res.closed.pnl_cash, exit_reason=res.closed.exit_reason,
+                    trade_id=str(uuid.uuid4())[:12], side=_c.side,
+                    entry_ts=(pd.Timestamp(_c.entry_ts).isoformat()
+                              if _c.entry_ts is not None else ""),
+                    exit_ts=pd.Timestamp(_c.exit_ts).isoformat(),
+                    entry_price=_c.entry_price, exit_price=_c.exit_price,
+                    qty=_c.qty, return_pct=_c.return_pct,
+                    pnl_cash=_c.pnl_cash, exit_reason=_c.exit_reason,
                     prediction_at_entry=prediction,
                 )
-                trade_id = trade.trade_id
+                trade_id = trade.trade_id      # CycleResult 에는 마지막 것을 남긴다
                 self.store.append_trade(session.session_id, trade)
 
             _apply_state(session, st)
@@ -322,16 +322,28 @@ class PaperOrchestrator:
                            float(bar["high"]), float(bar["low"]))
         return None if hit is None else {"price": hit[0], "reason": hit[1]}
 
+    @staticmethod
+    def _bar_at(price: float) -> dict:
+        """가격 하나만 아는 호출부(_open_long/_open_short)를 위한 최소 바.
+
+        시장가 체결 규칙은 시가만 본다. 지정가·스톱 규칙은 고저를 보므로 이
+        경로로는 쓸 수 없다 — 그 경로는 run_cycle 이 실제 바를 넘긴다.
+        """
+        p = float(price)
+        return {"open_price": p, "high_price": p, "low_price": p, "close_price": p}
+
     def _open_long(self, session: PaperSession, price: float, ts: pd.Timestamp,
                    action: Action, prediction: float) -> None:
-        st = _kernel_open(_state_from_session(session), "enter_long", price,
-                          pd.Timestamp(ts).isoformat(), action, _kernel_config(session))
+        st = _kernel_open(_state_from_session(session), "enter_long",
+                          self._bar_at(price), pd.Timestamp(ts).isoformat(),
+                          action, _kernel_config(session))
         _apply_state(session, st)
 
     def _open_short(self, session: PaperSession, price: float, ts: pd.Timestamp,
                     action: Action, prediction: float) -> None:
-        st = _kernel_open(_state_from_session(session), "enter_short", price,
-                          pd.Timestamp(ts).isoformat(), action, _kernel_config(session))
+        st = _kernel_open(_state_from_session(session), "enter_short",
+                          self._bar_at(price), pd.Timestamp(ts).isoformat(),
+                          action, _kernel_config(session))
         _apply_state(session, st)
 
     def _close_position(self, session: PaperSession, exit_price: float,

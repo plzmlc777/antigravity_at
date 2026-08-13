@@ -21,6 +21,8 @@ from typing import Literal
 
 import numpy as np
 
+from .rules import FULL_FRACTION, MARKET_OPEN, FillRule, SizingRule
+
 
 ActionKind = Literal[
     "enter_long", "enter_short", "exit", "hold",
@@ -29,9 +31,23 @@ ActionKind = Literal[
 
 @dataclass(frozen=True)
 class Action:
+    """정책이 정본에 내리는 지시.
+
+    2026-08-13 확장 — 네 필드가 늘었다. **전부 기본값이 현행 동작과 같다.**
+    기존 정책은 한 줄도 바꾸지 않아도 되고, 골든/파리티가 그대로 통과하는 것이
+    행동 변경 0 의 증거다.
+    """
+
     kind: ActionKind
     sl_price: float | None = None
     tp_price: float | None = None
+    # 얼마나 들어가는가 / 어떻게 체결되는가 — 전략마다 실제로 달라지는 두 축을
+    # 다형 규칙으로 뺐다(rules.py). 정본은 호출만 하고 분기하지 않는다.
+    sizing: SizingRule = FULL_FRACTION      # 기본 = 설정 상한 전량 (현행)
+    fill: FillRule = MARKET_OPEN            # 기본 = 그 바 시가 시장가 (현행)
+    # 청산 비율 — 보유 수량 대비. 1.0 = 전량(현행).
+    # 0 < exit_frac < 1 이면 부분 청산이고, 남은 수량은 진입가·보유바수를 잇는다.
+    exit_frac: float = 1.0
     note: str = ""
 
     @classmethod
