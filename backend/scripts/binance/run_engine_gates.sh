@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# 실행기 사전 관문 — 주문을 내기 전에 엔진이 어제와 같은지 확인한다.
+# 정본(Canon) 사전 관문 — 주문을 내기 전에 사본이 정본을 따르는지 확인한다.
 #
-# 왜 (통합 실행기 계획 5단계)
+# 왜 (정본 엔진 계획 5단계)
 #   골든·파리티 검사는 만들어 놓고 아무도 부르지 않으면 없는 것과 같다.
 #   실제로 `engine_parity_gate.py` 는 작성된 뒤 3개월간 호출처가 0개였고,
 #   그 사이 2026-08-08 사고(같은 policy, 다른 실행기, 다른 전략)가 났다.
@@ -32,7 +32,7 @@ note() { echo "[engine-gate] $*"; }
 fail() { FAILED=1; SUMMARY="${SUMMARY}\n  ✗ $*"; note "실패: $*"; }
 pass() { SUMMARY="${SUMMARY}\n  ✓ $*"; note "통과: $*"; }
 
-note "=== 실행기 사전 관문 시작 (mode=${MODE}) ==="
+note "=== 정본 관문 시작 (mode=${MODE}) ==="
 
 # ── 1) 단위 테스트 ────────────────────────────────────────────────────
 if $PY -m unittest discover -s tests/composer_framework -p 'test_*.py' > /tmp/engine_gate_unit.log 2>&1; then
@@ -69,7 +69,7 @@ fi
 echo -e "[engine-gate] === 요약 ===${SUMMARY}"
 
 if [ "$FAILED" -ne 0 ]; then
-  note "**관문 실패 — 주문 단계를 건너뛴다**"
+  note "**정본 이탈(non-canonical drift) — 주문 단계를 건너뛴다**"
   # 텔레그램 경보 (실패했을 때만. 조용히 넘어가면 관문이 없는 것과 같다)
   $PY - <<'PYEOF' || true
 # 텔레그램 경보 — 토큰은 **DB(exchange_accounts, Fernet)** 에 있다. .env 가 아니다.
@@ -87,8 +87,8 @@ try:
     body = open("/tmp/engine_gate_golden.log").read()[-500:]
 except Exception:
     body = "(로그 없음)"
-msg = ("\u26d4 <b>실행기 관문 실패 — 오늘 주문을 건너뜁니다</b>\n\n"
-       "엔진이 골든 기준과 어긋났습니다. 커널·정책 변경을 확인하세요.\n"
+msg = ("\u26d4 <b>정본 이탈 — 오늘 주문을 건너뜁니다</b>\n\n"
+       "사본이 정본(Canon)에서 벗어났습니다. 커널·정책 변경을 확인하세요.\n"
        "<pre>" + body.replace("&", "&amp;").replace("<", "&lt;") + "</pre>")
 try:
     _telegram_notify(REAL_ACCOUNT_ID, msg)
@@ -99,5 +99,5 @@ PYEOF
   exit 1
 fi
 
-note "=== 관문 통과 ==="
+note "=== 정본 관문 통과 ==="
 exit 0

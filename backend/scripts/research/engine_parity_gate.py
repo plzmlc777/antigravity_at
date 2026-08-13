@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""실행기 정합성 게이트 — backtester.py vs orchestrator.py.
+"""파리티 게이트 — 정본(Canon)의 두 사본이 서로 같은가.
+
+  backtester.py vs orchestrator.py. 골든 재생("어제와 같은가")과 방향이 다르다.
 
 왜 필요한가 (2026-08-08 사고):
   R-3 검증은 `GenericBacktester`(backtester.py)로 돌고, 실계좌 의사결정은
@@ -261,7 +263,7 @@ def main() -> int:
     ap.add_argument("--all-lifecycle", action="store_true")
     ap.add_argument("--all-sessions", action="store_true")
     ap.add_argument("--limit", type=int)
-    # 2026-08-12: 통합 실행기 1단계(동결·계측). 게이트는 지금까지 로그만 남겨
+    # 2026-08-12: 정본 엔진 1단계(동결·계측). 게이트는 지금까지 로그만 남겨
     # "그때 무엇이 통과했는지"를 나중에 대조할 수 없었다. 리팩터링 전/후를 비교
     # 하려면 판정을 파일로 고정해야 한다.
     ap.add_argument("--out", help="판정 결과를 JSON 으로 저장 (리팩터링 회귀 기준)")

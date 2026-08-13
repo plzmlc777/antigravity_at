@@ -41,9 +41,9 @@ from .signal_source import SourceContext
 logger = logging.getLogger(__name__)
 
 
-# ── 세션 ↔ 커널 상태 변환 ────────────────────────────────────────────────
-# 거래 로직은 kernel.py 에만 있다. 여기 있는 것은 영속화 형식(PaperSession)과
-# 커널 상태 사이의 변환뿐이다.
+# ── 세션 ↔ 정본(Canon) 상태 변환 ─────────────────────────────────────────
+# 거래 로직은 kernel.py(정본)에만 있다. 여기 있는 것은 영속화 형식
+# (PaperSession)과 정본 상태 사이의 변환뿐이다.
 
 def _kernel_config(session: PaperSession) -> KernelConfig:
     """오케스트레이터의 회계를 설정으로 표현한다.
@@ -240,7 +240,7 @@ class PaperOrchestrator:
             logger.warning("Session %s predict failed: %s", session.session_id, exc)
             return self._record_no_op(session, feat, f"predict_error: {exc}")
 
-        # 바 처리 로직은 **커널에만** 있다. 여기는 세션 상태를 커널 상태로 옮기고
+        # 바 처리 로직은 **정본에만** 있다. 여기는 세션 상태를 정본 상태로 옮기고
         # 결과를 영속화하는 얇은 껍데기다. 두 실행기가 각자 루프를 갖고 있던 것이
         # 2026-08-08 사고의 원인이었다 (같은 policy, 다른 실행기, 다른 전략).
         cfg = _kernel_config(session)
@@ -312,10 +312,10 @@ class PaperOrchestrator:
             return True
         return (datetime.utcnow() - last).days >= session.refit_interval_days
 
-    # ── 아래 헬퍼들은 **커널 위임**이다 ─────────────────────────────────
+    # ── 아래 헬퍼들은 **정본 위임**이다 ─────────────────────────────────
     # 회계식을 여기에 다시 쓰면 그 순간 두 번째 구현이 생긴다 (2026-08-08 사고).
     # 기존 테스트(test_bracket_semantics / test_short_fee)가 이 진입점을 쓰므로
-    # 시그니처는 유지하되 내용은 전부 kernel 로 넘긴다.
+    # 시그니처는 유지하되 내용은 전부 정본(kernel)으로 넘긴다.
 
     def _check_forced_exit(self, session: PaperSession, bar: pd.Series) -> Optional[dict]:
         hit = _forced_exit(_state_from_session(session),

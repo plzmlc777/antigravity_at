@@ -1,6 +1,14 @@
-"""ExecutionKernel — 거래 판단·체결·회계의 **유일한** 구현.
+"""Canon (정본) — 거래 판단·체결·회계의 **유일한** 구현.
 
-왜 (통합 실행기 계획 2단계, .claude/plans/unified_execution_engine.md)
+  백테스트·페이퍼·실거래는 모두 이 한 판본을 따른다. 사본이 따로 존재하지
+  않으므로 "어느 쪽이 맞는가"라는 질문 자체가 생기지 않는다.
+
+  두 관문이 이 판본을 지킨다:
+    · 골든 재생   — 오늘 판본이 **어제 판본과** 같은가 (회귀 방향)
+    · 파리티 게이트 — 두 사본이 **서로** 같은가 (교차 방향)
+  둘 중 하나라도 어긋나면 정본 이탈(non-canonical drift)이며 주문을 막는다.
+
+왜 (정본 엔진 계획 2단계, .claude/plans/unified_execution_engine.md)
   같은 거래 루프가 `backtester.py` 와 `orchestrator.py` 에 각각 손으로 작성돼
   있었다. 둘의 차이가 2026-08-08 사고를 냈다 — 같은 policy, 다른 실행기, 다른
   전략, 실자금 43일. 브래킷 기본값(`or 0.0` vs `or price*0.90`)과 `bars_held`
