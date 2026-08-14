@@ -70,24 +70,93 @@ DEFAULT_AXES = {
     "window": [3, 7],
 }
 
+# 짧은 별칭 → 실제 스펙 경로. 축 이름은 이제 **제한이 없다** —
+# `policy.entry_threshold` 처럼 아무 kwargs 나 열 수 있고, 이 표는 편의일 뿐이다.
+# (2026-08-14 첫 판은 네 개를 화이트리스트했다. 그러면 계열마다 임시 스크립트를
+#  또 만들게 된다 — 오늘 손계산 6개가 그렇게 생겼다.)
+AXIS_ALIAS = {
+    "sl": "policy.sl_pct",
+    "tp": "policy.tp_pct",
+    "window": "source.entry_window_days",
+}
 
-def parse_axis(spec: str) -> tuple[str, list]:
-    """`sl=0.3,0.5,0.7` → ("sl", [0.3, 0.5, 0.7]). 숫자로 읽히면 숫자로."""
-    if "=" not in spec:
-        raise SystemExit(f"--axis 형식은 이름=값,값 이다: {spec!r}")
-    name, raw = spec.split("=", 1)
-    vals = []
-    for x in raw.split(","):
-        x = x.strip()
-        if not x:
-            continue
+def alias_value(axis: str, v):
+    """별칭 축의 값 변환. `tp=30` 은 30% 를 뜻하므로 0.30 으로, `none` 은
+    1.0(=tp_price 0.0, 커널이 비활성으로 읽음)으로 바꾼다."""
+    if axis == "tp":
+        if isinstance(v, str) and v.lower() in ("none", "off", ""):
+            return 1.0
+        return float(v) / 100.0
+    return v
+
+
+def preflight(combos: list, names: list) -> None:
+    """모든 조합의 스펙이 실제로 조립되는지 먼저 확인한다. 실패 시 SystemExit."""
+    from research.lifecycle_session_spawner import build_session_spec
+    from research.sweep_engine import apply_all
+    from app.composer_framework.pipeline_spec import build_pipeline
+
+    for combo in combos:
+        kw = dict(zip(names, combo))
+        variant = kw.get("variant", "base")
+        hold, early, pv = VARIANT_SPEC[variant]
+        spec = build_session_spec(
+            "BTCUSDT", "2026-01-01", policy_variant=pv,
+            early_exit_check_day=(early or 14), baseline_hold_days=hold,
+            bear_skip_btc_30d_pre_ret=0.0)
+        inject = {AXIS_ALIAS.get(k, k): alias_value(k, v)
+                  for k, v in kw.items() if k != "variant"}
         try:
-            vals.append(int(x) if "." not in x else float(x))
-        except ValueError:
-            vals.append(x)
-    if not vals:
-        raise SystemExit(f"--axis 값이 비었다: {spec!r}")
-    return name.strip(), vals
+            build_pipeline(apply_all(spec["pipeline_spec"], inject), {})
+        except Exception as exc:
+            raise SystemExit(
+                f"사전 점검 실패 — 조합 {kw}\n"
+                f"  {type(exc).__name__}: {exc}\n"
+                f"  축 이름을 확인하라: python3 -m scripts.research.lifecycle_optimize "
+                f"--split ... --list-axes")
+    log.info("사전 점검 통과 — %d칸 전부 조립됨", len(combos))
+
+
+def run_combo(sym: str, ld, kw: dict, bars_daily):
+    """한 조합 실행. **스펙을 여기서 다시 쓰지 않는다** — CANON 세션과 같은
+    `build_session_spec` 이 만든 것에 축 값만 주입한다(교훈 #88)."""
+    from research.lifecycle_canon_backtest import btc_pre_ret  # noqa: E402
+    from research.lifecycle_session_spawner import build_session_spec  # noqa: E402
+    from research.sweep_engine import apply_all  # noqa: E402
+
+    from app.composer_framework.backtester import GenericBacktester
+    from app.composer_framework.pipeline_spec import build_pipeline
+    from app.composer_framework.signal_source import SourceContext
+
+    variant = kw.get("variant", "base")
+    hold, early, pv = VARIANT_SPEC[variant]
+    pre_ret = None
+    if pv == "bear_skip":
+        pre_ret = btc_pre_ret(str(ld))
+        if pre_ret is None:
+            return []                     # 레짐 미상 — 표본 밖
+    spec = build_session_spec(
+        sym, str(ld), policy_variant=pv, early_exit_check_day=(early or 14),
+        early_exit_vc_threshold=0.40, baseline_hold_days=hold,
+        bear_skip_btc_30d_pre_ret=pre_ret, bear_skip_threshold=-0.05)
+
+    inject = {}
+    for ax, v in kw.items():
+        if ax == "variant":
+            continue
+        inject[AXIS_ALIAS.get(ax, ax)] = alias_value(ax, v)
+    ps = apply_all(spec["pipeline_spec"], inject)
+
+    ctx = SourceContext(symbol=sym,
+                        eval_freq_minutes=ps["config"]["eval_freq_minutes"],
+                        ohlcv_1m=None, ohlcv_eval=bars_daily)
+    bt = GenericBacktester(initial_capital=float(spec["initial_capital"]),
+                           fee_rate=float(spec["fee_rate"]),
+                           apply_fee_to_short=True)
+    # signal_lag_bars=1 — 신상저격수 소스는 달력 규칙이라 밀어야 Day-1 종가에
+    # 들어간다. 안 밀면 상장가에 들어가 t 1.64 가 -0.12 가 된다(교훈 #90)
+    return bt.run_rule_based(pipeline=build_pipeline(ps, {}), ctx=ctx,
+                             signal_lag_bars=1).trades
 
 
 def stats(a: np.ndarray) -> dict:
@@ -117,20 +186,33 @@ def main() -> int:
                    help="축 선언. 예 sl=0.3,0.5,0.7 · 반복 가능")
     p.add_argument("--out", default=str(OUT))
     p.add_argument("--limit", type=int, default=0, help="앞에서 N 사건만")
+    p.add_argument("--list-axes", action="store_true",
+                   help="이 계열에서 스윕 가능한 축을 출력하고 종료")
     a = p.parse_args()
 
     from research.lifecycle_canon_backtest import (  # noqa: E402
-        LISTINGS, MIN_DAILY_BARS, WINDOW_DAYS, daily_bars, run_one,
+        LISTINGS, MIN_DAILY_BARS, WINDOW_DAYS, daily_bars,
     )
     from research.sweep_format import SweepWriter  # noqa: E402
 
+    if a.list_axes:
+        from research.lifecycle_session_spawner import build_session_spec
+        from research.sweep_engine import describe
+        for v, (hold, early, pv) in VARIANT_SPEC.items():
+            sp = build_session_spec("XUSDT", "2026-01-01", policy_variant=pv,
+                                    early_exit_check_day=(early or 14),
+                                    baseline_hold_days=hold,
+                                    bear_skip_btc_30d_pre_ret=0.0)
+            print(f"[{v}]", json.dumps(describe(sp["pipeline_spec"]),
+                                       ensure_ascii=False))
+        print("\n별칭:", AXIS_ALIAS)
+        return 0
+
     axes = dict(DEFAULT_AXES)
     for spec in a.axis:
+        from research.sweep_engine import parse_axis
         k, v = parse_axis(spec)
         axes[k] = v
-    for k in list(axes):
-        if k not in ("variant", "sl", "tp", "window"):
-            raise SystemExit(f"모르는 축: {k}. 가능: variant/sl/tp/window")
     for v in axes.get("variant", []):
         if v not in VARIANT_SPEC:
             raise SystemExit(f"모르는 변형: {v}. 가능: {sorted(VARIANT_SPEC)}")
@@ -139,6 +221,13 @@ def main() -> int:
     combos = list(product(*(axes[k] for k in names)))
     log.info("축 %s · 조합 %d칸 · 분할 %s", {k: len(v) for k, v in axes.items()},
              len(combos), a.split)
+
+    # ── 사전 점검 ──────────────────────────────────────────────────────
+    # 오타 난 축이 사건마다 경고만 남기고 **거래 0건짜리 결과**를 만들어내면
+    # 안 된다. 그건 실패가 아니라 조용한 오답이고, 교훈 #88 이 정확히 그 병이다
+    # (스펙에 넣은 값이 팩토리에서 사라져 재진입 차단이 한 번도 안 돌았다).
+    # 첫 조합으로 파이프라인을 실제 조립해 보고, 안 되면 **즉시 멈춘다.**
+    preflight(combos, names)
 
     listings = json.load(open(LISTINGS))
     from app.db.session import engine
@@ -167,11 +256,8 @@ def main() -> int:
 
             for combo in combos:
                 kw = dict(zip(names, combo))
-                hold, early, pv = VARIANT_SPEC[kw["variant"]]
                 try:
-                    trades = run_one(sym, ld, kw["variant"], hold, early, pv,
-                                     None, dl, kw.get("tp", "none"),
-                                     kw.get("window"), kw.get("sl"))
+                    trades = run_combo(sym, ld, kw, dl)
                 except Exception as exc:
                     log.warning("%s %s 실패: %s", sym, kw, exc)
                     continue
