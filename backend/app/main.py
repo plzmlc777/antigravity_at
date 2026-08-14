@@ -151,6 +151,10 @@ from .models.calibration_record import CalibrationRecord  # Register Model (CIO-
 from .api import calibration
 app.include_router(calibration.router, prefix="/api/v1/calibration", tags=["calibration"])
 
+# 스윕 결과 조회 (2026-08-14) — 읽기 전용. 설계: .claude/plans/param_sweep_heatmap_component.md
+from .api import research_track
+app.include_router(research_track.router, prefix="/api/v1/research-track", tags=["research-track"])
+
 # 1군/2군 결과 조회 (2026-08-14) — 읽기 전용. 설계: .claude/plans/tier1_result_store_schema.md
 from .models.tier_result import EngineGateRun, PaperTrade, ResearchResult, Tier1LayerObservation  # noqa: F401
 from .api import tier_results
