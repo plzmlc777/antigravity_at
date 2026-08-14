@@ -151,7 +151,7 @@ def btc_pre_ret(listing_date: str) -> float | None:
 
 def run_one(sym: str, ld, variant: str, hold: int, early, policy_variant,
             bars_1m, bars_daily, tp: str | float = "none",
-            window: int | None = None):
+            window: int | None = None, sl: float | None = None):
     """한 상장 사건 × 한 변형 — 정본 커널로 실행. 거래 목록을 돌려준다."""
     from app.composer_framework.backtester import GenericBacktester
     from app.composer_framework.pipeline_spec import build_pipeline
@@ -177,11 +177,18 @@ def run_one(sym: str, ld, variant: str, hold: int, early, policy_variant,
     # 익절 주입 — **스펙 사본에만** 쓴다. build_session_spec 이 준 원본을
     # 그대로 두어야 CANON 세션과 대조할 수 있다.
     tp_pct = tp_kwarg(tp)
-    if tp_pct < 1.0 or window is not None:
+    if tp_pct < 1.0 or window is not None or sl is not None:
         import copy
         ps = copy.deepcopy(ps)
     if tp_pct < 1.0:
         ps.setdefault("policy", {}).setdefault("kwargs", {})["tp_pct"] = tp_pct
+    if sl is not None:
+        # 손절 — 숏이므로 진입가 × (1 + sl_pct) 에 걸린다. 현행 0.50(+50%).
+        #
+        # 2026-08-14 익절 격자에서 **최악 거래가 전 칸 -50.1% 로 고정**이었다.
+        # 익절을 아무리 조여도 왼쪽 꼬리가 안 줄어든 이유가 이 상수다 —
+        # 축으로 열지 않으면 위험 쪽은 아예 탐색이 안 된다.
+        ps.setdefault("policy", {}).setdefault("kwargs", {})["sl_pct"] = float(sl)
     if window is not None:
         # 재진입 창 — 상장 후 이 날까지만 다시 들어간다.
         # 모든 소스 kwargs 에 넣는다(base/early_exit/bear_skip 소스가 다르다).
