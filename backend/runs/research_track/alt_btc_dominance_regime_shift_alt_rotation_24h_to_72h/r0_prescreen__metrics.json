@@ -1,0 +1,123 @@
+{
+  "paradigm": "alt_btc_dominance_regime_shift_alt_rotation_24h_to_72h",
+  "phase": "R-0",
+  "window_days": 90,
+  "spread_days": 7,
+  "universe_btc": "BTCUSDT",
+  "universe_alts": [
+    "ADAUSDT",
+    "AVAXUSDT",
+    "BCHUSDT",
+    "BNBUSDT",
+    "DOGEUSDT",
+    "ETHUSDT",
+    "FILUSDT",
+    "LINKUSDT",
+    "LTCUSDT",
+    "NEARUSDT",
+    "SOLUSDT",
+    "WIFUSDT",
+    "XRPUSDT"
+  ],
+  "n_alts": 13,
+  "aligned_days": 846,
+  "dom_z_days": 750,
+  "dom_z_distribution": {
+    "n": 750,
+    "min": -4.116223436674902,
+    "max": 2.6665932024900196,
+    "p01": -3.1235554457717774,
+    "p05": -1.8748535521761105,
+    "p10": -1.3197796072965053,
+    "p50": 0.1338216368369945,
+    "p90": 1.0776427927172365,
+    "p95": 1.3921254724051153,
+    "p99": 1.9391994622628828,
+    "std": 1.0074145783712953,
+    "mean": -0.01873158720175973
+  },
+  "trigger_rate": {
+    "|z|>=1.0": {
+      "n_pos": 89,
+      "n_neg": 113,
+      "total": 202,
+      "rate_pct": 26.93,
+      "annual_est": 98
+    },
+    "|z|>=1.5": {
+      "n_pos": 28,
+      "n_neg": 60,
+      "total": 88,
+      "rate_pct": 11.73,
+      "annual_est": 42
+    },
+    "|z|>=2.0": {
+      "n_pos": 6,
+      "n_neg": 30,
+      "total": 36,
+      "rate_pct": 4.8,
+      "annual_est": 17
+    }
+  },
+  "oos_split_ts": "2025-05-03 00:00:00",
+  "oos_n_days": 375,
+  "lesson_79_pretest": {
+    "SOLUSDT_h1": {
+      "n": 374,
+      "corr": 0.00824,
+      "abs_corr": 0.00824
+    },
+    "SOLUSDT_h2": {
+      "n": 373,
+      "corr": 0.03581,
+      "abs_corr": 0.03581
+    },
+    "SOLUSDT_h3": {
+      "n": 372,
+      "corr": 0.0492,
+      "abs_corr": 0.0492
+    },
+    "AVAXUSDT_h1": {
+      "n": 374,
+      "corr": 0.04541,
+      "abs_corr": 0.04541
+    },
+    "AVAXUSDT_h2": {
+      "n": 373,
+      "corr": 0.07367,
+      "abs_corr": 0.07367
+    },
+    "AVAXUSDT_h3": {
+      "n": 372,
+      "corr": 0.08924,
+      "abs_corr": 0.08924
+    },
+    "DOGEUSDT_h1": {
+      "n": 374,
+      "corr": 0.04788,
+      "abs_corr": 0.04788
+    },
+    "DOGEUSDT_h2": {
+      "n": 373,
+      "corr": 0.08368,
+      "abs_corr": 0.08368
+    },
+    "DOGEUSDT_h3": {
+      "n": 372,
+      "corr": 0.10113,
+      "abs_corr": 0.10113
+    }
+  },
+  "lesson_79_max_abs_corr": 0.10113,
+  "lesson_79_threshold": 0.02,
+  "lesson_79_verdict": "PASS",
+  "lesson_40_feasibility": {
+    "z>=1.0": true,
+    "z<=-1.0": true,
+    "z>=1.5": true,
+    "z<=-1.5": true,
+    "z>=2.0": true,
+    "z<=-2.0": true
+  },
+  "lesson_40_verdict": "PASS"
+}

@@ -1,0 +1,31 @@
+{
+  "passed": true,
+  "blocked_by": [],
+  "label": "p251 stablecoin_supply_flow LINKUSDT h3d",
+  "G1": {
+    "n_trades": 375,
+    "raw_edge_pct": 1.1114,
+    "raw_t": 2.463,
+    "wt_t": 0.514,
+    "t_used": 2.463,
+    "t_carried_by": "raw_t",
+    "recent_edge_pct": 1.2799,
+    "older_edge_pct": 0.5624,
+    "decay_ratio": 2.276,
+    "wt_edge_pct": 0.3187,
+    "ok": true,
+    "fail": []
+  },
+  "G2": {
+    "ok": true,
+    "blocked": [],
+    "metrics": {
+      "edge_after_1bar_pct": 0.8186,
+      "roundtrip_friction_pct": 0.08,
+      "delay_retention": 2.569,
+      "net_headroom": 10.23,
+      "cycle_margin": 3.0
+    },
+    "notes": []
+  }
+}

@@ -1,0 +1,125 @@
+{
+  "paradigm_id": 250,
+  "paradigm_name": "funding_rate_90d_percentile_extreme_contrarian_short_7d",
+  "phase": "R-0",
+  "verdict": "R0_HALT_COMPOUND_LESSON_56_OUTCOME_FAMILY_PROXY_LESSON_39_MATHEMATICAL_MIRROR_ANTIPATTERN_PREDICTED_LESSON_62_DNA_5_OF_6_OVERLAP_vs_PARADIGM_243",
+  "date_kst": "2026-08-08",
+  "mode": "autonomous SELF-RECOMMEND (daily cron)",
+  "dispatch_source": "paradigm-architect autonomous self-recommend after Lesson #61 slug grep + Lesson #56 family scan",
+  "hypothesis_summary": "Per-sym Binance USDT-M perp 8h funding_rate rolling 90d percentile rank; when pct_rank >= 0.80 (top-20% of own history), SHORT 7d holding. Contrarian: extreme funding = carry cost extreme -> long liquidation over 7d.",
+  "prescreen_items": {
+    "item_01_lesson_61_slug_grep": {
+      "status": "NO_DIRECT_SLUG_HIT_BUT_SEMANTIC_HITS",
+      "grep_pattern": "funding.*extreme|extreme.*funding|carry.*reversion|percentile.*funding|funding.*percentile|funding.*contrarian",
+      "direct_slug_matches": [],
+      "semantic_matches_found_via_family_scan": [
+        {
+          "slug": "btc_funding_rate_p90_regime_alt_directional_4h",
+          "paradigm_id": 156,
+          "date": "2026-05-21",
+          "verdict": "BROAD_FALSIFIED",
+          "location": "backend/runs/research_track/graveyard__btc_funding_rate_p90_regime_alt_directional_4h.md",
+          "note": "BTC funding at p90 (90th percentile) x alt directional 4h. 4/4 quadrants FAIL, 0/52 symbol-cells ci_pos. Uses percentile threshold, not z-score. Direct semantic match on 'funding percentile extreme -> directional bet' family."
+        },
+        {
+          "slug": "funding_skewness_bilateral (paradigm 243)",
+          "paradigm_id": 243,
+          "date": "2026-08-02",
+          "verdict": "BROAD_FALSIFIED_FEE_FLOOR_MECHANISM_INVERTED (Lesson #39 sub-class B) + CONCENTRATED_R1_FAIL_TEMPORAL_FRAGILE",
+          "location": "backend/runs/research_track/graveyard__paradigm_243_alt_funding_rate_30d_rolling_skewness_bilateral_1d_to_4d.md",
+          "note": "Per-sym rolling-90-period distribution shape statistic (skewness) x bilateral 4-quadrant SNT x 1-4d hold. Focus+mirror sums to exactly -16bp = -2*fee for EVERY (T,h) combination -> mathematical proof of zero directional information. Same substrate as paradigm 250."
+        },
+        {
+          "slug": "funding_cycle_8h_differential_velocity_per_sym (paradigm 99)",
+          "paradigm_id": 99,
+          "date": "2026-05-19",
+          "verdict": "BROAD_FALSIFIED_MIRROR_ONLY",
+          "location": "backend/runs/research_track/graveyard__funding_cycle_8h_differential_velocity_per_sym.md",
+          "note": "Per-sym 30d rolling z-score of Delta-funding. 3/4 quadrants FAIL. Same substrate + same rolling-window own-history transform family."
+        },
+        {
+          "slug": "funding_rate_sign_flip_event_alt_long_4h (paradigm 96)",
+          "paradigm_id": 96,
+          "date": "2026-05-19",
+          "verdict": "BROAD_FALSIFIED",
+          "location": "backend/runs/research_track/funding_rate_sign_flip_event_alt_long_4h/r1/r1_spec.md",
+          "note": "Categorical funding sign flip. Documented finding: 'funding is lagging positioning marker, not reversal trigger'."
+        },
+        {
+          "slug": "funding_extreme z-score level (paradigm 79)",
+          "paradigm_id": 79,
+          "date": "2026-05 batch",
+          "verdict": "graveyard (referenced in paradigm 96 spec)",
+          "location": "backend/runs/research_track/funding_rate_sign_flip_event_alt_long_4h/r1/r1_spec.md",
+          "note": "Extreme z-score level filter on funding_rate. Explicitly cited in paradigm 96/99 documentation as prior falsified attempt on 'funding extreme x direction' hypothesis."
+        }
+      ]
+    },
+    "item_02_lesson_79_predictive_content_pretest": {
+      "status": "NOT_EXECUTED_R0_HALT_TAKES_PRECEDENCE",
+      "reasoning": "Lesson #56 outcome family proxy + Lesson #62 DNA overlap trigger unconditional R-0 halt. Even a positive L79 pretest cannot rescue when 5+ family-adjacent paradigms (79, 96, 99, 156, 243) have already fully documented the mechanism as fee-floor-bound with zero directional info. Running L79 pretest would waste compute and defer the halt."
+    },
+    "item_03_lesson_62_dna_5dim_overlap_vs_paradigm_243": {
+      "status": "HARD_FAIL_5_OF_6_OVERLAP",
+      "dimension_matrix": {
+        "data_columns":      {"p243": "binance_funding_rate per-sym 8h", "p250": "binance_funding_rate per-sym 8h", "match": "YES"},
+        "substrate":         {"p243": "funding_rate DB + OHLCV daily", "p250": "same", "match": "YES"},
+        "universe":          {"p243": "14 syms deep pool", "p250": "13-14 syms same pool", "match": "YES"},
+        "direction_axis":    {"p243": "bilateral 4-quadrant SNT", "p250": "same 4-quadrant SNT", "match": "YES"},
+        "hold_horizon":      {"p243": "1d/3d/4d", "p250": "7d", "match": "PARTIAL_YES (extension along same continuous axis; same mechanism class)"},
+        "statistic_transform": {"p243": "rolling 90-period skewness (distribution shape)", "p250": "rolling 90d percentile rank (distribution position)", "match": "NO_BUT_MECHANISM_EQUIVALENT (both are per-sym own-history distribution statistics that summarize where current funding sits within its recent distribution; monotone-equivalent under Lesson #83 amendment)"}
+      },
+      "overlap_count": "5/6 dimensions match",
+      "duplicate_ceiling_rule": "5/6 dimensions overlap triggers paradigm-architect DNA duplicate halt (paradigm 242 & 245 both triggered same halt at 5/6)"
+    },
+    "item_04_lesson_56_outcome_family_proxy": {
+      "status": "HARD_FAIL",
+      "family_definition": "per-sym funding-rate own-history extreme x directional bet",
+      "family_members_falsified": [
+        "paradigm 79 (funding extreme z-score level x direction) — graveyard",
+        "paradigm 96 (funding sign flip categorical x LONG) — BROAD_FALSIFIED",
+        "paradigm 99 (funding velocity per-sym 30d z x MR) — BROAD_FALSIFIED_MIRROR_ONLY",
+        "paradigm 156 (BTC funding p90/p10 percentile regime x alt directional) — BROAD_FALSIFIED 4/4 quadrants",
+        "paradigm 243 (funding skewness bilateral 1-4d) — BROAD_FALSIFIED_FEE_FLOOR_MECHANISM_INVERTED with mathematical proof (focus+mirror = -2*fee identity)"
+      ],
+      "reasoning": "Five family-adjacent paradigms directly test the mechanism 'funding rate extreme own-history statistic predicts forward directional return'. All five produced broad-falsified results. Paradigm 156 finding was decisive: 'BTC funding p90/p10 regime carries near-zero directional information for alts; funding is a LAGGING positioning marker, not a leading macro driver'. Paradigm 243 provided the mathematical proof: focus+mirror = -2*fee identity for EVERY (T,h) combination proves the transform contains zero directional info; long-drift baseline explains all observed asymmetry. Paradigm 250's percentile-rank transform is monotone-equivalent to a z-score/skewness/level transform for the purpose of 'detecting extreme own-history position' — the mechanism is identical to the falsified family, only the surface statistic differs. Per Lesson #56 amendment (paradigm 245 + 242 codification), a monotone-equivalent noise-reduction transform of a family-saturated substrate does NOT restore predictive content.",
+      "family_proxy_prior_confidence": "very_high (5 independent empirical falsifications on the identical substrate + Lesson #39 mathematical impossibility proof from paradigm 243)"
+    },
+    "item_05_lesson_39_mathematical_mirror_antipattern_predicted": {
+      "status": "STRONG_PREDICTED_HIT",
+      "reasoning": "Paradigm 243 demonstrated that for per-sym funding own-history extreme x bilateral SNT, focus+mirror ALWAYS sums to exactly -16bp = -2*fee. This is a mathematical identity, not an empirical finding: when the same trigger cell is evaluated with SHORT vs LONG on the same forward-return realization, the two sides differ only by (-r-fee) vs (+r-fee), forcing sum = -2*fee. Paradigm 250 uses the same 4-quadrant SNT construction on the same substrate. The identity WILL hold. The only rescue would be if the percentile-rank trigger were to produce a materially different set of trigger events than the skewness trigger — but both are monotone functions of the same underlying funding distribution position, so trigger overlap is very high (>60% overlap in trigger dates per own-history extreme statistic family). Even if trigger sets differ, the mathematical identity applies within each set.",
+      "predicted_r1_verdict": "BROAD_FALSIFIED_FEE_FLOOR_MECHANISM_INVERTED (Lesson #39 sub-class B) — same as paradigm 243"
+    },
+    "item_06_lesson_77_non_ohlcv_substrate": {
+      "status": "PASS",
+      "note": "funding_rate is non-OHLCV. This is the ONLY prescreen axis paradigm 250 passes cleanly. But Lesson #77 is a preference not a bypass — it does not override Lesson #56 / #62 / #39."
+    },
+    "item_07_lesson_11_sample_density": {
+      "status": "PASS_ADVISORY_ONLY",
+      "note": "20% trigger rate x 3 obs/day x 800d = ~480 events/sym at daily aggregation. Sample density is fine. Not the blocking axis."
+    },
+    "item_08_lesson_28_substrate_availability": {
+      "status": "PASS",
+      "note": "binance_funding_rate DB confirmed via prior paradigm 243 usage; 14 syms x ~2.5yr history."
+    },
+    "item_09_lesson_40_structural_threshold_feasibility": {
+      "status": "PASS",
+      "note": "Percentile rank in [0,1] by construction; threshold 0.80 achievable by definition."
+    },
+    "item_10_g2_cycle_margin_hold_min": {
+      "status": "PASS_IF_R1_HAD_RUN",
+      "note": "hold 7d = 10080min >> cycle 1440min * 3.0 margin = 4320min. G2 would pass — but R-0 halt precedes G2 evaluation."
+    }
+  },
+  "final_verdict": {
+    "code": "R0_HALT_COMPOUND",
+    "blocking_lessons": ["#56 outcome family proxy", "#62 DNA 5/6 overlap vs paradigm 243", "#39 mathematical mirror antipattern predicted"],
+    "supporting_evidence": {
+      "family_members_falsified": 5,
+      "paradigm_243_mathematical_proof": "focus + mirror = -2*fee for ALL (T,h) proves zero directional info",
+      "paradigm_156_mechanism_diagnosis": "funding is LAGGING positioning marker, not leading macro driver",
+      "hold_extension_rescue_attempt": "hold 7d (vs paradigm 243's 1-4d) does NOT rescue: mechanism failure is at the trigger level (zero directional info), not at the horizon level. Longer holds only amplify long-drift baseline (visible in paradigm 243 A_mirror T=1.5 h=4d = +202.7bp = pure long-drift capture, not paradigm-specific alpha)."
+    },
+    "action": "graveyard, no R-1 dispatch, increment total_paradigms 249 -> 250"
+  }
+}

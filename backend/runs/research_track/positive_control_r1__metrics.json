@@ -1,0 +1,23 @@
+{
+  "generated_at": "2026-08-08T10:21:39.915849",
+  "control": "lifecycle pump-decay (신규 상장 Day-1 숏, 30일 보유, SL 50%)",
+  "evidence": "R-4 PASS + 실계좌 2026-06~08 실현손익 +240.17 USDT",
+  "n_trigger": 129,
+  "n_pool": 16127,
+  "edge_pct": 6.430896098317889,
+  "signal_t_excess": 2.0496548639105567,
+  "ci_lower_bp": -226.0609124289216,
+  "perm_p_one_sided_above": 0.028,
+  "gates": {
+    "excess": true,
+    "ci": false,
+    "perm": true,
+    "three_gate": false,
+    "edge_2pct": true
+  },
+  "thresholds": {
+    "t_excess": 2.0,
+    "perm_p": 0.1,
+    "edge_pct": 2.0
+  }
+}

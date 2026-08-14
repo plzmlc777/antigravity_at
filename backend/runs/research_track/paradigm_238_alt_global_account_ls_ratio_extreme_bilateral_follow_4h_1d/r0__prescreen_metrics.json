@@ -1,0 +1,74 @@
+{
+  "paradigm_number": 238,
+  "name": "paradigm_238_alt_global_account_ls_ratio_extreme_bilateral_follow_4h_1d",
+  "phase": "R-0",
+  "run_ts_kst": "2026-07-27",
+  "hypothesis": "global_account_ls_ratio (ALL-accounts aggregate) rolling 30d z-score extreme (|z|>=T) predicts near-term directional (FOLLOW or CONTRARIAN) alpha at 4h and 1d hold; 4-quadrant SNT bilateral.",
+  "r0_items": {
+    "item1_lesson_61_slug_grep": {
+      "verdict": "PASS",
+      "note": "'global_account_ls_ratio' as trigger slug not present verbatim in INDEX or RUNBOOK; runbook line 804 already lists this as an untested candidate (self-consistent). Prior LSR paradigms 16 (toptrader_account level z contrarian) and 233 (toptrader_position velocity z bilateral) used different columns."
+    },
+    "item2_lesson_79_predictive_content_pretest": {
+      "verdict": "HALT",
+      "method": "OOS half of joblib intersection (SOLUSDT + BTCUSDT); compute corr(z, fwd_pct_change(hold)) full-sample.",
+      "results": {
+        "SOLUSDT": {"OOS_n": 113712, "OOS_span": "2025-04-12 -> 2026-05-12", "corr_h96_5m_4h": 0.00845, "corr_h288_5m_1d": 0.01188},
+        "BTCUSDT": {"OOS_n": 75581, "OOS_span": "2025-08-12 -> 2026-05-02", "corr_h96_5m_4h": -0.01527, "corr_h288_5m_1d": -0.01467}
+      },
+      "max_abs_corr": 0.01527,
+      "threshold": 0.02,
+      "conclusion": "Max |corr| across all (sym x hold) < 0.02 threshold. Rule triggers R-0 HALT with verdict R0_HALT_LESSON_79_ZERO_PREDICTIVE_CONTENT."
+    },
+    "item2b_extreme_subset_supplementary": {
+      "note": "Supplementary check on |z|>=T subsets (not part of formal pretest rule) to characterize signal quality after non-overlap enforcement. Naive t-stats on overlapping bars appear high (e.g., BTC thr=2.5 h=288 naive t=11.36) but collapse below 1.5 once non-overlapping event sampling is applied.",
+      "non_overlapping_events": {
+        "SOL_thr2.0_h96_4h": {"n": 154, "follow_mean_bp": 15.43, "t": 1.04, "per_quarter_flip": "25Q3=-5.8 -> 25Q4=+47.6"},
+        "SOL_thr2.0_h288_1d": {"n": 71, "follow_mean_bp": 8.58, "t": 0.24, "per_quarter_flip": "25Q3=-89.1 -> 25Q4=+173.6 -> 26Q1=+86.4 -> 26Q2=+19.0"},
+        "SOL_thr2.5_h96_4h": {"n": 53, "follow_mean_bp": 40.65, "t": 1.49, "per_quarter_flip": "25Q3=-1.5 -> 25Q4=+111.1"},
+        "SOL_thr2.5_h288_1d": {"n": 26, "follow_mean_bp": 90.96, "t": 1.24, "per_quarter_flip": "25Q4=+280.7 -> 26Q1=-45.5 (sign flip)"},
+        "BTC_thr2.0_h96_4h": {"n": 93, "follow_mean_bp": 0.19, "t": 0.02, "per_quarter_flip": "25Q3=+42.0 -> 25Q4=-21.4"},
+        "BTC_thr2.0_h288_1d": {"n": 44, "follow_mean_bp": 13.96, "t": 0.52, "per_quarter_flip": "25Q3=+86.1 -> 25Q4=-51.2 (sign flip)"},
+        "BTC_thr2.5_h96_4h": {"n": 18, "verdict": "INSUFFICIENT_lesson11"},
+        "BTC_thr2.5_h288_1d": {"n": 9, "verdict": "INSUFFICIENT_lesson11"}
+      },
+      "interpretation": "After autocorrelation removal (non-overlapping entry cooldown = hold), ALL cells produce t < 1.5 and per-quarter sign flips. Naive overlapping-bar t-stats were pure autocorrelation inflation artifact. Even if formal Lesson #79 rule had marginally passed, Lesson #11 (sample density post-non-overlap) and Lesson #16 (concentration/per-quarter instability) would independently trigger R-1 fail."
+    },
+    "item3_lesson_28_substrate_audit": {
+      "verdict": "PASS",
+      "coverage": "14/14 syms (ADA/AVAX/BCH/BNB/BTC/DOGE/ETH/FIL/LINK/LTC/NEAR/SOL/WIF/XRP) have global_account_ls_ratio column with 155k-255k nonnull 5m bars each"
+    },
+    "item4_lesson_62_dna_5dim": {
+      "verdict": "PASS",
+      "vs_paradigm_16_smart_money_lsr_contrarian": "3/5 novel (substrate column DIFFERENT global vs toptrader_account; mechanism includes FOLLOW branch, not pure contrarian; statistic is log-ratio rolling z, same class)",
+      "vs_paradigm_233_toptrader_position_lsr_velocity_z": "3/5 novel (substrate column DIFFERENT global vs toptrader_position; statistic LEVEL z vs VELOCITY z; hold overlap 4h)"
+    },
+    "item5_lesson_56_outcome_family_proxy": {
+      "verdict": "SOFT_WARNING",
+      "note": "LSR family: paradigm 16 BROAD_FALSIFIED and paradigm 233 BROAD_FALSIFIED. 2/2 prior instances of LSR-family trigger failed. This is 3rd LSR-family attempt with column swap; substrate is objectively distinct (aggregate ALL accounts vs toptrader subset) so Lesson #56 does not HARD FAIL but records the family precedent. Escape requires materially different signal characteristic — pretest shows it does not."
+    },
+    "item6_lesson_39_axis": {
+      "verdict": "PASS_by_design",
+      "note": "Direction axis = sign(ratio_z), not bar_direction. Genuine self-signaling per Lesson #77 escape criterion."
+    },
+    "item7_lesson_11_sample_density": {
+      "verdict": "STRUCTURAL_PASS_naive_FAIL_non_overlap",
+      "note": "Naive bar-level trigger frequency at |z|>=2.0 ~5% -> ~1500 events/sym/2yr; but non-overlapping (entry cooldown = hold_bars=288 for 1d) collapses to ~26-71 events / 12mo OOS per sym. Below 30/quarter for majority of cells."
+    },
+    "item8_lesson_40_structural_threshold": {
+      "verdict": "PASS",
+      "empirical_z_range": {"SOL_OOS_min": -4.141, "SOL_OOS_max": 2.873, "BTC_OOS_min": -3.923, "BTC_OOS_max": 2.361},
+      "note": "z distribution near-normal; thresholds 1.5/2.0/2.5 all feasible in both directions."
+    },
+    "item9_life_changing_4dim_preestimate": {
+      "verdict": "N/A (halted before R-1)",
+      "note": "Would have flagged util>100% at h=1d if trigger rate 5% + no cooldown; requires entry-cooldown design (already planned in item 2b analysis)."
+    }
+  },
+  "final_verdict": "R0_HALT_LESSON_79_ZERO_PREDICTIVE_CONTENT",
+  "final_reason": "Full-sample OOS corr(z, fwd_return) max |0.01527| < 0.02 rule threshold across 2 syms x 2 holds. Supplementary non-overlap subset analysis confirms t<1.5 and per-quarter sign flips at all extreme cells — signal is autocorrelation-inflated noise, not real alpha.",
+  "artifacts": {
+    "r0_metrics": "backend/runs/research_track/paradigm_238_alt_global_account_ls_ratio_extreme_bilateral_follow_4h_1d/r0__prescreen_metrics.json",
+    "graveyard": "backend/runs/research_track/graveyard__paradigm_238_alt_global_account_ls_ratio_extreme_bilateral_follow_4h_1d.md"
+  }
+}

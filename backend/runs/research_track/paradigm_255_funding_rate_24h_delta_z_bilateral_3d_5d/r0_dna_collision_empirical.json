@@ -1,0 +1,109 @@
+{
+  "sym": {
+    "BTCUSDT": {
+      "n_cycles_valid": 2644,
+      "corr_z8h_z24h": 0.4846,
+      "trigger_rate_24h": {
+        "T=1.0": {
+          "z24_ge_+T_rate": 0.1445,
+          "z24_le_-T_rate": 0.1377,
+          "n_pos": 382,
+          "n_neg": 364
+        },
+        "T=1.5": {
+          "z24_ge_+T_rate": 0.0692,
+          "z24_le_-T_rate": 0.0677,
+          "n_pos": 183,
+          "n_neg": 179
+        },
+        "T=2.0": {
+          "z24_ge_+T_rate": 0.031,
+          "z24_le_-T_rate": 0.0299,
+          "n_pos": 82,
+          "n_neg": 79
+        }
+      },
+      "sign_agree_when_z8_extreme": 0.875
+    },
+    "ETHUSDT": {
+      "n_cycles_valid": 2644,
+      "corr_z8h_z24h": 0.5001,
+      "trigger_rate_24h": {
+        "T=1.0": {
+          "z24_ge_+T_rate": 0.1392,
+          "z24_le_-T_rate": 0.132,
+          "n_pos": 368,
+          "n_neg": 349
+        },
+        "T=1.5": {
+          "z24_ge_+T_rate": 0.0688,
+          "z24_le_-T_rate": 0.0666,
+          "n_pos": 182,
+          "n_neg": 176
+        },
+        "T=2.0": {
+          "z24_ge_+T_rate": 0.0306,
+          "z24_le_-T_rate": 0.0306,
+          "n_pos": 81,
+          "n_neg": 81
+        }
+      },
+      "sign_agree_when_z8_extreme": 0.8433734939759037
+    },
+    "SOLUSDT": {
+      "n_cycles_valid": 2911,
+      "corr_z8h_z24h": 0.4725,
+      "trigger_rate_24h": {
+        "T=1.0": {
+          "z24_ge_+T_rate": 0.1353,
+          "z24_le_-T_rate": 0.1278,
+          "n_pos": 394,
+          "n_neg": 372
+        },
+        "T=1.5": {
+          "z24_ge_+T_rate": 0.0636,
+          "z24_le_-T_rate": 0.0574,
+          "n_pos": 185,
+          "n_neg": 167
+        },
+        "T=2.0": {
+          "z24_ge_+T_rate": 0.0299,
+          "z24_le_-T_rate": 0.0319,
+          "n_pos": 87,
+          "n_neg": 93
+        }
+      },
+      "sign_agree_when_z8_extreme": 0.8363636363636363
+    },
+    "DOGEUSDT": {
+      "n_cycles_valid": 2879,
+      "corr_z8h_z24h": 0.4824,
+      "trigger_rate_24h": {
+        "T=1.0": {
+          "z24_ge_+T_rate": 0.1452,
+          "z24_le_-T_rate": 0.1441,
+          "n_pos": 418,
+          "n_neg": 415
+        },
+        "T=1.5": {
+          "z24_ge_+T_rate": 0.0705,
+          "z24_le_-T_rate": 0.0663,
+          "n_pos": 203,
+          "n_neg": 191
+        },
+        "T=2.0": {
+          "z24_ge_+T_rate": 0.0337,
+          "z24_le_-T_rate": 0.0309,
+          "n_pos": 97,
+          "n_neg": 89
+        }
+      },
+      "sign_agree_when_z8_extreme": 0.8695652173913043
+    }
+  },
+  "aggregate": {
+    "mean_corr_z8h_z24h": 0.4849,
+    "min_corr_z8h_z24h": 0.4725,
+    "max_corr_z8h_z24h": 0.5001
+  }
+}

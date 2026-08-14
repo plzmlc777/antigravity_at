@@ -1,0 +1,221 @@
+{
+  "paradigm_number": 231,
+  "paradigm_slug": "binance_launchpool_bnb_demand_event_anchored_bilateral_1d_to_7d",
+  "phase": "R-1",
+  "tag": "r1_pre1_3_post1_7_h3",
+  "config": {
+    "pre_days_window": [
+      1,
+      3
+    ],
+    "post_days_window": [
+      1,
+      7
+    ],
+    "hold_days": 3,
+    "fee_bps": 8.0,
+    "target_symbol": "BNBUSDT",
+    "n_events": 34,
+    "events_window": [
+      "2024-01-04",
+      "2024-12-30"
+    ],
+    "kline_window": [
+      "2024-01-02",
+      "2026-05-12"
+    ]
+  },
+  "density": {
+    "n_days_total": 862,
+    "n_pre_farm_days": 95,
+    "n_post_farm_days": 210,
+    "n_pre_bar_up_days": 57,
+    "n_post_bar_dn_days": 106,
+    "pre_pct": 11.02,
+    "post_pct": 24.36
+  },
+  "quadrants": {
+    "A_focus": {
+      "n_bars": 57,
+      "n_events": 32,
+      "n_events_pos": 16,
+      "event_pos_ratio": 0.5,
+      "mean_bp": 134.3910290234081,
+      "std_bp": 497.3794272962543,
+      "event_mean_bp": 75.48445525074217,
+      "event_std_bp": 409.9861514906406,
+      "obs_t": 2.0399517210189164,
+      "signal_t_excess": 1.646315804963468,
+      "null_mean_t": 0.3936359160554483,
+      "ci_lower_bp": 16.23669529564527,
+      "ci_upper_bp": 266.50785521872706,
+      "ci_lower_bp_event_agg": -58.93212134589215,
+      "perm_p_one_sided": 0.054,
+      "three_gate_pass": false,
+      "three_gate_pass_event_agg": false,
+      "quarter_stats": {
+        "2024Q1": {
+          "n": 18,
+          "mean_bp": 219.11575842401842,
+          "t": 1.9929481350739053
+        },
+        "2024Q2": {
+          "n": 16,
+          "mean_bp": 155.48244928778166,
+          "t": 0.8847902875145297
+        },
+        "2024Q3": {
+          "n": 13,
+          "mean_bp": 148.5623983884032,
+          "t": 1.3977860145689993
+        },
+        "2024Q4": {
+          "n": 10,
+          "mean_bp": -70.2825364951819,
+          "t": -1.0247608634807794
+        }
+      },
+      "quarter_pos_t_ratio": 0.75,
+      "n_pool": 859
+    },
+    "A_mirror": {
+      "n_bars": 57,
+      "n_events": 32,
+      "n_events_pos": 16,
+      "event_pos_ratio": 0.5,
+      "mean_bp": -150.3910290234081,
+      "std_bp": 497.3794272962543,
+      "event_mean_bp": -91.48445525074217,
+      "event_std_bp": 409.9861514906406,
+      "obs_t": -2.282819327387327,
+      "signal_t_excess": -1.632085687788982,
+      "null_mean_t": -0.650733639598345,
+      "ci_lower_bp": -282.5078552187272,
+      "ci_upper_bp": -32.236695295645255,
+      "ci_lower_bp_event_agg": -241.1500966322452,
+      "perm_p_one_sided": 0.054,
+      "three_gate_pass": false,
+      "three_gate_pass_event_agg": false,
+      "quarter_stats": {
+        "2024Q1": {
+          "n": 18,
+          "mean_bp": -235.11575842401842,
+          "t": -2.1384747297402575
+        },
+        "2024Q2": {
+          "n": 16,
+          "mean_bp": -171.48244928778163,
+          "t": -0.9758400790831586
+        },
+        "2024Q3": {
+          "n": 13,
+          "mean_bp": -164.5623983884032,
+          "t": -1.548325965967965
+        },
+        "2024Q4": {
+          "n": 10,
+          "mean_bp": 54.2825364951819,
+          "t": 0.7914714201378165
+        }
+      },
+      "quarter_pos_t_ratio": 0.25,
+      "n_pool": 859
+    },
+    "B_focus": {
+      "n_bars": 106,
+      "n_events": 34,
+      "n_events_pos": 11,
+      "event_pos_ratio": 0.3235294117647059,
+      "mean_bp": -86.68695730083238,
+      "std_bp": 505.04371062057294,
+      "event_mean_bp": -186.8501122706855,
+      "event_std_bp": 420.1704740888421,
+      "obs_t": -1.7671675374795714,
+      "signal_t_excess": -0.7968717180016214,
+      "null_mean_t": -0.9702958194779501,
+      "ci_lower_bp": -183.38318082812785,
+      "ci_upper_bp": 8.676099429865218,
+      "ci_lower_bp_event_agg": -329.4455550223086,
+      "perm_p_one_sided": 0.176,
+      "three_gate_pass": false,
+      "three_gate_pass_event_agg": false,
+      "quarter_stats": {
+        "2024Q1": {
+          "n": 27,
+          "mean_bp": -269.05427217916184,
+          "t": -2.185736626767902
+        },
+        "2024Q2": {
+          "n": 29,
+          "mean_bp": -81.76927596626062,
+          "t": -1.178298243385478
+        },
+        "2024Q3": {
+          "n": 24,
+          "mean_bp": 193.5301730638843,
+          "t": 1.9639346399648911
+        },
+        "2024Q4": {
+          "n": 21,
+          "mean_bp": -214.64066624915523,
+          "t": -2.333171568705335
+        },
+        "2025Q1": {
+          "n": 5,
+          "mean_bp": 61.93734313394651,
+          "t": 0.9638068673230076
+        }
+      },
+      "quarter_pos_t_ratio": 0.4,
+      "n_pool": 859
+    },
+    "B_mirror": {
+      "n_bars": 106,
+      "n_events": 34,
+      "n_events_pos": 23,
+      "event_pos_ratio": 0.6764705882352942,
+      "mean_bp": 70.68695730083238,
+      "std_bp": 505.043710620573,
+      "event_mean_bp": 170.8501122706855,
+      "event_std_bp": 420.1704740888421,
+      "obs_t": 1.4409975866581266,
+      "signal_t_excess": 0.816597837630998,
+      "null_mean_t": 0.6243997490271286,
+      "ci_lower_bp": -24.676099429865236,
+      "ci_upper_bp": 167.38318082812776,
+      "ci_lower_bp_event_agg": 32.96040886493676,
+      "perm_p_one_sided": 0.17,
+      "three_gate_pass": false,
+      "three_gate_pass_event_agg": false,
+      "quarter_stats": {
+        "2024Q1": {
+          "n": 27,
+          "mean_bp": 253.05427217916184,
+          "t": 2.0557562114968935
+        },
+        "2024Q2": {
+          "n": 29,
+          "mean_bp": 65.76927596626066,
+          "t": 0.9477376609248168
+        },
+        "2024Q3": {
+          "n": 24,
+          "mean_bp": -209.5301730638843,
+          "t": -2.126301849904116
+        },
+        "2024Q4": {
+          "n": 21,
+          "mean_bp": 198.64066624915523,
+          "t": 2.1592495167864696
+        },
+        "2025Q1": {
+          "n": 5,
+          "mean_bp": -77.93734313394648,
+          "t": -1.2127828339513893
+        }
+      },
+      "quarter_pos_t_ratio": 0.6,
+      "n_pool": 859
+    }
+  }
+}

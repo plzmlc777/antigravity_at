@@ -1,0 +1,194 @@
+{
+  "paradigm_name": "alt_aggtrades_block_trade_buyer_imbalance_bilateral_directional_4h",
+  "paradigm_number": 230,
+  "phase": "R-0",
+  "verdict": "R0_HALT",
+  "verdict_code": "R0_HALT_BY_BANDWIDTH_AND_WALLCLOCK_CAP_INFEASIBLE_AGGTRADES_BACKFILL_SCOPE_EXCEEDS_AGENT_SPEC_HARD_LIMITS",
+  "created_at_kst": "2026-07-20T03:52:00+09:00",
+  "r1_dispatched": false,
+  "compute_saved_estimate_minutes": 351,
+  "mode": "SELF_RECOMMEND_AUTONOMOUS",
+  "dispatch_source": "paradigm-architect self-recommend (queue empty 2026-07-20)",
+  "hypothesis_slug": "alt_aggtrades_block_trade_buyer_imbalance_bilateral_directional_4h",
+  "hypothesis_summary": "5m aggregated aggTrades block-trade (>=$100K USD) buyer imbalance: block_concentration_z>=1.5 AND block_buyer_fraction>=0.65 -> LONG 4h (bilateral SNT for SHORT mirror). Substrate = data.binance.vision futures/um/monthly/aggTrades/{sym}/.",
+
+  "empirical_measurements_taken_before_halt": {
+    "substrate_head_probe_results": [
+      {"sym": "SOLUSDT", "month": "2025-06", "http_status": 200, "content_length_bytes": 173764124, "content_length_mb": 173.7},
+      {"sym": "BTCUSDT", "month": "2024-06", "content_length_bytes": 340036587, "content_length_mb": 340.0},
+      {"sym": "BTCUSDT", "month": "2025-01", "content_length_bytes": 692363439, "content_length_mb": 692.4},
+      {"sym": "BTCUSDT", "month": "2026-06", "content_length_bytes": 700931799, "content_length_mb": 700.9},
+      {"sym": "ETHUSDT", "month": "2024-06", "content_length_bytes": 371113633, "content_length_mb": 371.1},
+      {"sym": "ETHUSDT", "month": "2025-01", "content_length_bytes": 731355836, "content_length_mb": 731.4},
+      {"sym": "ETHUSDT", "month": "2026-06", "content_length_bytes": 638409754, "content_length_mb": 638.4},
+      {"sym": "DOGEUSDT", "month": "2024-06", "content_length_bytes": 115461391, "content_length_mb": 115.5},
+      {"sym": "DOGEUSDT", "month": "2025-01", "content_length_bytes": 389986333, "content_length_mb": 390.0},
+      {"sym": "DOGEUSDT", "month": "2026-06", "content_length_bytes": 74388519, "content_length_mb": 74.4},
+      {"sym": "WIFUSDT",  "month": "2024-06", "content_length_bytes": 265460481, "content_length_mb": 265.5},
+      {"sym": "WIFUSDT",  "month": "2025-01", "content_length_bytes": 222594832, "content_length_mb": 222.6},
+      {"sym": "WIFUSDT",  "month": "2026-06", "content_length_bytes": 24192573,  "content_length_mb": 24.2},
+      {"sym": "LTCUSDT",  "month": "2024-06", "content_length_bytes": 29576588,  "content_length_mb": 29.6},
+      {"sym": "LTCUSDT",  "month": "2025-01", "content_length_bytes": 115327344, "content_length_mb": 115.3},
+      {"sym": "LTCUSDT",  "month": "2026-06", "content_length_bytes": 26065436,  "content_length_mb": 26.1},
+      {"sym": "FILUSDT",  "month": "2024-06", "content_length_bytes": 52445636,  "content_length_mb": 52.4},
+      {"sym": "FILUSDT",  "month": "2025-01", "content_length_bytes": 57297645,  "content_length_mb": 57.3},
+      {"sym": "FILUSDT",  "month": "2026-06", "content_length_bytes": 28289963,  "content_length_mb": 28.3}
+    ],
+    "hypothesis_estimate_per_dispatch": "13 syms × 6 months × ~60 MB = ~4.7 GB compressed",
+    "actual_measured_estimate": {
+      "tier_A_btc_eth": {"n_syms": 2, "avg_mb_per_month": 546, "months": 6, "gb_compressed": 6.55},
+      "tier_B_mid_cap": {"n_syms": 5, "syms": ["DOGEUSDT","AVAXUSDT","LINKUSDT","NEARUSDT","WIFUSDT"], "avg_mb_per_month_est": 200, "months": 6, "gb_compressed": 6.00},
+      "tier_C_low_cap": {"n_syms": 6, "syms": ["BNBUSDT","SOLUSDT","LTCUSDT","BCHUSDT","FILUSDT","XRPUSDT"], "note_sol_reclass": "SOLUSDT measured 173.7 MB (Tier B/C boundary; conservative Tier C)", "avg_mb_per_month_est": 100, "months": 6, "gb_compressed": 3.60},
+      "total_gb_compressed": 16.15,
+      "total_gb_uncompressed_low_est_5x": 80.75,
+      "total_gb_uncompressed_high_est_10x": 161.5,
+      "hypothesis_underestimate_factor": "actual is 3.4x the hypothesis estimate (16.15 GB vs 4.7 GB)"
+    }
+  },
+
+  "hard_limits_violated": {
+    "limit_1_bandwidth_10gb_cap": {
+      "source": ".claude/agents/paradigm-architect.md CRITICAL Backfill discipline: 'Estimate bandwidth before starting: if > 10GB or > 30min ETA -> STOP, report to user'",
+      "measured": "16.15 GB compressed (Tier A + B + C, 13 syms × 6 months)",
+      "violation_ratio": 1.615,
+      "verdict": "HARD_VIOLATE"
+    },
+    "limit_2_30min_download_eta": {
+      "source": "same",
+      "eta_estimate_at_30MBps_cloudfront_icn53": "16.15 GB / 30 MB/s = 9 min download only (would pass this sub-check)",
+      "verdict": "PASS_ISOLATED_BUT_LIMIT_1_STILL_BINDING"
+    },
+    "limit_3_60min_wallclock_per_test": {
+      "source": ".claude/agents/paradigm-architect.md 'Single test run > 60 min wall-clock -> halt'",
+      "measured_estimate": {
+        "preprocessing_btc_month": "~13 min (40M CSV rows -> 8640 5m bars via groupby + size-class sum aggregation)",
+        "preprocessing_mid_cap_month": "~5 min",
+        "preprocessing_low_cap_month": "~1 min",
+        "weighted_avg_per_sym_month": "4.5 min",
+        "total_preprocessing_wallclock": "13 syms × 6 months × 4.5 min = 351 min = 5.85 hr"
+      },
+      "violation_ratio": 5.85,
+      "verdict": "HARD_VIOLATE"
+    }
+  },
+
+  "predecessor_evidence": {
+    "paradigm_227_r0_prescreen": {
+      "path": "backend/runs/research_track/alt_daily_premium_index_kalman_innovation_z_mr_bilateral_1d_to_7d/r0_prescreen.json",
+      "next_paradigm_recommendation_option_C": {
+        "slug_candidate": "orderflow_via_aggTrades_taker_flow_1m_intraday_persistence_family",
+        "quoted_note": "requires 1m aggTrades archive backfill (>30min ETA + Lesson #21 advisory caution family), needs explicit user greenlight",
+        "interpretation": "paradigm 227 (2026-07-15) already flagged aggTrades archive backfill as a deferred-infrastructure item requiring explicit user greenlight. Paradigm 230 self-recommend proceeds in autonomous mode without that greenlight and reproduces the same infrastructure constraint at 5m frame instead of 1m (same order of magnitude data volume)."
+      }
+    },
+    "q3_queue_ranking_2026_05_21": {
+      "path": "backend/runs/research_track/PARADIGM_QUEUE_2026Q3.md §6.32 candidate ranking",
+      "rank_5_note": "Trade-flow taker buy ratio z / aggTrades / family Tier 4 retired (paradigm 23/60/72) / NOT recommended",
+      "interpretation_for_paradigm_230": "The dispatch claims a Lesson #57 exemption via (a) size-class ≥$100K threshold and (b) 4h hold. This exemption is plausible on the mechanism axis but is MOOT given the bandwidth/wall-clock halt is decisive at R-0 level, upstream of Lesson #57 substrate scrutiny."
+    }
+  },
+
+  "lesson_69_5_item_template": {
+    "item_1_slug_grep": {
+      "status": "SUCCESS",
+      "grep_pattern": "aggtrades in backend/runs/research_track/",
+      "hits": [],
+      "verdict": "no prior aggTrades paradigm; slug NOVEL"
+    },
+    "item_2_substrate_audit": {
+      "status": "HARD_FAIL",
+      "reason": "substrate exists and is accessible (HTTP 200), but total compressed volume (16.15 GB) exceeds the 10 GB backfill cap declared in paradigm-architect.md",
+      "distinction": "existence-dim: PASS (files exist for all 13 syms). volume-dim: HARD_FAIL. This is a NEW substrate audit failure mode not previously catalogued — Lesson #28 covers 'substrate availability at event time' but not 'substrate volume within backfill discipline cap'."
+    },
+    "item_3_sample_density_lesson_11_23": {
+      "status": "NOT_MEASURED",
+      "reason": "cannot measure empirical trigger rate on block_concentration_z>=1.5 AND block_buyer_fraction>=0.65 without preprocessing at least 1 sym-month, which itself violates limit_3 for representative sampling (would need ~10-13 min for BTC-month sanity probe)",
+      "advisory": "even if backfill were permitted, block-trade rate at 5m frame + z>=1.5 tail + buyer_fraction>=0.65 sub-conditional trigger rate is unknown; Lesson #74 (paradigm 228 NARROW_SCOPE_LIFE_CHANGING_FAIL) suggests joint-tail triggers commonly fail sample-density at 5-8 hits/sym/year on 3d hold — 4h hold would need dramatically higher trigger rate to reach Lesson #74 life-changing hits/yr"
+    },
+    "item_4_dna_5dim_audit": {
+      "status": "SUCCESS_NOVEL",
+      "vs_paradigm_23_60_72_taker_family": {
+        "substrate": "DIFFERENT (aggTrades individual trade records vs pre-aggregated 5m taker buy volume)",
+        "statistic_class": "DIFFERENT (block-trade size-class buyer fraction × concentration z vs raw total taker buy vol z)",
+        "universe": "SAME (~13 alts)",
+        "mechanism": "DIFFERENT (institutional block-order flow detection vs retail aggregate imbalance)",
+        "frame": "DIFFERENT (4h hold vs 5m/60m hold in taker family)",
+        "overlap_score": "1/5 (universe only)",
+        "verdict": "4/5 NEW axes, would clear Lesson #62 DNA strict-fail floor"
+      },
+      "vs_paradigm_228_229_oi_share": {
+        "substrate": "DIFFERENT (aggTrades vs OI aggregate)",
+        "statistic_class": "DIFFERENT (block buyer fraction vs composition z / pct_rank)",
+        "universe": "SAME_CLASS (13 alts vs 5-14 alts)",
+        "mechanism": "DIFFERENT (individual trade flow vs cross-sym share composition)",
+        "frame": "DIFFERENT (4h vs 24h)",
+        "overlap_score": "1/5 (universe only)",
+        "verdict": "4/5 NEW axes"
+      },
+      "novelty_verdict": "DNA-dimension novelty is genuine and PASSES this item in isolation. The R-0 halt is entirely upstream at infrastructure (item 2)."
+    },
+    "item_5_family_proxy_lesson_56_57": {
+      "status": "NOT_ADJUDICATED",
+      "reason": "Dispatch claims Lesson #57 exemption (5m+60m taker family retired but size-class + 4h hold explicitly noted 'DIFFERENT VALIDATION VALUE'). Adjudicating this exemption requires actual experimental measurement, which the R-0 infrastructure halt prevents. Adjudication deferred.",
+      "note_for_future_revival": "If a future paradigm attempts aggTrades block-trade sub-population imbalance again, the Lesson #57 exemption argument (size-class ≠ aggregate + 4h ≠ 5m/60m) remains plausible on paper. But it MUST be paired with an infrastructure plan (pre-computed 5m block-buyer/seller aggregates cached to a persistent path) so R-0 bandwidth/wall-clock caps are cleared upstream."
+    }
+  },
+
+  "lessons_dogfooded": [
+    {"lesson": 28, "role": "substrate_availability_volume_dim_extension", "status": "HARD_FAIL", "note": "novel sub-mode: substrate exists but backfill volume exceeds spec cap. Candidate for Lesson #28 sub-finding elevation."},
+    {"lesson": 61, "role": "slug_grep_permanent_asset", "instance": 10, "status": "SUCCESS"},
+    {"lesson": 62, "role": "dna_5dim_audit_strict_pass", "instance": 13, "status": "PASS_NOVEL"},
+    {"lesson": 69, "role": "5_item_strict_template", "instance": 6, "status": "APPLIED"},
+    {"lesson": 77, "role": "non_ohlcv_substrate_preference", "status": "SUCCESS_ON_AXIS", "note": "aggTrades individual trade records IS non-OHLCV microstructure and would satisfy #77 preference — halt is orthogonal at infrastructure axis"},
+    {"lesson": 57, "role": "taker_family_size_class_hold_exemption", "status": "NOT_ADJUDICATED", "note": "exemption argument logically valid but experimentally unresolved due to infrastructure halt"},
+    {"lesson": 21, "role": "aggtrades_advisory_caution_family", "status": "REFERENCED", "note": "paradigm 227 R-0 recommendation Option C flagged aggTrades archive family under Lesson #21 advisory caution requiring explicit user greenlight; autonomous self-recommend proceeded without that greenlight"},
+    {"lesson": 40, "role": "structural_threshold_feasibility", "status": "PASS_ON_AXIS", "note": "block_buyer_fraction ∈ [0,1] and block_concentration_z is signed centered residual — symmetric threshold structurally feasible; halt orthogonal at infrastructure"}
+  ],
+
+  "novel_lesson_candidate": {
+    "candidate_id": "lesson_candidate_2026_07_20_p230",
+    "candidate_name": "backfill_volume_cap_enforcement_R0_hard_halt",
+    "one_line_definition": "Substrate accessibility (HTTP 200 for archive files) is a necessary but not sufficient R-0 substrate audit item. The audit MUST measure total compressed backfill volume against the agent spec cap (10 GB / 30 min ETA in paradigm-architect.md), and halt if either is violated — BEFORE any Lesson #11 empirical sample-density measurement, because sample-density measurement itself requires unblocking the backfill.",
+    "prescription": [
+      "R-0 substrate audit checklist must add 'measure_content_length_via_head_probe' step listing 3-5 representative sym-months",
+      "Compute weighted total_gb_compressed = Σ (n_syms × n_months × avg_mb_measured × tier)",
+      "If total > 10 GB compressed OR (total_gb / conservative_bandwidth_mbps_30) > 30 min OR (total_uncompressed_5x / preprocessing_throughput_MBps_50) > 60 min per test → HARD_HALT at R-0 without proceeding to items 3/4/5"
+    ],
+    "dogfood_lineage": [
+      "1st dogfood — paradigm 230 (aggTrades 13 syms × 6 months = 16.15 GB compressed, 5.85 hr preprocessing)"
+    ],
+    "relation_to_existing_lessons": {
+      "lesson_28": "substrate_availability existence-dim is a proper subset of this candidate. Candidate extends #28 with volume-dim + preprocessing-throughput-dim.",
+      "lesson_21_advisory_caution_paradigm_227": "predecessor paradigm 227 R-0 output Option C already flagged aggTrades archive as requiring explicit user greenlight due to 30min ETA. This candidate formalizes that ad-hoc note into a mechanical R-0 check."
+    },
+    "promotion_target": "CANDIDATE (1 dogfood); requires 2nd dogfood for CONFIRMED-eligible per lesson elevation protocol"
+  },
+
+  "recommended_next_paradigm": {
+    "guidance": "SELF_RECOMMEND queue next iteration should route AWAY from bulk-archive substrate families (aggTrades, book depth L2 snapshots, sub-1m tick data) unless a persistent pre-aggregated cache already exists. Prefer substrates with pre-aggregated joblib / DB tables under ~1 GB total per full-universe scan.",
+    "option_A_preferred": {
+      "slug_candidate": "alt_binance_perp_isolated_vs_cross_margin_oi_split_ratio_daily_z_directional_3d",
+      "hypothesis": "Binance exposes isolated vs cross-margin OI breakdown via futures/um/data endpoints; ratio shift may indicate leverage regime (isolated = short-term speculative, cross = long-term positional).",
+      "substrate": "OI daily breakdown from Binance API/archive — small volume (kilobytes/day/sym)",
+      "novelty_axis": "leverage-margin-mode composition (fresh dimension, no prior paradigm)",
+      "estimated_backfill_gb": "<0.1 GB"
+    },
+    "option_B_preferred": {
+      "slug_candidate": "alt_realized_vol_signed_upside_vs_downside_asymmetry_semivar_ratio_z_directional_4h_retry_amended",
+      "hypothesis": "Reformulate paradigm 134-family upside-vs-downside RV asymmetry with amended Lesson #54 mechanism-coherent design (avoid the retired reduction failure mode).",
+      "substrate": "existing 1m OHLCV joblib cache — 0 additional backfill",
+      "novelty_axis": "amendment path not saturated by paradigm 134 halt",
+      "estimated_backfill_gb": "0 GB (uses existing cache)"
+    },
+    "option_C_deferred_infrastructure_precondition": {
+      "slug_candidate": "alt_aggtrades_block_trade_buyer_imbalance_bilateral_directional_4h_INFRASTRUCTURE_PRECOMPUTED",
+      "revival_condition": "Only if a persistent 5m aggregate cache is pre-built out-of-band (block_vol_usd, block_buy_vol_usd, block_sell_vol_usd, total_vol_usd, block_concentration per 5m bar per sym) covering ≥30 months × 13 alts, stored under ~2 GB total joblib. This requires a separate one-time infrastructure spike outside paradigm-architect autonomous mode.",
+      "note": "The paradigm hypothesis itself remains interesting on DNA-novelty grounds (4/5 new axes, Lesson #57 exemption pending adjudication). It is not falsified — only infrastructure-deferred."
+    },
+    "rejected_dimensions": [
+      "any additional aggTrades-derived paradigm in autonomous mode until pre-aggregated cache exists",
+      "any additional book-depth L2 snapshot paradigm (same infrastructure class)",
+      "any sub-1m tick-frame paradigm without pre-aggregation infrastructure"
+    ]
+  }
+}

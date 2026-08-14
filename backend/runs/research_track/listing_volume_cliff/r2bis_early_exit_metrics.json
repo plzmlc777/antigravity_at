@@ -1,0 +1,377 @@
+{
+  "config": {
+    "fee_round_trip": 0.0008,
+    "sl_level": 0.5,
+    "hold_days_end": 30,
+    "early_exit_day": 14,
+    "threshold_grid": [
+      0.3,
+      0.35,
+      0.4,
+      0.5,
+      0.7
+    ],
+    "vol_cliff_formula": "mean(daily_vol[7:14]) / day1_vol"
+  },
+  "cohort": {
+    "n_total": 162,
+    "skipped_data_issues": 3
+  },
+  "baseline_reference_hold30": {
+    "n": 162,
+    "mean_pct": 6.47,
+    "median_pct": 21.5,
+    "win_rate_positive": 0.568,
+    "t_stat": 1.7,
+    "std_pct": 48.52
+  },
+  "threshold_grid_results": {
+    "0.30": {
+      "threshold": 0.3,
+      "n_invalidated": 79,
+      "n_confirmed": 83,
+      "early_exit_full_cohort": {
+        "n": 162,
+        "mean_pct": 7.7,
+        "median_pct": 20.46,
+        "win_rate_positive": 0.599,
+        "t_stat": 2.11,
+        "std_pct": 46.4
+      },
+      "baseline_full_cohort_reference": {
+        "n": 162,
+        "mean_pct": 6.47,
+        "median_pct": 21.5,
+        "win_rate_positive": 0.568,
+        "t_stat": 1.7,
+        "std_pct": 48.52
+      },
+      "invalidated_subcohort_baseline_hold30": {
+        "n": 79,
+        "mean_pct": -7.13,
+        "median_pct": -50.08,
+        "win_rate_positive": 0.443,
+        "t_stat": -1.35,
+        "std_pct": 46.97
+      },
+      "invalidated_subcohort_early_exit_d14": {
+        "n": 79,
+        "mean_pct": -4.61,
+        "median_pct": 1.67,
+        "win_rate_positive": 0.506,
+        "t_stat": -0.95,
+        "std_pct": 43.11
+      },
+      "confirmed_subcohort": {
+        "n": 83,
+        "mean_pct": 19.42,
+        "median_pct": 34.88,
+        "win_rate_positive": 0.687,
+        "t_stat": 3.79,
+        "std_pct": 46.64
+      },
+      "uplift_median_pct": -1.04,
+      "uplift_mean_pct": 1.23,
+      "uplift_win_rate": 0.031,
+      "subcohort_invalidated_avoid_loss_pct": 2.52
+    },
+    "0.35": {
+      "threshold": 0.35,
+      "n_invalidated": 72,
+      "n_confirmed": 90,
+      "early_exit_full_cohort": {
+        "n": 162,
+        "mean_pct": 7.16,
+        "median_pct": 19.74,
+        "win_rate_positive": 0.586,
+        "t_stat": 1.95,
+        "std_pct": 46.68
+      },
+      "baseline_full_cohort_reference": {
+        "n": 162,
+        "mean_pct": 6.47,
+        "median_pct": 21.5,
+        "win_rate_positive": 0.568,
+        "t_stat": 1.7,
+        "std_pct": 48.52
+      },
+      "invalidated_subcohort_baseline_hold30": {
+        "n": 72,
+        "mean_pct": -6.35,
+        "median_pct": -35.68,
+        "win_rate_positive": 0.458,
+        "t_stat": -1.14,
+        "std_pct": 47.1
+      },
+      "invalidated_subcohort_early_exit_d14": {
+        "n": 72,
+        "mean_pct": -4.81,
+        "median_pct": -0.93,
+        "win_rate_positive": 0.5,
+        "t_stat": -0.95,
+        "std_pct": 43.13
+      },
+      "confirmed_subcohort": {
+        "n": 90,
+        "mean_pct": 16.73,
+        "median_pct": 34.34,
+        "win_rate_positive": 0.656,
+        "t_stat": 3.35,
+        "std_pct": 47.42
+      },
+      "uplift_median_pct": -1.76,
+      "uplift_mean_pct": 0.69,
+      "uplift_win_rate": 0.018,
+      "subcohort_invalidated_avoid_loss_pct": 1.54
+    },
+    "0.40": {
+      "threshold": 0.4,
+      "n_invalidated": 63,
+      "n_confirmed": 99,
+      "early_exit_full_cohort": {
+        "n": 162,
+        "mean_pct": 7.88,
+        "median_pct": 21.5,
+        "win_rate_positive": 0.593,
+        "t_stat": 2.13,
+        "std_pct": 47.02
+      },
+      "baseline_full_cohort_reference": {
+        "n": 162,
+        "mean_pct": 6.47,
+        "median_pct": 21.5,
+        "win_rate_positive": 0.568,
+        "t_stat": 1.7,
+        "std_pct": 48.52
+      },
+      "invalidated_subcohort_baseline_hold30": {
+        "n": 63,
+        "mean_pct": -7.47,
+        "median_pct": -50.08,
+        "win_rate_positive": 0.444,
+        "t_stat": -1.26,
+        "std_pct": 47.0
+      },
+      "invalidated_subcohort_early_exit_d14": {
+        "n": 63,
+        "mean_pct": -3.84,
+        "median_pct": 1.67,
+        "win_rate_positive": 0.508,
+        "t_stat": -0.69,
+        "std_pct": 43.95
+      },
+      "confirmed_subcohort": {
+        "n": 99,
+        "mean_pct": 15.34,
+        "median_pct": 31.97,
+        "win_rate_positive": 0.646,
+        "t_stat": 3.21,
+        "std_pct": 47.6
+      },
+      "uplift_median_pct": 0.0,
+      "uplift_mean_pct": 1.41,
+      "uplift_win_rate": 0.025,
+      "subcohort_invalidated_avoid_loss_pct": 3.63
+    },
+    "0.50": {
+      "threshold": 0.5,
+      "n_invalidated": 50,
+      "n_confirmed": 112,
+      "early_exit_full_cohort": {
+        "n": 162,
+        "mean_pct": 6.88,
+        "median_pct": 20.47,
+        "win_rate_positive": 0.58,
+        "t_stat": 1.84,
+        "std_pct": 47.64
+      },
+      "baseline_full_cohort_reference": {
+        "n": 162,
+        "mean_pct": 6.47,
+        "median_pct": 21.5,
+        "win_rate_positive": 0.568,
+        "t_stat": 1.7,
+        "std_pct": 48.52
+      },
+      "invalidated_subcohort_baseline_hold30": {
+        "n": 50,
+        "mean_pct": -12.07,
+        "median_pct": -50.08,
+        "win_rate_positive": 0.38,
+        "t_stat": -1.81,
+        "std_pct": 47.1
+      },
+      "invalidated_subcohort_early_exit_d14": {
+        "n": 50,
+        "mean_pct": -10.75,
+        "median_pct": -39.53,
+        "win_rate_positive": 0.42,
+        "t_stat": -1.7,
+        "std_pct": 44.61
+      },
+      "confirmed_subcohort": {
+        "n": 112,
+        "mean_pct": 14.75,
+        "median_pct": 31.75,
+        "win_rate_positive": 0.652,
+        "t_stat": 3.32,
+        "std_pct": 47.02
+      },
+      "uplift_median_pct": -1.03,
+      "uplift_mean_pct": 0.41,
+      "uplift_win_rate": 0.012,
+      "subcohort_invalidated_avoid_loss_pct": 1.32
+    },
+    "0.70": {
+      "threshold": 0.7,
+      "n_invalidated": 36,
+      "n_confirmed": 126,
+      "early_exit_full_cohort": {
+        "n": 162,
+        "mean_pct": 6.41,
+        "median_pct": 19.17,
+        "win_rate_positive": 0.574,
+        "t_stat": 1.7,
+        "std_pct": 47.83
+      },
+      "baseline_full_cohort_reference": {
+        "n": 162,
+        "mean_pct": 6.47,
+        "median_pct": 21.5,
+        "win_rate_positive": 0.568,
+        "t_stat": 1.7,
+        "std_pct": 48.52
+      },
+      "invalidated_subcohort_baseline_hold30": {
+        "n": 36,
+        "mean_pct": -11.04,
+        "median_pct": -50.08,
+        "win_rate_positive": 0.389,
+        "t_stat": -1.44,
+        "std_pct": 45.96
+      },
+      "invalidated_subcohort_early_exit_d14": {
+        "n": 36,
+        "mean_pct": -11.33,
+        "median_pct": -18.32,
+        "win_rate_positive": 0.417,
+        "t_stat": -1.6,
+        "std_pct": 42.39
+      },
+      "confirmed_subcohort": {
+        "n": 126,
+        "mean_pct": 11.47,
+        "median_pct": 30.22,
+        "win_rate_positive": 0.619,
+        "t_stat": 2.67,
+        "std_pct": 48.24
+      },
+      "uplift_median_pct": -2.33,
+      "uplift_mean_pct": -0.06,
+      "uplift_win_rate": 0.006,
+      "subcohort_invalidated_avoid_loss_pct": -0.29
+    }
+  },
+  "quarterly_breakdown_thresh040": {
+    "2025Q2": {
+      "n_total": 25,
+      "n_invalidated": 7,
+      "baseline_hold30": {
+        "n": 25,
+        "mean_pct": 18.91,
+        "median_pct": 31.38,
+        "win_rate_positive": 0.76,
+        "t_stat": 2.38,
+        "std_pct": 39.76
+      },
+      "early_exit_d14_thresh040": {
+        "n": 25,
+        "mean_pct": 18.53,
+        "median_pct": 30.24,
+        "win_rate_positive": 0.76,
+        "t_stat": 2.3,
+        "std_pct": 40.26
+      }
+    },
+    "2025Q3": {
+      "n_total": 63,
+      "n_invalidated": 28,
+      "baseline_hold30": {
+        "n": 63,
+        "mean_pct": -6.3,
+        "median_pct": -11.37,
+        "win_rate_positive": 0.46,
+        "t_stat": -1.07,
+        "std_pct": 46.73
+      },
+      "early_exit_d14_thresh040": {
+        "n": 63,
+        "mean_pct": -4.01,
+        "median_pct": -3.53,
+        "win_rate_positive": 0.492,
+        "t_stat": -0.7,
+        "std_pct": 45.57
+      }
+    },
+    "2025Q4": {
+      "n_total": 48,
+      "n_invalidated": 14,
+      "baseline_hold30": {
+        "n": 48,
+        "mean_pct": 17.3,
+        "median_pct": 37.62,
+        "win_rate_positive": 0.646,
+        "t_stat": 2.36,
+        "std_pct": 50.86
+      },
+      "early_exit_d14_thresh040": {
+        "n": 48,
+        "mean_pct": 16.89,
+        "median_pct": 37.62,
+        "win_rate_positive": 0.667,
+        "t_stat": 2.37,
+        "std_pct": 49.3
+      }
+    },
+    "2026Q1": {
+      "n_total": 25,
+      "n_invalidated": 14,
+      "baseline_hold30": {
+        "n": 25,
+        "mean_pct": 7.69,
+        "median_pct": 4.31,
+        "win_rate_positive": 0.52,
+        "t_stat": 0.76,
+        "std_pct": 50.44
+      },
+      "early_exit_d14_thresh040": {
+        "n": 25,
+        "mean_pct": 12.2,
+        "median_pct": 28.47,
+        "win_rate_positive": 0.56,
+        "t_stat": 1.28,
+        "std_pct": 47.7
+      }
+    },
+    "2026Q2": {
+      "n_total": 1,
+      "n_invalidated": 0,
+      "baseline_hold30": {
+        "n": 1,
+        "mean_pct": -50.08,
+        "median_pct": -50.08,
+        "win_rate_positive": 0.0,
+        "t_stat": null,
+        "std_pct": null
+      },
+      "early_exit_d14_thresh040": {
+        "n": 1,
+        "mean_pct": -50.08,
+        "median_pct": -50.08,
+        "win_rate_positive": 0.0,
+        "t_stat": null,
+        "std_pct": null
+      }
+    }
+  }
+}

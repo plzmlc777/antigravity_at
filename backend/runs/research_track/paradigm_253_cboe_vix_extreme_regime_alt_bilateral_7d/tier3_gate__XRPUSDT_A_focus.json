@@ -1,0 +1,38 @@
+{
+  "passed": false,
+  "blocked_by": [
+    "t 1.42 < 1.5 (전구간 1.42 / 최근가중 0.73 둘 다 미달)",
+    "마찰 대비 여유 1.71x < 3.0x (지연후 0.1367% / 마찰 0.0800%)"
+  ],
+  "label": "p253_XRPUSDT_A_focus_T1.0",
+  "G1": {
+    "n_trades": 27,
+    "raw_edge_pct": 2.2915,
+    "raw_t": 1.421,
+    "wt_t": 0.726,
+    "t_used": 1.421,
+    "t_carried_by": "raw_t",
+    "recent_edge_pct": 2.1581,
+    "older_edge_pct": 2.8001,
+    "decay_ratio": 0.771,
+    "wt_edge_pct": 1.836,
+    "ok": false,
+    "fail": [
+      "t 1.42 < 1.5 (전구간 1.42 / 최근가중 0.73 둘 다 미달)"
+    ]
+  },
+  "G2": {
+    "ok": false,
+    "blocked": [
+      "마찰 대비 여유 1.71x < 3.0x (지연후 0.1367% / 마찰 0.0800%)"
+    ],
+    "metrics": {
+      "edge_after_1bar_pct": 0.1367,
+      "roundtrip_friction_pct": 0.08,
+      "delay_retention": 0.074,
+      "net_headroom": 1.71,
+      "cycle_margin": 7.0
+    },
+    "notes": []
+  }
+}

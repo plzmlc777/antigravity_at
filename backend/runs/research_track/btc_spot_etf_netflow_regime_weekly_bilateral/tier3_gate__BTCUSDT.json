@@ -1,0 +1,32 @@
+{
+  "passed": false,
+  "blocked_by": [
+    "시간가중 t 0.42 < 1.5"
+  ],
+  "label": "btc_spot_etf_netflow_regime_weekly_bilateral",
+  "G1": {
+    "n_trades": 20,
+    "wt_edge_pct": 0.9964,
+    "wt_t": 0.418,
+    "recent_edge_pct": 0.4682,
+    "older_edge_pct": -2.1694,
+    "decay_ratio": null,
+    "raw_edge_pct": 1.6258,
+    "ok": false,
+    "fail": [
+      "시간가중 t 0.42 < 1.5"
+    ]
+  },
+  "G2": {
+    "ok": true,
+    "blocked": [],
+    "metrics": {
+      "edge_after_1bar_pct": 1.6598,
+      "roundtrip_friction_pct": 0.08,
+      "delay_retention": 1.666,
+      "net_headroom": 20.75,
+      "cycle_margin": 14.0
+    },
+    "notes": []
+  }
+}

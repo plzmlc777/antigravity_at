@@ -1,0 +1,44 @@
+{
+  "f3e9da4a-2b6": {
+    "symbol": "STARUSDT",
+    "paper": "lifecycle-paper-starusdt-pilot",
+    "real": null,
+    "notional_usdt": 200.0
+  },
+  "c2f4f5bc-77b": {
+    "symbol": "PHAROSUSDT",
+    "paper": "lifecycle-paper-pharosusdt-445768",
+    "real": null,
+    "notional_usdt": 200.0
+  },
+  "f82fbd15-435": {
+    "symbol": "CTRUSDT",
+    "paper": "lifecycle-paper-ctrusdt-10cd97",
+    "real": null,
+    "notional_usdt": 200.0
+  },
+  "98e505ad-b0a": {
+    "symbol": "SLXUSDT",
+    "paper": "lifecycle-paper-slxusdt-e20801",
+    "real": "lifecycle-real-slxusdt-7b30e3",
+    "notional_usdt": 200.0,
+    "real_account_id": 8,
+    "real_leverage": 1
+  },
+  "704be977-1ce": {
+    "symbol": "BTWUSDT",
+    "paper": "lifecycle-paper-btwusdt-3115ca",
+    "real": "lifecycle-real-btwusdt-b68478",
+    "notional_usdt": 200.0,
+    "real_account_id": 8,
+    "real_leverage": 1
+  },
+  "f602535c-6ae": {
+    "symbol": "ZESTUSDT",
+    "paper": "lifecycle-paper-zestusdt-31f5f9",
+    "real": "lifecycle-real-zestusdt-6c9d7a",
+    "notional_usdt": 200.0,
+    "real_account_id": 8,
+    "real_leverage": 1
+  }
+}

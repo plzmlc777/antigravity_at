@@ -1,0 +1,81 @@
+{
+  "paradigm_number_original_prompt": 253,
+  "paradigm_number_assigned": 254,
+  "paradigm_number_reassignment_reason": "slot_253_already_occupied_by_cboe_vix_extreme_regime_alt_bilateral_7d_graveyard",
+  "slug": "btc_fear_greed_extreme_contrarian_alt_perp_bilateral_3d_5d",
+  "hypothesis_summary": "Alternative.me BTC Fear & Greed Index (0-100 daily composite) extreme values predict contrarian 3-5d directional moves in Binance USDT-M alt perps. Extreme Fear (<T_lo) -> LONG, Extreme Greed (>T_hi) -> SHORT. SOL primary, bilateral 4-quadrant SNT.",
+  "dispatched_at": "2026-08-12",
+  "dispatch_mode": "SELF_RECOMMEND_DAILY_CRON",
+  "verdict": "R0_HALT_DNA_DUPLICATE_PARADIGM_226",
+  "prescreen_items": {
+    "item1_slug_grep": {
+      "status": "FAIL",
+      "hits": [
+        "backend/runs/research_track/INDEX.json (paradigm_226_alt_fear_greed_index_extreme_contrarian_bilateral_1d entry)",
+        "backend/scripts/research/paradigm226_alt_fear_greed_index_extreme_contrarian_bilateral_1d_r1.py",
+        "backend/runs/research_track/graveyard__alt_fear_greed_index_extreme_contrarian_bilateral_1d.md (2026-07-14)"
+      ],
+      "conclusion": "Prior paradigm 226 tested this exact substrate and mechanism 29 days ago. Not novel."
+    },
+    "item2_substrate_probe": {
+      "status": "PASS_technically",
+      "http_status": 200,
+      "note": "Alternative.me API alive, returns valid JSON with value/timestamp/value_classification fields. This does not rescue the DNA duplicate verdict."
+    },
+    "item3_sample_density_2024plus": {
+      "status": "PASS_technically",
+      "n_days_2024plus": 953,
+      "fear_lt_20": 114,
+      "fear_lt_25": 186,
+      "fear_lt_30": 304,
+      "greed_gt_70": 253,
+      "greed_gt_75": 96,
+      "greed_gt_80": 35,
+      "note": "Density is adequate; density adequacy does not rescue DNA duplicate."
+    },
+    "item4_dna_novelty_lesson62": {
+      "status": "FAIL",
+      "comparison_target": "paradigm_226_alt_fear_greed_index_extreme_contrarian_bilateral_1d",
+      "dimensions": {
+        "data_source": {"p226": "Alternative.me F&G daily 0-100 composite", "p254_proposed": "Alternative.me F&G daily 0-100 composite", "distinct": false},
+        "statistic": {"p226": "bounded 0-100 raw threshold (FEAR<=25, GREED>=75)", "p254_proposed": "bounded 0-100 raw threshold (T_lo in {20,25,30}, T_hi in {70,75,80})", "distinct": false, "note": "p254 is a superset sweep of p226 thresholds"},
+        "trigger_topology": {"p226": "bilateral 4-quadrant threshold cross", "p254_proposed": "bilateral 4-quadrant threshold cross", "distinct": false},
+        "mechanism_narrative": {"p226": "retail crowd sentiment contrarian mean reversion", "p254_proposed": "retail crowd sentiment contrarian mean reversion", "distinct": false},
+        "hold_horizon": {"p226": "24h/48h/72h", "p254_proposed": "1d/2d/3d/5d/7d", "distinct": "boundary", "note": "3d(72h) overlap; 5d/7d extensions do not change alpha class per Pattern P1 alpha decay + universe-aggregate scalar statistic family failure mode"},
+        "universe": {"p226": "13 Binance USDT-M alt perps (paradigm 69 validated set including SOL)", "p254_proposed": "SOLUSDT single symbol primary", "distinct": "narrower", "note": "SOL was already inside p226 pool; per-symbol failure was universal 0/13 syms_ci_pos, so SOL alone was already failing per-sym bootstrap CI in p226"}
+      },
+      "distinct_dim_count": "1/6 (boundary hold only)",
+      "lesson62_threshold": "requires >=4/6 distinct for novel dispatch",
+      "conclusion": "HARD DNA DUPLICATE. 5/6 dimensions identical or subset."
+    },
+    "item5_family_proxy_lesson56": {
+      "status": "FAIL",
+      "family_class": "universe_aggregate_scalar_statistic_family",
+      "family_dogfood_count": "paradigm 115 + 116 + 118 + 226 = 4 dogfoods CONFIRMED (Lesson #41). Adding paradigm 254 would trigger 5th dogfood and formal Tier 4 family retire threshold.",
+      "family_failure_pattern": "pool three-gate PASS + concentration FAIL + per-trade edge <2% fee-floor-bound",
+      "conclusion": "Family already at 4-dogfood retire threshold. Dispatching another instance would be actively counterproductive."
+    },
+    "item6_pattern_p1_alpha_decay": {
+      "status": "N/A_due_to_halt",
+      "note": "Would apply era stratify at R-1, but R-0 halt precludes."
+    },
+    "item7_lesson39_escape": {
+      "status": "N/A_due_to_halt",
+      "note": "p226 already showed A_focus + A_mirror NOT mirror (directional info present) but concentration failed anyway. Lesson #39 escape does not rescue Lesson #41 concentration failure."
+    },
+    "item8_lesson79_pretest": {
+      "status": "N/A_due_to_halt",
+      "note": "p226 pool-level signal_t_excess = +2.89 (predictive content present), yet paradigm still failed at concentration + life-changing gates. Predictive content is necessary but not sufficient."
+    },
+    "item9_life_changing_pre_assessment": {
+      "status": "FAIL",
+      "note": "p226 measured per-trade edge = 0.30%/trade (universe-aggregate mean). Life-changing floor is 2%/trade. Even if p254 collapses to single-sym SOL, universe-aggregate scalar statistic edge does not survive per-symbol decomposition."
+    }
+  },
+  "final_verdict": {
+    "phase_reached": "R-0",
+    "gate_failed": "DNA_NOVELTY_LESSON_62 + FAMILY_PROXY_LESSON_56 + PARADIGM_226_PRECEDENT_LESSON_41_4TH_DOGFOOD",
+    "action": "GRAVEYARD_R0_NO_R1_DISPATCH",
+    "reason": "5/6 DNA dimensions identical to graveyard paradigm 226 (2026-07-14). Family class 'universe-aggregate scalar statistic' already at 4-dogfood retire threshold (Lesson #41 formal CONFIRMED). Additional instance would be counterproductive family-level dogfood."
+  }
+}

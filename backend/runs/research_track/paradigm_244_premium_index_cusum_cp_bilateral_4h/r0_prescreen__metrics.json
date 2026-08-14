@@ -1,0 +1,89 @@
+{
+  "paradigm": "premium_index_cusum_cp_bilateral_4h",
+  "paradigm_number": 244,
+  "phase": "R-0",
+  "hypothesis": "Per-symbol Binance perpetual premium_index 5m Page-Hinkley online CUSUM structural level-shifts predict bilateral 1h-4h directional continuation. UP shift -> LONG, DOWN shift -> SHORT. 4-quadrant SNT (Lesson #19). Exclude events within +/-1h of funding boundaries (00/08/16 UTC).",
+  "substrate_audit": {
+    "premium_index_5m": {
+      "path": "backend/runs/premium_index/{SYM}_premium_5m.joblib",
+      "n_syms_available": 14,
+      "n_syms_required": 14,
+      "coverage_start": "2024-05-15",
+      "coverage_end": "2026-05-13",
+      "resolution": "5min",
+      "frame_grade_ok": true,
+      "lesson_22_compliant": true
+    },
+    "ohlcv_1m": {
+      "path": "backend/runs/ohlcv_cache/{SYM}_1m.joblib",
+      "n_syms_available": 14
+    }
+  },
+  "detector": {
+    "algorithm": "Page-Hinkley rolling-baseline bilateral",
+    "lookback_bars": 8640,
+    "lookback_days": 30,
+    "delta_std_mult": 0.25,
+    "cooldown_bars_min": 36,
+    "funding_boundary_exclusion_minutes": 60
+  },
+  "sample_density_lesson_11": {
+    "sample_per_sym_per_side_lam_1p5": 111,
+    "sample_per_sym_per_side_lam_2p0": 80,
+    "sample_per_sym_per_side_lam_2p5": 59,
+    "n_per_cell_at_worst_case_lam_2p5_4quarters": 14.75,
+    "min_threshold": 30,
+    "verdict_at_pooled_universe": "PASS_at_pooled_all_lambdas",
+    "note": "Per-cell density at pooled universe level exceeds threshold at all lambdas; per-symbol per-quarter at lam=2.5 is below 30 but 14-sym pooling recovers"
+  },
+  "lesson_79_predictive_content_pretest": {
+    "hold": "1h",
+    "lam": 2.0,
+    "n_syms_tested": 14,
+    "per_sym_signed_t": {
+      "BTCUSDT": 1.37, "ETHUSDT": 1.21, "SOLUSDT": -0.80,
+      "ADAUSDT": -0.30, "AVAXUSDT": -0.44, "BCHUSDT": -0.27,
+      "BNBUSDT": 0.47, "DOGEUSDT": 1.50, "LINKUSDT": -0.79,
+      "LTCUSDT": -1.62, "NEARUSDT": -1.10, "WIFUSDT": 0.26,
+      "XRPUSDT": 3.69, "FILUSDT": -0.77
+    },
+    "mean_signed_t_across_syms": 0.17,
+    "syms_signed_t_gt_2": 1,
+    "syms_signed_t_lt_neg_2": 0,
+    "verdict": "UNIVERSAL_PREDICTIVE_CONTENT_FAIL_13_of_14_syms_below_|t|=2"
+  },
+  "hold_x_lambda_sweep": [
+    {"lam": 1.5, "hold": "30m", "n_up": 1554, "n_dn": 1561, "up_mean_bp":  1.00, "dn_mean_bp": -2.19, "A_focus_net_bp":  -7.00, "A_mirror_net_bp":  -9.00, "B_focus_net_bp": -10.19, "B_mirror_net_bp":  -5.81, "sum_A": -16.00, "sum_B": -16.00},
+    {"lam": 1.5, "hold": "1h",  "n_up": 1554, "n_dn": 1561, "up_mean_bp":  4.40, "dn_mean_bp": -5.37, "A_focus_net_bp":  -3.60, "A_mirror_net_bp": -12.40, "B_focus_net_bp": -13.37, "B_mirror_net_bp":  -2.63, "sum_A": -16.00, "sum_B": -16.00},
+    {"lam": 1.5, "hold": "2h",  "n_up": 1554, "n_dn": 1561, "up_mean_bp":  4.49, "dn_mean_bp": 13.46, "A_focus_net_bp":  -3.51, "A_mirror_net_bp": -12.49, "B_focus_net_bp": -21.46, "B_mirror_net_bp":   5.46, "sum_A": -16.00, "sum_B": -16.00},
+    {"lam": 1.5, "hold": "4h",  "n_up": 1552, "n_dn": 1566, "up_mean_bp": 10.52, "dn_mean_bp":  6.15, "A_focus_net_bp":   2.52, "A_mirror_net_bp": -18.52, "B_focus_net_bp": -14.15, "B_mirror_net_bp":  -1.85, "sum_A": -16.00, "sum_B": -16.00},
+    {"lam": 2.0, "hold": "30m", "n_up": 1114, "n_dn": 1084, "up_mean_bp":  0.35, "dn_mean_bp":  1.62, "A_focus_net_bp":  -7.65, "A_mirror_net_bp":  -8.35, "B_focus_net_bp":  -6.38, "B_mirror_net_bp":  -9.62, "sum_A": -16.00, "sum_B": -16.00},
+    {"lam": 2.0, "hold": "1h",  "n_up": 1114, "n_dn": 1084, "up_mean_bp":  0.75, "dn_mean_bp":  1.50, "A_focus_net_bp":  -7.25, "A_mirror_net_bp":  -8.75, "B_focus_net_bp":  -6.50, "B_mirror_net_bp":  -9.50, "sum_A": -16.00, "sum_B": -16.00},
+    {"lam": 2.0, "hold": "2h",  "n_up": 1114, "n_dn": 1084, "up_mean_bp":  0.06, "dn_mean_bp":  3.39, "A_focus_net_bp":  -7.94, "A_mirror_net_bp":  -8.06, "B_focus_net_bp": -11.39, "B_mirror_net_bp":  -4.61, "sum_A": -16.00, "sum_B": -16.00},
+    {"lam": 2.0, "hold": "4h",  "n_up": 1116, "n_dn": 1082, "up_mean_bp":  5.78, "dn_mean_bp":  7.20, "A_focus_net_bp":  -2.22, "A_mirror_net_bp": -13.78, "B_focus_net_bp": -15.20, "B_mirror_net_bp":  -0.80, "sum_A": -16.00, "sum_B": -16.00},
+    {"lam": 2.5, "hold": "30m", "n_up":  857, "n_dn":  779, "up_mean_bp": -2.89, "dn_mean_bp":  5.82, "A_focus_net_bp": -10.89, "A_mirror_net_bp":  -5.11, "B_focus_net_bp": -13.82, "B_mirror_net_bp":  -2.18, "sum_A": -16.00, "sum_B": -16.00},
+    {"lam": 2.5, "hold": "1h",  "n_up":  857, "n_dn":  779, "up_mean_bp": -5.65, "dn_mean_bp":  7.96, "A_focus_net_bp": -13.65, "A_mirror_net_bp":  -2.35, "B_focus_net_bp": -15.96, "B_mirror_net_bp":  -0.04, "sum_A": -16.00, "sum_B": -16.00},
+    {"lam": 2.5, "hold": "2h",  "n_up":  857, "n_dn":  779, "up_mean_bp": -5.17, "dn_mean_bp":  9.30, "A_focus_net_bp": -13.17, "A_mirror_net_bp":  -2.83, "B_focus_net_bp": -17.30, "B_mirror_net_bp":   1.30, "sum_A": -16.00, "sum_B": -16.00},
+    {"lam": 2.5, "hold": "4h",  "n_up":  858, "n_dn":  778, "up_mean_bp":  8.94, "dn_mean_bp": 12.94, "A_focus_net_bp":   0.94, "A_mirror_net_bp": -16.94, "B_focus_net_bp": -20.94, "B_mirror_net_bp":   4.94, "sum_A": -16.00, "sum_B": -16.00}
+  ],
+  "lesson_39_verdict": {
+    "sub_class": "A_broad_uniform_negative",
+    "cells_with_sum_A_at_neg_16bp": 12,
+    "cells_total": 12,
+    "confirmation_pct": 100.0,
+    "interpretation": "Trigger has zero directional information. A_focus + A_mirror = -2*fee EXACTLY in every cell. Same holds for B side.",
+    "dogfood_count_incremental": 1
+  },
+  "best_positive_cell": {
+    "cell": "B_mirror DN x LONG hold=2h lam=1.5",
+    "net_bp": 5.46,
+    "gate_threshold_bp": 200,
+    "gate_ratio": 0.027
+  },
+  "verdict": "R0_HALT_LESSON_39_SUB_CLASS_A_FEE_SYMMETRIC_BROAD_FALSIFIED",
+  "verdict_supporting_lessons": ["#11", "#19", "#22_satisfied_but_signal_zero", "#28", "#39_sub_class_A", "#40", "#61", "#77", "#79"],
+  "compute_saved": {
+    "r1_cells_avoided": 672,
+    "note": "3 lam x 4 hold x 4 quadrant x 14 sym = 672 R-1 cells would have been generated"
+  }
+}

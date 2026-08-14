@@ -1,0 +1,38 @@
+{
+  "passed": false,
+  "blocked_by": [
+    "시간가중 엣지 -0.397% <= 0",
+    "시간가중 t -0.44 < 1.5",
+    "최근 1/3 엣지 -1.218% <= 0",
+    "decay_ratio -0.12 < 0.3"
+  ],
+  "label": "paradigm_251_cross_sym_oi_daily_drop_B_focus_DOGEUSDT",
+  "G1": {
+    "n_trades": 330,
+    "wt_edge_pct": -0.3973,
+    "wt_t": -0.439,
+    "recent_edge_pct": -1.218,
+    "older_edge_pct": 10.1448,
+    "decay_ratio": -0.12,
+    "raw_edge_pct": 2.2987,
+    "ok": false,
+    "fail": [
+      "시간가중 엣지 -0.397% <= 0",
+      "시간가중 t -0.44 < 1.5",
+      "최근 1/3 엣지 -1.218% <= 0",
+      "decay_ratio -0.12 < 0.3"
+    ]
+  },
+  "G2": {
+    "ok": true,
+    "blocked": [],
+    "metrics": {
+      "edge_after_1bar_pct": 1.4466,
+      "roundtrip_friction_pct": 0.08,
+      "delay_retention": -3.641,
+      "net_headroom": 18.08,
+      "cycle_margin": 5.0
+    },
+    "notes": []
+  }
+}

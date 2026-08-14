@@ -1,0 +1,31 @@
+{
+  "passed": true,
+  "blocked_by": [],
+  "label": "p251 stablecoin_supply_flow AVAXUSDT h3d",
+  "G1": {
+    "n_trades": 375,
+    "raw_edge_pct": 1.4241,
+    "raw_t": 3.029,
+    "wt_t": 0.432,
+    "t_used": 3.029,
+    "t_carried_by": "raw_t",
+    "recent_edge_pct": 1.1307,
+    "older_edge_pct": 1.8558,
+    "decay_ratio": 0.609,
+    "wt_edge_pct": 0.2607,
+    "ok": true,
+    "fail": []
+  },
+  "G2": {
+    "ok": true,
+    "blocked": [],
+    "metrics": {
+      "edge_after_1bar_pct": 1.1429,
+      "roundtrip_friction_pct": 0.08,
+      "delay_retention": 4.384,
+      "net_headroom": 14.29,
+      "cycle_margin": 3.0
+    },
+    "notes": []
+  }
+}

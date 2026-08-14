@@ -1,0 +1,67 @@
+{
+  "fee_mode": "5.0bp(강제)",
+  "families": [
+    {
+      "family": "alt_volume_burst_neg (되치기)",
+      "n_sess": 3,
+      "n": 4,
+      "mean_o_bp": -8.616968285286061,
+      "mean_n_bp": -18.621276769428707,
+      "erode_pct": 116.10009637874079,
+      "t_o": -3.547787059633025,
+      "t_n": -7.662939785286815
+    }
+  ],
+  "sessions": [
+    {
+      "session": "71663f79-cd4",
+      "name": "ADAUSDT_alt_volume_burst_neg_reversion_short_p",
+      "family": "alt_volume_burst_neg (되치기)",
+      "fee_bp": 5.0,
+      "n": 1,
+      "mean_o_bp": -15.447991761070787,
+      "mean_n_bp": -25.45571575695132,
+      "t_o": NaN,
+      "t_n": NaN,
+      "eq_o": -0.14675592173016838,
+      "eq_n": -0.24182929969103206,
+      "flipped": false
+    },
+    {
+      "session": "bb3c55c4-264",
+      "name": "FILUSDT_alt_volume_burst_neg_reversion_short_p",
+      "family": "alt_volume_burst_neg (되치기)",
+      "fee_bp": 5.0,
+      "n": 2,
+      "mean_o_bp": -7.170941781569463,
+      "mean_n_bp": -17.174527252460248,
+      "t_o": -4.818156770906111,
+      "t_n": -11.533800326729091,
+      "eq_o": -0.1362034842432469,
+      "eq_n": -0.3260518135525414,
+      "flipped": false
+    },
+    {
+      "session": "d92a3b2b-9ad",
+      "name": "AVAXUSDT_alt_volume_burst_neg_reversion_short_",
+      "family": "alt_volume_burst_neg (되치기)",
+      "fee_bp": 5.0,
+      "n": 1,
+      "mean_o_bp": -4.677997816934529,
+      "mean_n_bp": -14.680336815842995,
+      "t_o": NaN,
+      "t_n": NaN,
+      "eq_o": -0.04444097926087354,
+      "eq_n": -0.13946319975051136,
+      "flipped": false
+    }
+  ],
+  "total": {
+    "n": 4,
+    "mean_o_bp": -8.616968285286061,
+    "mean_n_bp": -18.621276769428707,
+    "t_o": -3.547787059633025,
+    "t_n": -7.662939785286815,
+    "n_flipped": 0
+  }
+}

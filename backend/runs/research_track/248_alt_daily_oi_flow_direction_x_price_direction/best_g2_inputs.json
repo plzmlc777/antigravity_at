@@ -1,0 +1,19 @@
+{
+  "best_key": "XRPUSDT_A_focus_3d",
+  "best_summary": {
+    "n": 52,
+    "mean_pct": 3.9144,
+    "median_pct": -1.4418,
+    "std_pct": 15.696,
+    "t_stat": 1.798,
+    "sharpe_pertrade": 3.959,
+    "win_rate": 0.462,
+    "symbol": "XRPUSDT",
+    "quadrant": "A_focus",
+    "hold_days": 3
+  },
+  "edge_after_1bar_delay": 0.028823,
+  "hold_minutes": 4320,
+  "cycle_minutes": 1440,
+  "friction_roundtrip": 0.0008
+}

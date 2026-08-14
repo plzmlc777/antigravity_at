@@ -1,0 +1,470 @@
+{
+  "cohort": 131,
+  "initial": 593.44,
+  "regression_check": {
+    "final": 919.26,
+    "ret_pct": 54.9,
+    "mdd_pct": -37.7,
+    "taken": 80,
+    "starved": 51,
+    "capture": 61.1,
+    "max_conc": 10,
+    "worst": -80.31,
+    "sl_pct": 38.8,
+    "early_pct": 0.0
+  },
+  "reference_run": {
+    "cap_frac": 0.2,
+    "final_wallet": 919.26,
+    "return_pct": 54.9,
+    "mdd_pct": -37.7,
+    "n_taken": 80,
+    "n_starved": 51,
+    "starved_symbols": [
+      "SOMIUSDT",
+      "BASUSDT",
+      "BTRUSDT",
+      "MITOUSDT",
+      "HEMIUSDT",
+      "QUSDT",
+      "ARIAUSDT",
+      "PTBUSDT",
+      "TAKEUSDT",
+      "AVNTUSDT",
+      "FLOCKUSDT",
+      "SKYUSDT",
+      "HOLOUSDT",
+      "TOSHIUSDT",
+      "ASTERUSDT",
+      "TRADOORUSDT",
+      "AKEUSDT",
+      "HANAUSDT",
+      "MIRAUSDT",
+      "ORDERUSDT",
+      "LIGHTUSDT",
+      "FFUSDT",
+      "XANUSDT",
+      "EDENUSDT",
+      "TRUTHUSDT",
+      "EVAAUSDT",
+      "LYNUSDT",
+      "KGENUSDT",
+      "GIGGLEUSDT",
+      "MONUSDT",
+      "YBUSDT",
+      "METUSDT",
+      "EULUSDT",
+      "CLOUSDT",
+      "ENSOUSDT",
+      "ZBTUSDT",
+      "APRUSDT",
+      "KITEUSDT",
+      "FOLKSUSDT",
+      "STABLEUSDT",
+      "UAIUSDT",
+      "BEATUSDT",
+      "CLANKERUSDT",
+      "LITUSDT",
+      "MAGMAUSDT",
+      "SPORTFUNUSDT",
+      "ELSAUSDT",
+      "SKRUSDT",
+      "SPACEUSDT",
+      "MEGAUSDT",
+      "EDGEUSDT"
+    ],
+    "max_concurrent": 10,
+    "worst_trade_pnl": -80.31,
+    "best_trade_pnl": 93.18,
+    "avg_margin": 90.56,
+    "max_margin": 160.37,
+    "equity_curve": [
+      [
+        "2025-08-13",
+        593.44
+      ],
+      [
+        "2025-08-20",
+        563.13
+      ],
+      [
+        "2025-08-27",
+        621.33
+      ],
+      [
+        "2025-09-03",
+        636.15
+      ],
+      [
+        "2025-09-10",
+        500.86
+      ],
+      [
+        "2025-09-17",
+        453.48
+      ],
+      [
+        "2025-09-24",
+        441.44
+      ],
+      [
+        "2025-10-01",
+        499.42
+      ],
+      [
+        "2025-10-08",
+        489.2
+      ],
+      [
+        "2025-10-15",
+        505.58
+      ],
+      [
+        "2025-10-22",
+        570.16
+      ],
+      [
+        "2025-10-29",
+        614.95
+      ],
+      [
+        "2025-11-05",
+        642.58
+      ],
+      [
+        "2025-11-12",
+        717.77
+      ],
+      [
+        "2025-11-19",
+        729.67
+      ],
+      [
+        "2025-11-26",
+        709.68
+      ],
+      [
+        "2025-12-03",
+        735.76
+      ],
+      [
+        "2025-12-10",
+        766.53
+      ],
+      [
+        "2025-12-17",
+        774.63
+      ],
+      [
+        "2025-12-24",
+        701.23
+      ],
+      [
+        "2025-12-31",
+        721.38
+      ],
+      [
+        "2026-01-07",
+        623.88
+      ],
+      [
+        "2026-01-14",
+        729.15
+      ],
+      [
+        "2026-01-21",
+        780.38
+      ],
+      [
+        "2026-01-28",
+        764.92
+      ],
+      [
+        "2026-02-04",
+        854.21
+      ],
+      [
+        "2026-02-11",
+        895.24
+      ],
+      [
+        "2026-02-18",
+        799.62
+      ],
+      [
+        "2026-02-25",
+        739.08
+      ],
+      [
+        "2026-03-04",
+        722.94
+      ],
+      [
+        "2026-03-11",
+        809.09
+      ],
+      [
+        "2026-03-18",
+        910.21
+      ],
+      [
+        "2026-03-25",
+        934.28
+      ],
+      [
+        "2026-04-01",
+        897.32
+      ],
+      [
+        "2026-04-08",
+        878.31
+      ],
+      [
+        "2026-04-15",
+        843.97
+      ],
+      [
+        "2026-04-22",
+        745.79
+      ],
+      [
+        "2026-04-29",
+        746.17
+      ],
+      [
+        "2026-05-06",
+        804.71
+      ],
+      [
+        "2026-05-13",
+        810.49
+      ],
+      [
+        "2026-05-20",
+        839.06
+      ],
+      [
+        "2026-05-27",
+        894.81
+      ],
+      [
+        "2026-06-03",
+        883.41
+      ],
+      [
+        "2026-06-10",
+        883.08
+      ],
+      [
+        "2026-06-17",
+        911.75
+      ],
+      [
+        "2026-06-24",
+        845.86
+      ],
+      [
+        "2026-07-01",
+        803.98
+      ],
+      [
+        "2026-07-08",
+        878.8
+      ],
+      [
+        "2026-07-15",
+        905.17
+      ],
+      [
+        "2026-07-22",
+        890.24
+      ],
+      [
+        "2026-07-29",
+        918.44
+      ]
+    ]
+  },
+  "results": {
+    "base|20%x1 현행": {
+      "final": 919.26,
+      "ret_pct": 54.9,
+      "mdd_pct": -37.7,
+      "taken": 80,
+      "starved": 51,
+      "capture": 61.1,
+      "max_conc": 10,
+      "worst": -80.31,
+      "sl_pct": 38.8,
+      "early_pct": 0.0
+    },
+    "base|3%x1 대안A": {
+      "final": 733.09,
+      "ret_pct": 23.53,
+      "mdd_pct": -19.08,
+      "taken": 131,
+      "starved": 0,
+      "capture": 100.0,
+      "max_conc": 24,
+      "worst": -10.95,
+      "sl_pct": 38.9,
+      "early_pct": 0.0
+    },
+    "base|3%x3 대안B": {
+      "final": 868.03,
+      "ret_pct": 46.27,
+      "mdd_pct": -47.61,
+      "taken": 131,
+      "starved": 0,
+      "capture": 100.0,
+      "max_conc": 24,
+      "worst": -38.8,
+      "sl_pct": 38.9,
+      "early_pct": 0.0
+    },
+    "h21|20%x1 현행": {
+      "final": 1426.76,
+      "ret_pct": 140.42,
+      "mdd_pct": -35.73,
+      "taken": 88,
+      "starved": 43,
+      "capture": 67.2,
+      "max_conc": 9,
+      "worst": -141.39,
+      "sl_pct": 31.8,
+      "early_pct": 0.0
+    },
+    "h21|3%x1 대안A": {
+      "final": 735.95,
+      "ret_pct": 24.01,
+      "mdd_pct": -17.25,
+      "taken": 131,
+      "starved": 0,
+      "capture": 100.0,
+      "max_conc": 20,
+      "worst": -11.06,
+      "sl_pct": 35.9,
+      "early_pct": 0.0
+    },
+    "h21|3%x3 대안B": {
+      "final": 928.21,
+      "ret_pct": 56.41,
+      "mdd_pct": -43.05,
+      "taken": 131,
+      "starved": 0,
+      "capture": 100.0,
+      "max_conc": 20,
+      "worst": -42.2,
+      "sl_pct": 35.9,
+      "early_pct": 0.0
+    },
+    "earlyexit_d7|20%x1 현행": {
+      "final": 1871.23,
+      "ret_pct": 215.32,
+      "mdd_pct": -41.43,
+      "taken": 105,
+      "starved": 26,
+      "capture": 80.2,
+      "max_conc": 8,
+      "worst": -202.19,
+      "sl_pct": 25.7,
+      "early_pct": 51.4
+    },
+    "earlyexit_d7|3%x1 대안A": {
+      "final": 817.88,
+      "ret_pct": 37.82,
+      "mdd_pct": -13.64,
+      "taken": 131,
+      "starved": 0,
+      "capture": 100.0,
+      "max_conc": 15,
+      "worst": -12.31,
+      "sl_pct": 26.7,
+      "early_pct": 48.9
+    },
+    "earlyexit_d7|3%x3 대안B": {
+      "final": 1271.13,
+      "ret_pct": 114.2,
+      "mdd_pct": -35.19,
+      "taken": 131,
+      "starved": 0,
+      "capture": 100.0,
+      "max_conc": 15,
+      "worst": -58.15,
+      "sl_pct": 26.7,
+      "early_pct": 48.9
+    },
+    "earlyexit_d14|20%x1 현행": {
+      "final": 972.25,
+      "ret_pct": 63.83,
+      "mdd_pct": -50.39,
+      "taken": 87,
+      "starved": 44,
+      "capture": 66.4,
+      "max_conc": 10,
+      "worst": -102.66,
+      "sl_pct": 34.5,
+      "early_pct": 24.1
+    },
+    "earlyexit_d14|3%x1 대안A": {
+      "final": 801.02,
+      "ret_pct": 34.98,
+      "mdd_pct": -15.6,
+      "taken": 131,
+      "starved": 0,
+      "capture": 100.0,
+      "max_conc": 23,
+      "worst": -12.01,
+      "sl_pct": 33.6,
+      "early_pct": 24.4
+    },
+    "earlyexit_d14|3%x3 대안B": {
+      "final": 1138.46,
+      "ret_pct": 91.84,
+      "mdd_pct": -39.41,
+      "taken": 131,
+      "starved": 0,
+      "capture": 100.0,
+      "max_conc": 23,
+      "worst": -51.45,
+      "sl_pct": 33.6,
+      "early_pct": 24.4
+    },
+    "bearskip|20%x1 현행": {
+      "final": 932.01,
+      "ret_pct": 57.05,
+      "mdd_pct": -37.7,
+      "taken": 71,
+      "starved": 51,
+      "capture": 58.2,
+      "max_conc": 10,
+      "worst": -73.67,
+      "sl_pct": 38.0,
+      "early_pct": 0.0
+    },
+    "bearskip|3%x1 대안A": {
+      "final": 744.53,
+      "ret_pct": 25.46,
+      "mdd_pct": -19.08,
+      "taken": 122,
+      "starved": 0,
+      "capture": 100.0,
+      "max_conc": 24,
+      "worst": -10.95,
+      "sl_pct": 38.5,
+      "early_pct": 0.0
+    },
+    "bearskip|3%x3 대안B": {
+      "final": 912.64,
+      "ret_pct": 53.79,
+      "mdd_pct": -47.61,
+      "taken": 122,
+      "starved": 0,
+      "capture": 100.0,
+      "max_conc": 24,
+      "worst": -38.8,
+      "sl_pct": 38.5,
+      "early_pct": 0.0
+    }
+  }
+}

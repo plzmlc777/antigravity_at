@@ -1,0 +1,131 @@
+{
+  "paradigm_number": 255,
+  "name": "paradigm_255_funding_rate_24h_delta_z_bilateral_3d_5d",
+  "slug": "alt_funding_rate_24h_delta_z_bilateral_3d_5d",
+  "hypothesis": "Binance USDT-M perpetual 8h funding_rate 24h cumulative delta (funding[t] - funding[t-3]) per-sym rolling 30d z-score. |z|>=T on 14-alt cohort → bilateral 4-quadrant SNT, hold 3d/5d.",
+  "date_kst": "2026-08-13",
+  "dispatch_mode": "user_provided_hypothesis",
+  "prescreen_verdict": "R0_HALT_COMPOUND_LESSON_56_OUTCOME_FAMILY_PROXY_LESSON_62_DNA_5_OF_6_OVERLAP_LESSON_61_SLUG_HIT_LESSON_39_MIRROR_ANTIPATTERN_PREDICTED",
+  "current_phase": "R-0_GRAVEYARD",
+  "final_phase": "R-0_GRAVEYARD",
+
+  "lesson_61_slug_grep": {
+    "result": "HIT",
+    "matches": [
+      "funding_cycle_8h_differential_velocity_per_sym (paradigm 99, BROAD_FALSIFIED_MIRROR_ONLY 2026-05-19)",
+      "funding_velocity_cross_section_dispersion (BROAD_FALSIFIED 2026-05-19)",
+      "paradigm96_funding_sign_flip (BROAD_FALSIFIED)"
+    ],
+    "reasoning": "'delta' + 'velocity' + 'acceleration' family terms directly encoded in prior graveyards"
+  },
+
+  "lesson_62_dna_5dim_overlap": {
+    "primary_comparison": "paradigm_99_funding_cycle_8h_differential_velocity_per_sym",
+    "dim_1_substrate": {
+      "prior": "binance_funding_rate DB (per-sym 8h)",
+      "current": "binance_funding_rate DB (per-sym 8h)",
+      "overlap": true
+    },
+    "dim_2_statistic": {
+      "prior": "per-sym rolling 30d (90 cycles) history z-score of Δfunding_8h = f[t]-f[t-1]",
+      "current": "per-sym rolling 30d (90 cycles) history z-score of Δfunding_24h = f[t]-f[t-3]",
+      "overlap": "PROXY-ISOMORPHIC — Δfunding_24h = cumulative sum of 3 consecutive Δfunding_8h. Same 'delta of funding' velocity statistic class, only window differs (8h vs 24h).",
+      "empirical_corr": "0.4725-0.5001 across 4 test syms (BTC/ETH/SOL/DOGE, n=2644-2911 cycles each)",
+      "empirical_sign_agreement_at_z8_extreme": "0.84-0.88 (when paradigm 99 signal fires |z|>=2, paradigm 255 z_24h agrees in sign 84-88%)",
+      "verdict": true
+    },
+    "dim_3_mechanism": {
+      "prior": "per-sym leverage shift extreme from recent baseline → MR fade",
+      "current": "leverage acceleration extreme → future liquidation pressure + funding cost squeeze → MR/momentum reversal in 3-5d",
+      "overlap": "SAME mechanism story (leverage shift extreme → position pressure → directional reversal). Only forward-hold window differs (paradigm 99: 4h-16h intraday; paradigm 255: 3d-5d swing).",
+      "verdict": true
+    },
+    "dim_4_universe": {
+      "prior": "14 alt USDT-M perps (ADA/AVAX/BCH/BNB/BTC/DOGE/ETH/FIL/LINK/LTC/NEAR/SOL/WIF/XRP)",
+      "current": "14 alt USDT-M perps (same list, one entry duplicated in submitted spec but effectively same cohort)",
+      "overlap": true
+    },
+    "dim_5_direction_scheme": {
+      "prior": "4-quadrant bilateral Symmetric Negative Test (Lesson #19)",
+      "current": "4-quadrant bilateral Symmetric Negative Test (Lesson #19)",
+      "overlap": true
+    },
+    "dim_6_hold_frame": {
+      "prior": "paradigm 99: 4h/8h/16h intraday",
+      "current": "3d/5d swing",
+      "overlap": "DIFFERING (only 1/6 dimensions distinct)"
+    },
+    "overlap_score": "5 / 6",
+    "verdict": "DNA_COLLISION_HARD_FAIL — Lesson #62 threshold is 5/6, current paradigm sits at exactly the threshold. Combined with Lesson #56 family-proxy evidence, R-0 HALT is unavoidable."
+  },
+
+  "lesson_56_outcome_family_proxy": {
+    "family": "funding own-history velocity/delta directional bet",
+    "falsified_members": [
+      "paradigm 79 (funding extreme level directional): graveyard",
+      "paradigm 96 (funding sign flip categorical): BROAD_FALSIFIED all 4 quadrants n=6934",
+      "paradigm 97-98 (P1/P2 batch): BROAD_FALSIFIED",
+      "paradigm 99 (funding_cycle_8h_differential_velocity_per_sym): BROAD_FALSIFIED_MIRROR_ONLY — LC edge 0.24% << 2% gate, 0/13 syms ci_pos, symmetric LONG bias artifact",
+      "paradigm 132 (funding extreme joint with CVD): R-0 HALT Lesson #40 STRUCTURAL",
+      "paradigm 138 (funding per-sym z x CVD): R-0 HALT Lesson #40 asymmetry inheritance",
+      "paradigm 156 (funding own-history hybrid): graveyard",
+      "paradigm 172 (funding term-structure divergence): R-0 INVENTORY_HALT_LESSON_62 vs paradigm 99",
+      "paradigm 243 (funding rolling 30d skewness bilateral): graveyard — Lesson #39 sub-class B focus+mirror = -2*fee identity ALL cells",
+      "paradigm 246 (funding sign flip sustained N-event): graveyard",
+      "paradigm 250 (funding percentile extreme contrarian short 7d): R-0 HALT_COMPOUND"
+    ],
+    "family_falsified_count": 11,
+    "family_r5_exception": "paradigm 22 R-5 only (narrow 3-sym MR endpoint exit 8h cycle — not analogous to current proposal)",
+    "verdict": "FUNDING_FAMILY_TIER_4_RETIRE_11_CUMULATIVE_GRAVEYARDS — current proposal is 12th falsified family member. Lesson #56 outcome-level family proxy triggers R-0 HALT regardless of surface reformulation."
+  },
+
+  "lesson_39_mirror_antipattern_prediction": {
+    "predicted_pattern": "Since paradigm 99 already showed 'mirror-only PASS' pattern (B mirror LONG n=1304 +24bp perm_p=0.028 3-gate PASS but LC FAIL 0.24%; B focus SHORT -40bp anti-direction), and paradigm 243 showed exact -2*fee identity for ALL (T,h) cells, paradigm 255's Δfunding_24h — being a linear combination of the same 8h deltas — will exhibit the same symmetric directional bias artifact.",
+    "expected_verdict_if_R1_run": "BROAD_FALSIFIED_MIRROR_ONLY or NARROW_SCOPE_LIFE_CHANGING_FAIL — statistical edge real (perm_p may pass) but per-trade edge < 2% gate + Concentration Gate 0/13 syms ci_pos.",
+    "verdict": "MIRROR_ANTIPATTERN_PREDICTED_HIGH_CONFIDENCE"
+  },
+
+  "lesson_55_prescription_rescue_scope_check": {
+    "predecessor_r1_outcome": "paradigm 99 uniform anti-alpha across 4 quadrants; 0/13 syms ci_pos; hold sweep 4h/8h/16h all fail three-gate on focus cell",
+    "prescription_offered_by_current_proposal": "extend hold horizon from 4h-16h to 3d-5d",
+    "scope_assessment": "OUT_OF_SCOPE — predecessor showed uniform anti-alpha with no heterogeneous subset. Horizon extension is a spatial re-scan, not a mechanism differentiator. Alpha decay across horizons (informational Lesson #55) is documented in paradigm 87 delisting / paradigm 136/202 RV cross-family: monotonic decay confirmed. 3-5d hold sits in the tail of paradigm 99's monotonic anti-alpha decay curve.",
+    "verdict": "PRESCRIPTION_OUT_OF_SCOPE_HORIZON_EXTENSION_NOT_MECHANISM_DIFFERENTIATOR"
+  },
+
+  "lesson_11_sample_density_empirical": {
+    "note": "measured despite R-0 HALT decision to complete audit trail",
+    "test_symbols": ["BTCUSDT", "ETHUSDT", "SOLUSDT", "DOGEUSDT"],
+    "n_cycles_per_sym": {"BTCUSDT": 2644, "ETHUSDT": 2644, "SOLUSDT": 2911, "DOGEUSDT": 2879},
+    "trigger_rate_at_|z_24h|>=1.0": "~0.14-0.16 per sym → n triggers per sym ~380-460",
+    "trigger_rate_at_|z_24h|>=1.5": "~0.06-0.08 per sym → n triggers per sym ~160-230",
+    "trigger_rate_at_|z_24h|>=2.0": "~0.02-0.03 per sym → n triggers per sym ~55-90",
+    "expected_n_per_cell_at_T2_14sym_4quarter_2quadrant": "14 syms * ~70 triggers / (4 quarters * 4 quadrants) ~= 60 per cell — passes Lesson #11 (>= 30)",
+    "verdict": "SAMPLE_DENSITY_ADEQUATE — this alone would allow R-1 dispatch, but is superseded by DNA collision + family retire."
+  },
+
+  "lesson_77_substrate_diversity": {
+    "substrate_type": "binance_funding_rate DB (non-OHLCV)",
+    "verdict": "PASS (non-OHLCV substrate)"
+  },
+
+  "compute_saved_min_estimate": 45,
+
+  "artifacts": {
+    "r0_prescreen_json": "backend/runs/research_track/paradigm_255_funding_rate_24h_delta_z_bilateral_3d_5d/r0_prescreen.json",
+    "r0_dna_collision_empirical_json": "backend/runs/research_track/paradigm_255_funding_rate_24h_delta_z_bilateral_3d_5d/r0_dna_collision_empirical.json",
+    "graveyard_md": "backend/runs/research_track/graveyard__paradigm_255_funding_rate_24h_delta_z_bilateral_3d_5d.md"
+  },
+
+  "lessons_dogfooded": [
+    "#61 slug grep direct hit vs paradigm 99 + 96 + 99-variant family",
+    "#62 DNA 5/6 overlap vs paradigm 99 (statistic proxy-isomorphic empirical corr=0.48-0.50 sign-agree 0.84-0.88 at extreme)",
+    "#56 outcome-level family proxy (12th falsified funding family member)",
+    "#55 prescription-rescue scope OUT_OF_SCOPE (horizon extension not mechanism differentiator on uniformly anti-alpha predecessor)",
+    "#39 mirror antipattern predicted (linear combination of same 8h deltas will inherit paradigm 99 mirror-only bias + paradigm 243 -2*fee identity)",
+    "#11 sample density measured (adequate) — informational only, superseded by DNA halt",
+    "#77 substrate non-OHLCV — PASS but not sufficient given family retire status"
+  ],
+
+  "created_at_kst": "2026-08-13",
+  "updated_at_kst": "2026-08-13"
+}

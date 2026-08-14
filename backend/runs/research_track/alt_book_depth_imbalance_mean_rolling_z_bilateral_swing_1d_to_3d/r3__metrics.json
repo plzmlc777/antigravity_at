@@ -1,0 +1,643 @@
+{
+  "paradigm": "alt_book_depth_imbalance_mean_rolling_z_bilateral_swing_1d_to_3d",
+  "phase": "R-3",
+  "cell": {
+    "threshold": 1.0,
+    "hold_days": 3,
+    "quadrant": "B_focus_SHORT"
+  },
+  "per_symbol": {
+    "BTC": {
+      "perm_test": {
+        "real_alpha_bp": 95.91,
+        "real_n": 65,
+        "perm_mean_bp": 11.91,
+        "perm_std_bp": 39.67,
+        "perm_sigma": 2.117,
+        "perm_p_gt": 0.01
+      },
+      "temporal_thirds": [
+        {
+          "window": "early",
+          "range": [
+            "2025-06-01 00:00:00",
+            "2025-09-19 00:00:00"
+          ],
+          "n_trades": 27,
+          "mean_bp": -86.43
+        },
+        {
+          "window": "mid",
+          "range": [
+            "2025-09-20 00:00:00",
+            "2026-01-08 00:00:00"
+          ],
+          "n_trades": 20,
+          "mean_bp": 157.71
+        },
+        {
+          "window": "late",
+          "range": [
+            "2026-01-09 00:00:00",
+            "2026-04-29 00:00:00"
+          ],
+          "n_trades": 18,
+          "mean_bp": 300.75
+        }
+      ],
+      "fee_sweep": [
+        {
+          "fee_bp": 4.0,
+          "n_trades": 65,
+          "mean_bp": 99.91
+        },
+        {
+          "fee_bp": 8.0,
+          "n_trades": 65,
+          "mean_bp": 95.91
+        },
+        {
+          "fee_bp": 12.0,
+          "n_trades": 65,
+          "mean_bp": 91.91
+        },
+        {
+          "fee_bp": 16.0,
+          "n_trades": 65,
+          "mean_bp": 87.91
+        }
+      ],
+      "btc_regime": {
+        "bull": {
+          "n_trades": 21,
+          "mean_bp": 58.73
+        },
+        "bear": {
+          "n_trades": 44,
+          "mean_bp": 113.65
+        }
+      }
+    },
+    "FIL": {
+      "perm_test": {
+        "real_alpha_bp": 172.86,
+        "real_n": 65,
+        "perm_mean_bp": 16.91,
+        "perm_std_bp": 143.9,
+        "perm_sigma": 1.084,
+        "perm_p_gt": 0.135
+      },
+      "temporal_thirds": [
+        {
+          "window": "early",
+          "range": [
+            "2025-06-01 00:00:00",
+            "2025-09-19 00:00:00"
+          ],
+          "n_trades": 19,
+          "mean_bp": -72.13
+        },
+        {
+          "window": "mid",
+          "range": [
+            "2025-09-20 00:00:00",
+            "2026-01-08 00:00:00"
+          ],
+          "n_trades": 18,
+          "mean_bp": 490.79
+        },
+        {
+          "window": "late",
+          "range": [
+            "2026-01-09 00:00:00",
+            "2026-04-29 00:00:00"
+          ],
+          "n_trades": 28,
+          "mean_bp": 134.73
+        }
+      ],
+      "fee_sweep": [
+        {
+          "fee_bp": 4.0,
+          "n_trades": 65,
+          "mean_bp": 176.86
+        },
+        {
+          "fee_bp": 8.0,
+          "n_trades": 65,
+          "mean_bp": 172.86
+        },
+        {
+          "fee_bp": 12.0,
+          "n_trades": 65,
+          "mean_bp": 168.86
+        },
+        {
+          "fee_bp": 16.0,
+          "n_trades": 65,
+          "mean_bp": 164.86
+        }
+      ],
+      "btc_regime": {
+        "bull": {
+          "n_trades": 32,
+          "mean_bp": 72.36
+        },
+        "bear": {
+          "n_trades": 33,
+          "mean_bp": 270.32
+        }
+      }
+    },
+    "LTC": {
+      "perm_test": {
+        "real_alpha_bp": 199.46,
+        "real_n": 55,
+        "perm_mean_bp": 29.59,
+        "perm_std_bp": 70.28,
+        "perm_sigma": 2.417,
+        "perm_p_gt": 0.01
+      },
+      "temporal_thirds": [
+        {
+          "window": "early",
+          "range": [
+            "2025-06-01 00:00:00",
+            "2025-09-19 00:00:00"
+          ],
+          "n_trades": 18,
+          "mean_bp": -34.8
+        },
+        {
+          "window": "mid",
+          "range": [
+            "2025-09-20 00:00:00",
+            "2026-01-08 00:00:00"
+          ],
+          "n_trades": 15,
+          "mean_bp": 374.94
+        },
+        {
+          "window": "late",
+          "range": [
+            "2026-01-09 00:00:00",
+            "2026-04-29 00:00:00"
+          ],
+          "n_trades": 22,
+          "mean_bp": 271.48
+        }
+      ],
+      "fee_sweep": [
+        {
+          "fee_bp": 4.0,
+          "n_trades": 55,
+          "mean_bp": 203.46
+        },
+        {
+          "fee_bp": 8.0,
+          "n_trades": 55,
+          "mean_bp": 199.46
+        },
+        {
+          "fee_bp": 12.0,
+          "n_trades": 55,
+          "mean_bp": 195.46
+        },
+        {
+          "fee_bp": 16.0,
+          "n_trades": 55,
+          "mean_bp": 191.46
+        }
+      ],
+      "btc_regime": {
+        "bull": {
+          "n_trades": 21,
+          "mean_bp": 222.68
+        },
+        "bear": {
+          "n_trades": 34,
+          "mean_bp": 185.12
+        }
+      }
+    },
+    "ADA": {
+      "perm_test": {
+        "real_alpha_bp": 130.54,
+        "real_n": 58,
+        "perm_mean_bp": 62.4,
+        "perm_std_bp": 76.28,
+        "perm_sigma": 0.893,
+        "perm_p_gt": 0.18
+      },
+      "temporal_thirds": [
+        {
+          "window": "early",
+          "range": [
+            "2025-06-01 00:00:00",
+            "2025-09-19 00:00:00"
+          ],
+          "n_trades": 24,
+          "mean_bp": 17.17
+        },
+        {
+          "window": "mid",
+          "range": [
+            "2025-09-20 00:00:00",
+            "2026-01-08 00:00:00"
+          ],
+          "n_trades": 14,
+          "mean_bp": 52.73
+        },
+        {
+          "window": "late",
+          "range": [
+            "2026-01-09 00:00:00",
+            "2026-04-29 00:00:00"
+          ],
+          "n_trades": 20,
+          "mean_bp": 321.06
+        }
+      ],
+      "fee_sweep": [
+        {
+          "fee_bp": 4.0,
+          "n_trades": 58,
+          "mean_bp": 134.54
+        },
+        {
+          "fee_bp": 8.0,
+          "n_trades": 58,
+          "mean_bp": 130.54
+        },
+        {
+          "fee_bp": 12.0,
+          "n_trades": 58,
+          "mean_bp": 126.54
+        },
+        {
+          "fee_bp": 16.0,
+          "n_trades": 58,
+          "mean_bp": 122.54
+        }
+      ],
+      "btc_regime": {
+        "bull": {
+          "n_trades": 18,
+          "mean_bp": 3.59
+        },
+        "bear": {
+          "n_trades": 40,
+          "mean_bp": 187.67
+        }
+      }
+    },
+    "BCH": {
+      "perm_test": {
+        "real_alpha_bp": 57.69,
+        "real_n": 50,
+        "perm_mean_bp": -34.51,
+        "perm_std_bp": 69.83,
+        "perm_sigma": 1.32,
+        "perm_p_gt": 0.085
+      },
+      "temporal_thirds": [
+        {
+          "window": "early",
+          "range": [
+            "2025-06-01 00:00:00",
+            "2025-09-19 00:00:00"
+          ],
+          "n_trades": 21,
+          "mean_bp": -268.21
+        },
+        {
+          "window": "mid",
+          "range": [
+            "2025-09-20 00:00:00",
+            "2026-01-08 00:00:00"
+          ],
+          "n_trades": 17,
+          "mean_bp": 288.62
+        },
+        {
+          "window": "late",
+          "range": [
+            "2026-01-09 00:00:00",
+            "2026-04-29 00:00:00"
+          ],
+          "n_trades": 12,
+          "mean_bp": 300.87
+        }
+      ],
+      "fee_sweep": [
+        {
+          "fee_bp": 4.0,
+          "n_trades": 50,
+          "mean_bp": 61.69
+        },
+        {
+          "fee_bp": 8.0,
+          "n_trades": 50,
+          "mean_bp": 57.69
+        },
+        {
+          "fee_bp": 12.0,
+          "n_trades": 50,
+          "mean_bp": 53.69
+        },
+        {
+          "fee_bp": 16.0,
+          "n_trades": 50,
+          "mean_bp": 49.69
+        }
+      ],
+      "btc_regime": {
+        "bull": {
+          "n_trades": 19,
+          "mean_bp": -63.31
+        },
+        "bear": {
+          "n_trades": 31,
+          "mean_bp": 131.85
+        }
+      }
+    },
+    "DOGE": {
+      "perm_test": {
+        "real_alpha_bp": 110.25,
+        "real_n": 54,
+        "perm_mean_bp": 16.76,
+        "perm_std_bp": 92.33,
+        "perm_sigma": 1.013,
+        "perm_p_gt": 0.17
+      },
+      "temporal_thirds": [
+        {
+          "window": "early",
+          "range": [
+            "2025-06-01 00:00:00",
+            "2025-09-19 00:00:00"
+          ],
+          "n_trades": 18,
+          "mean_bp": -20.93
+        },
+        {
+          "window": "mid",
+          "range": [
+            "2025-09-20 00:00:00",
+            "2026-01-08 00:00:00"
+          ],
+          "n_trades": 14,
+          "mean_bp": 236.8
+        },
+        {
+          "window": "late",
+          "range": [
+            "2026-01-09 00:00:00",
+            "2026-04-29 00:00:00"
+          ],
+          "n_trades": 22,
+          "mean_bp": 137.05
+        }
+      ],
+      "fee_sweep": [
+        {
+          "fee_bp": 4.0,
+          "n_trades": 54,
+          "mean_bp": 114.25
+        },
+        {
+          "fee_bp": 8.0,
+          "n_trades": 54,
+          "mean_bp": 110.25
+        },
+        {
+          "fee_bp": 12.0,
+          "n_trades": 54,
+          "mean_bp": 106.25
+        },
+        {
+          "fee_bp": 16.0,
+          "n_trades": 54,
+          "mean_bp": 102.25
+        }
+      ],
+      "btc_regime": {
+        "bull": {
+          "n_trades": 21,
+          "mean_bp": -76.87
+        },
+        "bear": {
+          "n_trades": 33,
+          "mean_bp": 229.32
+        }
+      }
+    },
+    "ETH": {
+      "perm_test": {
+        "real_alpha_bp": 97.6,
+        "real_n": 57,
+        "perm_mean_bp": -18.35,
+        "perm_std_bp": 75.55,
+        "perm_sigma": 1.535,
+        "perm_p_gt": 0.065
+      },
+      "temporal_thirds": [
+        {
+          "window": "early",
+          "range": [
+            "2025-06-01 00:00:00",
+            "2025-09-19 00:00:00"
+          ],
+          "n_trades": 13,
+          "mean_bp": 5.85
+        },
+        {
+          "window": "mid",
+          "range": [
+            "2025-09-20 00:00:00",
+            "2026-01-08 00:00:00"
+          ],
+          "n_trades": 31,
+          "mean_bp": 21.84
+        },
+        {
+          "window": "late",
+          "range": [
+            "2026-01-09 00:00:00",
+            "2026-04-29 00:00:00"
+          ],
+          "n_trades": 13,
+          "mean_bp": 370.02
+        }
+      ],
+      "fee_sweep": [
+        {
+          "fee_bp": 4.0,
+          "n_trades": 57,
+          "mean_bp": 101.6
+        },
+        {
+          "fee_bp": 8.0,
+          "n_trades": 57,
+          "mean_bp": 97.6
+        },
+        {
+          "fee_bp": 12.0,
+          "n_trades": 57,
+          "mean_bp": 93.6
+        },
+        {
+          "fee_bp": 16.0,
+          "n_trades": 57,
+          "mean_bp": 89.6
+        }
+      ],
+      "btc_regime": {
+        "bull": {
+          "n_trades": 17,
+          "mean_bp": 130.92
+        },
+        "bear": {
+          "n_trades": 40,
+          "mean_bp": 83.44
+        }
+      }
+    },
+    "SOL": {
+      "perm_test": {
+        "real_alpha_bp": 87.45,
+        "real_n": 57,
+        "perm_mean_bp": 24.18,
+        "perm_std_bp": 74.9,
+        "perm_sigma": 0.845,
+        "perm_p_gt": 0.235
+      },
+      "temporal_thirds": [
+        {
+          "window": "early",
+          "range": [
+            "2025-06-01 00:00:00",
+            "2025-09-18 00:00:00"
+          ],
+          "n_trades": 20,
+          "mean_bp": -183.05
+        },
+        {
+          "window": "mid",
+          "range": [
+            "2025-09-19 00:00:00",
+            "2026-01-06 00:00:00"
+          ],
+          "n_trades": 17,
+          "mean_bp": -11.92
+        },
+        {
+          "window": "late",
+          "range": [
+            "2026-01-07 00:00:00",
+            "2026-04-29 00:00:00"
+          ],
+          "n_trades": 20,
+          "mean_bp": 442.42
+        }
+      ],
+      "fee_sweep": [
+        {
+          "fee_bp": 4.0,
+          "n_trades": 57,
+          "mean_bp": 91.45
+        },
+        {
+          "fee_bp": 8.0,
+          "n_trades": 57,
+          "mean_bp": 87.45
+        },
+        {
+          "fee_bp": 12.0,
+          "n_trades": 57,
+          "mean_bp": 83.45
+        },
+        {
+          "fee_bp": 16.0,
+          "n_trades": 57,
+          "mean_bp": 79.45
+        }
+      ],
+      "btc_regime": {
+        "bull": {
+          "n_trades": 20,
+          "mean_bp": 147.87
+        },
+        "bear": {
+          "n_trades": 37,
+          "mean_bp": 54.8
+        }
+      }
+    }
+  },
+  "elite_gate_summary": {
+    "n_perm_sigma_ge_4": 0,
+    "n_perm_sigma_ge_2": 2,
+    "temporal_decay_flags": 0,
+    "decay_details": [
+      {
+        "sym": "BTC",
+        "early_bp": -86.43,
+        "mid_bp": 157.71,
+        "late_bp": 300.75,
+        "decayed": false
+      },
+      {
+        "sym": "FIL",
+        "early_bp": -72.13,
+        "mid_bp": 490.79,
+        "late_bp": 134.73,
+        "decayed": false
+      },
+      {
+        "sym": "LTC",
+        "early_bp": -34.8,
+        "mid_bp": 374.94,
+        "late_bp": 271.48,
+        "decayed": false
+      },
+      {
+        "sym": "ADA",
+        "early_bp": 17.17,
+        "mid_bp": 52.73,
+        "late_bp": 321.06,
+        "decayed": false
+      },
+      {
+        "sym": "BCH",
+        "early_bp": -268.21,
+        "mid_bp": 288.62,
+        "late_bp": 300.87,
+        "decayed": false
+      },
+      {
+        "sym": "DOGE",
+        "early_bp": -20.93,
+        "mid_bp": 236.8,
+        "late_bp": 137.05,
+        "decayed": false
+      },
+      {
+        "sym": "ETH",
+        "early_bp": 5.85,
+        "mid_bp": 21.84,
+        "late_bp": 370.02,
+        "decayed": false
+      },
+      {
+        "sym": "SOL",
+        "early_bp": -183.05,
+        "mid_bp": -11.92,
+        "late_bp": 442.42,
+        "decayed": false
+      }
+    ]
+  },
+  "verdict": "GRAVEYARD_R3_PERM_TEST_INSUFFICIENT"
+}

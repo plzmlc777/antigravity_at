@@ -1,0 +1,31 @@
+{
+  "passed": true,
+  "blocked_by": [],
+  "label": "p251 stablecoin_supply_flow BNBUSDT h3d",
+  "G1": {
+    "n_trades": 379,
+    "raw_edge_pct": 1.4925,
+    "raw_t": 4.935,
+    "wt_t": 1.638,
+    "t_used": 4.935,
+    "t_carried_by": "raw_t",
+    "recent_edge_pct": 1.485,
+    "older_edge_pct": 1.9904,
+    "decay_ratio": 0.746,
+    "wt_edge_pct": 0.7885,
+    "ok": true,
+    "fail": []
+  },
+  "G2": {
+    "ok": true,
+    "blocked": [],
+    "metrics": {
+      "edge_after_1bar_pct": 1.3687,
+      "roundtrip_friction_pct": 0.08,
+      "delay_retention": 1.736,
+      "net_headroom": 17.11,
+      "cycle_margin": 3.0
+    },
+    "notes": []
+  }
+}

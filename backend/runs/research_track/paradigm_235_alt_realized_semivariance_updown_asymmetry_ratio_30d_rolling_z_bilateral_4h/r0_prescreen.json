@@ -1,0 +1,116 @@
+{
+  "paradigm": "alt_realized_semivariance_updown_asymmetry_ratio_30d_rolling_z_bilateral_4h",
+  "paradigm_number": 235,
+  "timestamp_kst": "2026-07-24T04:04:45+09:00",
+  "phase": "R-0",
+  "verdict": "R0_HALT_DNA_DUPLICATE_PRIOR_GRAVEYARD",
+  "dispatch_mode": "SELF-RECOMMEND",
+  "checklist_items": {
+    "item_1_lesson_61_slug_grep": {
+      "status": "HIT",
+      "grep_terms": ["semivariance", "semivar", "updown_asym", "downside_semidev", "upside_semidev", "log_sdr"],
+      "hits": [
+        {
+          "paradigm": 134,
+          "slug": "alt_realized_semivariance_asymmetry_up_down_ratio_z_directional_4h",
+          "phase_completed": "R-1",
+          "verdict": "BROAD_FALSIFIED_BOTH_FOCUS_NEGATIVE",
+          "date": "2026-05-21",
+          "key_finding": "0/12 syms ci_pos UNIVERSAL across ALL 4 quadrants — absence of mechanism, not concentration"
+        },
+        {
+          "paradigm": 199,
+          "slug": "alt_per_sym_30d_realized_semivariance_asymmetry_negative_positive_ratio_z_spike_directional_4h_bilateral",
+          "phase_completed": "R-0_HALT",
+          "verdict": "R0_HALT_DNA_DUPLICATE_PRIOR_GRAVEYARD",
+          "date": "2026-05-22",
+          "key_finding": "DNA 5/6 overlap with paradigm 134 — halted before R-1 dispatch"
+        }
+      ]
+    },
+    "item_2_lesson_28_substrate_audit": {
+      "status": "PARTIAL_MISMATCH_INFORMATIONAL",
+      "hypothesis_claim_path": "backend/runs/ohlcv_cache_12col/{SYM}USDT_4h.joblib",
+      "actual_available_path": "backend/runs/ohlcv_cache/{SYM}USDT_1m.joblib (would require 1m→4h resample)",
+      "available_syms_1m": ["ADA", "AVAX", "BCH", "BNB", "BTC", "DOGE", "ETH", "FIL", "LINK", "LTC", "NEAR", "SOL", "WIF", "XRP"],
+      "hbar_available": false,
+      "note": "Not the primary halt reason — DNA duplicate takes precedence. Path would have required substrate remap before R-1 anyway."
+    },
+    "item_3_lesson_11_sample_density": {
+      "status": "SKIPPED_HALT_UPSTREAM",
+      "note": "Sample density not evaluated — DNA duplicate halt at Item 1/4 takes precedence"
+    },
+    "item_4_lesson_62_dna_strict_table": {
+      "status": "FAIL_DNA_DUPLICATE",
+      "predecessor_paradigm": 134,
+      "predecessor_slug": "alt_realized_semivariance_asymmetry_up_down_ratio_z_directional_4h",
+      "dna_dim_matches": {
+        "statistic_class": {
+          "predecessor": "log(RV_up/RV_down) realized semivariance asymmetry ratio z-score",
+          "proposed": "log(downside_semidev/upside_semidev) semivariance asymmetry ratio z-score",
+          "verdict": "IDENTICAL",
+          "note": "log(A/B) = -log(B/A); sign inversion is absorbed by 4-quadrant SNT design which tests both signs"
+        },
+        "decomposition": {
+          "predecessor": "positive/negative return variance decomposition",
+          "proposed": "positive/negative return variance decomposition",
+          "verdict": "IDENTICAL"
+        },
+        "direction": {
+          "predecessor": "4-quadrant SNT bilateral, sign-conditional",
+          "proposed": "4-quadrant SNT bilateral, sign × bar_direction",
+          "verdict": "IDENTICAL"
+        },
+        "trigger": {
+          "predecessor": "|z|>=2 spike, 30d rolling z",
+          "proposed": "|z|>=1.5 or 2.0 spike, 30d rolling z over 90d baseline",
+          "verdict": "IDENTICAL (threshold sweep is statistically equivalent variation, not a structural difference)"
+        },
+        "hold": {
+          "predecessor": "4h primary",
+          "proposed": "4h primary + sweep 8h, 24h",
+          "verdict": "IDENTICAL (4h primary matches)"
+        },
+        "universe": {
+          "predecessor": "12 alts (BTC/ETH/SOL/XRP/DOGE/AVAX/BNB/LINK/LTC/BCH/FIL/NEAR)",
+          "proposed": "14 alts (12 shared + WIF + HBAR)",
+          "verdict": "PARTIAL (12/14 overlap = 86%; 2 new syms cannot recover from 0/12 universal absence of mechanism)"
+        }
+      },
+      "dna_overlap_score": "5/6",
+      "halt_rule_triggered": "paradigm-architect spec: 'Halt on DNA duplicate (5/6 dim overlap)'"
+    },
+    "item_5_lesson_56_family_proxy": {
+      "status": "SAME_FAMILY_AS_GRAVEYARD",
+      "family": "realized semivariance asymmetry (Patton-Sheppard 2015 signed decomposition family)",
+      "prior_family_verdict": "paradigm 134 BROAD_FALSIFIED + NEW Lesson #54 candidate: 'signed decomposition of magnitude statistic does NOT synthesize directional alpha without independent mechanism story'"
+    },
+    "item_6_lesson_74_alpha_decay_p1": {
+      "status": "SKIPPED_HALT_UPSTREAM"
+    },
+    "item_7_lesson_40_structural_threshold": {
+      "status": "SKIPPED_HALT_UPSTREAM",
+      "note": "Threshold feasibility would be OK by construction (log ratio symmetric around 0). Not the halt reason."
+    },
+    "item_8_lesson_16_concentration_preestimate": {
+      "status": "HISTORICAL_PRECEDENT_FAIL",
+      "predecessor_result": "paradigm 134 = 0/12 syms ci_pos UNIVERSAL across ALL 4 quadrants (0.00 << 0.30 gate)",
+      "expansion_recoverability": "IMPOSSIBLE — universal absence means adding 2 syms (WIF/HBAR) yields expected 0/14 or 0-2/14 max"
+    },
+    "item_9_lesson_79_predictive_content_pretest": {
+      "status": "SKIPPED_HALT_UPSTREAM",
+      "note": "Not dispatched — DNA duplicate halt precedes pretest"
+    }
+  },
+  "hypothesis_novelty_claim_rebuttal": {
+    "user_claim_item_4": "statistic_class: NO — different transform (log(D/U) vs log(U/D))",
+    "rebuttal": "log(D/U) = -log(U/D); these are sign-inverted equivalents of the same statistic. The 4-quadrant SNT design (Lesson #19) tests both z>+T and z<=-T triggers, which exactly absorbs the sign inversion. Therefore the effective test surface is IDENTICAL to paradigm 134.",
+    "user_claim_note_slower_moving": "30d rolling (vs 24h in paradigm 134) may be more stable across eras",
+    "rebuttal_slower_moving": "paradigm 134 failed due to UNIVERSAL ABSENCE of mechanism (0/12 syms ci_pos across ALL 4 quadrants), not era instability. A slower-moving window does not create mechanism where none exists — it only smooths a null signal."
+  },
+  "wall_clock_seconds": 4.0,
+  "r1_dispatched": false,
+  "graveyard_written": true,
+  "next_action": "graveyard_recorded_continue_dispatch",
+  "self_recommend_streak_note": "SELF-RECOMMEND mode. Prior recent non-PASSes: paradigm 230/231/232/233 (user text mentions). This paradigm 235 dispatch = additional non-PASS. Streak counter for mode-switch advisory monitoring — informational only, no mode switch executed per instructions."
+}

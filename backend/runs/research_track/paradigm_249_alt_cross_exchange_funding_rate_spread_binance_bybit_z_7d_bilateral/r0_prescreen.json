@@ -1,0 +1,39 @@
+{
+  "paradigm_number": 249,
+  "paradigm_name": "paradigm_249_alt_cross_exchange_funding_rate_spread_binance_bybit_z_7d_bilateral",
+  "date": "2026-08-08",
+  "phase": "R-0 prescreen",
+  "verdict": "PASS_WITH_CAVEAT",
+  "caveat": "DNA 4/5 overlap with paradigm 103 (cross_exchange_funding_spread_binance_bybit_alt_directional_8h). Only HOLD dimension differs (7d vs 240m/1440m). Paradigm 103 hold sweep tested up to 1440m but noted 'A_focus 1440m sigex +2.12 still has ci_lower likely negative (not measured)'. 7d extension is the specific untested axis. Runbook §N+5 explicitly recommends this dispatch.",
+  "predecessor_paradigm": "paradigm 103 (BROAD_FALSIFIED_FEE_FLOOR, 2026-05-19)",
+  "lessons_evaluated": {
+    "lesson_61_slug_grep": {"status": "OVERLAP_FOUND", "matches": ["cross_exchange_funding_spread_binance_bybit_alt_directional_8h"], "differentiator": "hold=7d (10080m) vs prior 8h/240m/1440m"},
+    "lesson_79_predictive_content_pretest": {
+      "status": "PASS",
+      "SOL_OOS_corr": 0.0929,
+      "SOL_full_corr": 0.0302,
+      "BTC_OOS_corr": 0.1367,
+      "BTC_full_corr": 0.0440,
+      "cutoff": 0.02,
+      "note": "Both symbols max |corr| > 0.02 threshold. Bucket pattern noisy — BTC z<=-2 shows +116bp (consistent with LONG mechanism) but z>2 shows +186bp (opposite of SHORT mechanism prediction, suggesting mechanism may be inverted or noisy at extremes)"
+    },
+    "lesson_62_dna_5dim": {"substrate":"SAME","universe":"SAME","statistic":"SAME_family","direction":"SAME","hold":"DIFFERENT","overlap":"4/5","verdict":"BORDERLINE_ACCEPT — hold-axis novelty per runbook §N+5"},
+    "lesson_56_outcome_family_proxy": {"status":"PASS","note":"seeded funding_carry uses SINGLE-EXCHANGE level z, this uses CROSS-VENUE spread — distinct outcome axis"},
+    "lesson_28_substrate_audit": {"status":"PASS","binance_rows_SOL":2991,"bybit_rows_SOL":3035,"binance_range":"2023-11-15 → 2026-08-08","bybit_range":"2023-11-01 → 2026-08-08 (extended today via ccxt V5)"},
+    "lesson_11_sample_density": {"status":"PROJECTED_PASS","note":"7 sym × 315 daily obs × 5% at |z|>=2 → ~110 events; per-symbol ~15/sym at |z|>=2 (marginal), plus non-overlapping 7d cooldown will halve this"},
+    "lesson_40_structural_threshold_feasibility": {"status":"PASS","note":"z-score of signed spread is symmetric bilateral, no non-negative aggregate issue"},
+    "lesson_82_timestamp_lookahead_guard": {"status":"COMPLIANT","note":"Entry price uses UTC midnight open of day AFTER trigger bar (shift(-1)), exit at 7-day forward UTC midnight open"}
+  },
+  "substrate_summary": {
+    "universe_pretest": ["SOLUSDT","BTCUSDT"],
+    "universe_r1_expansion": ["SOLUSDT","AVAXUSDT","BNBUSDT","DOGEUSDT","LINKUSDT","XRPUSDT","BCHUSDT"],
+    "binance_source": "binance_funding_rate DB table",
+    "bybit_source": "runs/ohlcv_cache/bybit_funding/*.joblib (ccxt V5 endpoint /v5/market/funding/history)",
+    "cadence": "8h → aggregated to daily mean",
+    "z_window": "30d rolling",
+    "hold_days": 7,
+    "cycle_min": 1440,
+    "cycle_margin": 7.0
+  },
+  "next_step": "R-1 with primary SOLUSDT + 3-threshold (z=1.5/2.0/2.5) x 3-hold (5d/7d/10d) x 4-quadrant SNT = 36 cells"
+}

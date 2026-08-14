@@ -1,0 +1,175 @@
+{
+  "paradigm": "alt_wikipedia_pageview_attention_spike_bilateral_1d_to_3d",
+  "phase": "R-0",
+  "verdict": "R0_PASS",
+  "reasons": [],
+  "slug_grep": {
+    "tokens_checked": [
+      "wikipedia",
+      "pageview",
+      "wiki_view",
+      "wiki_"
+    ],
+    "hits": [],
+    "clean": true
+  },
+  "substrate": {
+    "BTCUSDT": {
+      "article_used": "Bitcoin",
+      "n_days": 862,
+      "ok": true
+    },
+    "ETHUSDT": {
+      "article_used": "Ethereum",
+      "n_days": 862,
+      "ok": true
+    },
+    "SOLUSDT": {
+      "article_used": null,
+      "n_days": 0,
+      "ok": false
+    },
+    "ADAUSDT": {
+      "article_used": "Cardano_(blockchain_platform)",
+      "n_days": 862,
+      "ok": true
+    },
+    "XRPUSDT": {
+      "article_used": "XRP_Ledger",
+      "n_days": 540,
+      "ok": true
+    },
+    "DOGEUSDT": {
+      "article_used": "Dogecoin",
+      "n_days": 862,
+      "ok": true
+    },
+    "LINKUSDT": {
+      "article_used": "Chainlink_(blockchain_oracle)",
+      "n_days": 518,
+      "ok": true
+    },
+    "BNBUSDT": {
+      "article_used": "Binance",
+      "n_days": 862,
+      "ok": true
+    },
+    "AVAXUSDT": {
+      "article_used": "Avalanche_(blockchain_platform)",
+      "n_days": 862,
+      "ok": true
+    },
+    "LTCUSDT": {
+      "article_used": "Litecoin",
+      "n_days": 862,
+      "ok": true
+    },
+    "NEARUSDT": {
+      "article_used": null,
+      "n_days": 0,
+      "ok": false
+    },
+    "FILUSDT": {
+      "article_used": "Filecoin",
+      "n_days": 862,
+      "ok": true
+    }
+  },
+  "n_syms_pass": 10,
+  "date_range": [
+    "2024-01-02 00:00:00",
+    "2026-05-12 00:00:00"
+  ],
+  "trigger_stats_per_sym": {
+    "BTCUSDT": {
+      "n_z_measurable": 833,
+      "hi_events": 83,
+      "lo_events": 50,
+      "hi_rate": 0.09963985594237695,
+      "lo_rate": 0.060024009603841535
+    },
+    "ETHUSDT": {
+      "n_z_measurable": 833,
+      "hi_events": 89,
+      "lo_events": 67,
+      "hi_rate": 0.10684273709483794,
+      "lo_rate": 0.08043217286914765
+    },
+    "ADAUSDT": {
+      "n_z_measurable": 833,
+      "hi_events": 73,
+      "lo_events": 65,
+      "hi_rate": 0.08763505402160865,
+      "lo_rate": 0.07803121248499399
+    },
+    "XRPUSDT": {
+      "n_z_measurable": 511,
+      "hi_events": 40,
+      "lo_events": 41,
+      "hi_rate": 0.07827788649706457,
+      "lo_rate": 0.08023483365949119
+    },
+    "DOGEUSDT": {
+      "n_z_measurable": 833,
+      "hi_events": 73,
+      "lo_events": 78,
+      "hi_rate": 0.08763505402160865,
+      "lo_rate": 0.0936374549819928
+    },
+    "LINKUSDT": {
+      "n_z_measurable": 489,
+      "hi_events": 48,
+      "lo_events": 26,
+      "hi_rate": 0.09815950920245399,
+      "lo_rate": 0.053169734151329244
+    },
+    "BNBUSDT": {
+      "n_z_measurable": 833,
+      "hi_events": 54,
+      "lo_events": 69,
+      "hi_rate": 0.06482593037214886,
+      "lo_rate": 0.08283313325330131
+    },
+    "AVAXUSDT": {
+      "n_z_measurable": 833,
+      "hi_events": 69,
+      "lo_events": 64,
+      "hi_rate": 0.08283313325330131,
+      "lo_rate": 0.07683073229291716
+    },
+    "LTCUSDT": {
+      "n_z_measurable": 833,
+      "hi_events": 73,
+      "lo_events": 42,
+      "hi_rate": 0.08763505402160865,
+      "lo_rate": 0.05042016806722689
+    },
+    "FILUSDT": {
+      "n_z_measurable": 833,
+      "hi_events": 68,
+      "lo_events": 60,
+      "hi_rate": 0.08163265306122448,
+      "lo_rate": 0.07202881152460984
+    }
+  },
+  "hi_total_events": 670,
+  "lo_total_events": 562,
+  "lesson11_check": {
+    "hi_per_quarter_avg": 67.0,
+    "lo_per_quarter_avg": 56.2,
+    "threshold": 30,
+    "hi_meets_lesson11": true,
+    "lo_meets_lesson11": true
+  },
+  "lesson79_pretest_btc": {
+    "n_overlap": 832,
+    "pearson_corr_z_vs_next_ret": 0.021738398468016697,
+    "n_hi_events": 83,
+    "mean_ret_next_hi_bp": 32.87996510296346,
+    "t_hi": 0.8771532806270919,
+    "n_lo_events": 50,
+    "mean_ret_next_lo_bp": 27.357420599839035,
+    "t_lo": 0.8814055603145443
+  },
+  "lesson79_halt": false
+}

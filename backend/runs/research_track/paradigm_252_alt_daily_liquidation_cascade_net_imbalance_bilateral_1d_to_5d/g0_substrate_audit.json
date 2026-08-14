@@ -1,0 +1,53 @@
+{
+  "paradigm": "paradigm_252_alt_daily_liquidation_cascade_net_imbalance_bilateral_1d_to_5d",
+  "phase": "G0_SUBSTRATE_AUDIT",
+  "timestamp_kst": "2026-08-10",
+  "checks": {
+    "lesson_61_slug_grep": {
+      "hits_in_index": [
+        "paradigm_224_alt_binance_liq_asymmetry_forced_deleveraging_reversal_4h",
+        "liquidation_cascade_post_capitulation_alt_directional_30m_x_45m",
+        "binance_perp_liquidation_cascade_event_alt_intraday"
+      ],
+      "verdict": "PRIOR_LIQUIDATION_PARADIGMS_EXIST_ALL_GRAVEYARDED"
+    },
+    "lesson_28_substrate_audit": {
+      "binance_vision_s3_liquidationSnapshot_prefix_exists": false,
+      "s3_daily_prefixes_confirmed": [
+        "aggTrades", "bookDepth", "bookTicker",
+        "indexPriceKlines", "klines", "markPriceKlines",
+        "metrics", "premiumIndexKlines", "trades"
+      ],
+      "s3_monthly_prefixes_confirmed": [
+        "aggTrades", "bookTicker", "fundingRate",
+        "indexPriceKlines", "klines", "markPriceKlines",
+        "premiumIndexKlines", "trades"
+      ],
+      "probes_http_status": {
+        "BTCUSDT_2026-01-01": 404,
+        "BTCUSDT_2025-06-01": 404,
+        "BTCUSDT_2025-01-01": 404,
+        "BTCUSDT_2024-06-01": 404,
+        "BTCUSDT_2024-01-01": 404,
+        "BTCUSDT_2023-01-01": 404,
+        "BTCUSDT_2022-06-01": 404,
+        "BTCUSDT_2020-01-01": 404,
+        "SOLUSDT_2026-01-01": 404
+      },
+      "local_recorder_check": {
+        "backend_runs_liq_dirs": [],
+        "postgres_liquidation_tables": 0,
+        "research_scripts_liquidation_recorder": 0
+      },
+      "verdict": "DISPATCH_IMPOSSIBLE_HISTORICAL_FORCED_LIQUIDATION_UNAVAILABLE_FREE_TIER"
+    },
+    "paradigm_224_precedent": {
+      "identical_substrate_class": true,
+      "identical_verdict_expected": true,
+      "graveyard_ref": "backend/runs/research_track/graveyard__paradigm_224_alt_binance_liq_asymmetry_forced_deleveraging_reversal_4h.md",
+      "verdict": "DIRECT_DNA_5_OF_6_OVERLAP_WITH_GRAVEYARDED_PARADIGM_224"
+    }
+  },
+  "final_verdict": "R0_HALT_BY_SUBSTRATE_DISPATCH_IMPOSSIBLE_LESSON_28_LESSON_61_DUPLICATE_OF_PARADIGM_224",
+  "compute_avoided_minutes": 40
+}

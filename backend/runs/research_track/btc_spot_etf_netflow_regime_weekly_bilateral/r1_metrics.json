@@ -1,0 +1,58 @@
+{
+  "t1_standard": {
+    "label": "T+1 standard",
+    "n_trades": 20,
+    "n_long": 8,
+    "n_short": 12,
+    "win_rate": 0.45,
+    "mean_net_ret": 0.016258,
+    "median_net_ret": -0.005991,
+    "std_net_ret": 0.078843,
+    "sharpe_annualized": 1.053,
+    "sum_net_ret": 0.325162,
+    "long_edge": -0.013406,
+    "short_edge": 0.036034,
+    "first_signal": "2025-07-17T00:00:00",
+    "last_signal": "2026-07-20T00:00:00"
+  },
+  "t2_delayed": {
+    "label": "T+2 delayed",
+    "n_trades": 20,
+    "n_long": 8,
+    "n_short": 12,
+    "win_rate": 0.45,
+    "mean_net_ret": 0.016598,
+    "median_net_ret": -0.011667,
+    "std_net_ret": 0.079145,
+    "sharpe_annualized": 1.071,
+    "sum_net_ret": 0.331969,
+    "long_edge": -0.008261,
+    "short_edge": 0.033171,
+    "first_signal": "2025-07-17T00:00:00",
+    "last_signal": "2026-07-20T00:00:00"
+  },
+  "skipped_t1_examples": [
+    "2026-08-05 long \u2014 no px (entry=64300.0 exit=None)",
+    "2026-08-07 long \u2014 no px (entry=None exit=None)"
+  ],
+  "skipped_t2_examples": [
+    "2026-08-05 long \u2014 no px (entry=None exit=None)",
+    "2026-08-07 long \u2014 no px (entry=None exit=None)"
+  ],
+  "config": {
+    "roll_cum_days": 5,
+    "pctl_win_days": 90,
+    "long_rank_threshold": 0.8,
+    "short_rank_threshold": 0.2,
+    "hold_days": 14,
+    "fee_roundtrip": 0.0008
+  },
+  "data_spans": {
+    "etf_flow_first": "2025-05-29T00:00:00",
+    "etf_flow_last": "2026-08-07T00:00:00",
+    "etf_flow_rows": 300,
+    "btc_1m_first": "2024-01-02T00:00:00",
+    "btc_1m_last": "2026-08-06T23:59:00",
+    "btc_1m_rows": 1365120
+  }
+}

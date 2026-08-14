@@ -1,0 +1,51 @@
+{
+  "paradigm": "249_btc_onchain_transfer_value_adjusted_z_spike_alt_bilateral_24h",
+  "paradigm_index": 249,
+  "run_date": "2026-08-08",
+  "verdict": "R0_HALT_BY_SUBSTRATE_UNAVAILABLE_LESSON_28",
+  "halt_reason": "CoinMetrics 'TxTfrValAdjUSD' 1d is Pro-tier only. Community-tier confirms via direct API 403 forbidden. Free-tier community API grants only 31 metrics for BTC, of which transfer/tx-related are just TxCnt and TxTfrCnt. CLAUDE.md hard rule: no paid APIs.",
+  "substrate_audit": {
+    "endpoint_tested": "https://community-api.coinmetrics.io/v4/timeseries/asset-metrics?assets=btc&metrics=TxTfrValAdjUSD&frequency=1d",
+    "response_status": "200 OK with error body",
+    "response_body": {
+      "error": {
+        "type": "forbidden",
+        "message": "Requested metric 'TxTfrValAdjUSD' with frequency '1d' for asset 'btc' is not available with supplied credentials."
+      }
+    },
+    "catalog_endpoint": "https://community-api.coinmetrics.io/v4/catalog-v2/asset-metrics?assets=btc",
+    "total_community_metrics_for_btc": 31,
+    "transfer_or_tx_related_community_metrics_for_btc": ["TxCnt", "TxTfrCnt"],
+    "target_metric_available_in_community": false
+  },
+  "reformulation_analysis": {
+    "candidates": ["TxCnt", "TxTfrCnt"],
+    "dna_vs_predecessor_btc_onchain_active_address_regime_alt_bilateral_24h": {
+      "dim1_substrate": "PARTIAL (same CoinMetrics community API, different metric)",
+      "dim2_statistic": "DIFFERENT (z-score vs regime-percentile)",
+      "dim3_mechanism": "PARTIAL (both count-based on-chain activity)",
+      "dim4_universe": "SAME",
+      "dim5_direction": "SAME",
+      "dim6_hold": "SAME",
+      "overlap_count": "4/6 partial-or-same",
+      "strict_5of6_dna_duplicate_rule_triggered": false
+    },
+    "family_falsification_status": {
+      "predecessor_verdict": "R1_GRAVEYARD_BROAD_FALSIFIED_LESSON39_SUBCLASS_A",
+      "predecessor_diagnosis": "all A/B/C/D SNT pairs show focus+mirror = -2*fee_RT deterministically; trigger has zero directional information; B_focus contradicts mechanism (-34.4bp).",
+      "count_based_correlation_risk": "TxCnt and TxTfrCnt are strongly correlated with AdrActCnt (typ 0.7-0.9 at daily freq) — more active addresses drive more transactions.",
+      "lesson_61_pattern": "Proxy on already-falsified on-chain-count family = Lesson #55 prescription out-of-scope (spatial fix != mechanism fix).",
+      "reformulation_recommendation": "DO NOT ATTEMPT — same failure mode expected."
+    }
+  },
+  "lesson_checks": {
+    "lesson_28_substrate_availability": "HARD-FAIL — target metric requires paid tier",
+    "lesson_77_non_ohlcv_substrate": "N/A — substrate exists but is paid-only",
+    "lesson_61_alpha_decay_out_of_scope": "Reformulation on same-falsified family would violate this",
+    "claude_md_paid_api_rule": "HARD-FAIL — CoinMetrics Pro is a paid API"
+  },
+  "dispatched_hypothesis_dispatch_note": {
+    "note": "The dispatch runbook incorrectly asserted 'CoinMetrics community API is free, no auth required' for TxTfrValAdjUSD. This is factually wrong: TxTfrValAdjUSD is explicitly a Pro-tier metric per the API's own catalog. The dispatched G0 checklist did not include an empirical substrate-availability probe, only a compliance assertion. This paradigm dies at the substrate probe.",
+    "action_taken": "Empirical curl probe against actual API endpoint before writing any signal code."
+  }
+}

@@ -1,0 +1,142 @@
+{
+  "paradigm_name": "alt_daily_premium_index_kalman_innovation_z_mr_bilateral_1d_to_7d",
+  "paradigm_number": 227,
+  "paradigm_number_note": "Proposed as 226; renumbered to 227 because 226 already occupied by paradigm_226_alt_fear_greed_index_extreme_contrarian_bilateral_1d (GRAVEYARD_R1 2026-07-14)",
+  "phase": "R-0",
+  "verdict": "R0_HALT",
+  "verdict_code": "R0_HALT_BY_FAMILY_PROXY_LESSON_61_SLUG_GREP_HIT_LESSON_56_OUTCOME_LEVEL_PREMIUM_DOMAIN_SATURATED_RETIRED_LESSON_69_5ITEM_TEMPLATE_LESSON_62_DNA_HARD_FAIL",
+  "created_at": "2026-07-15T03:55:00+09:00",
+  "r1_dispatched": false,
+  "compute_saved_estimate_minutes": 18,
+  "lesson_69_5_item_template": {
+    "item_1_slug_grep": {
+      "status": "SUCCESS",
+      "hits": [
+        {
+          "file": "backend/runs/research_track/PARADIGM_QUEUE_2026Q3.md",
+          "row": "#10",
+          "slug": "kalman_filter_premium_innovation",
+          "verdict": "premium domain saturated"
+        },
+        {
+          "file": "backend/runs/research_track/NEXT_PARADIGM_RUNBOOK.md",
+          "row": "#10",
+          "slug": "kalman_filter_premium_innovation",
+          "note": "canonical retired queue"
+        }
+      ],
+      "family_graveyard_enumeration": [
+        {"paradigm": 22, "slug": "funding_boundary_revertion (premium_index_zscore)", "phase": "R-5_LIVE", "role": "family_founder_exception"},
+        {"paradigm": 24, "slug": "funding_carry_seasonality", "phase": "R-5_LIVE", "role": "cousin_exception"},
+        {"paradigm": 105, "slug": "mark-index basis percentile 4h MR", "phase": "GRAVEYARD", "verdict": "BROAD_FALSIFIED"},
+        {"paradigm": 111, "slug": "binance_perp_mark_index_basis_extreme_alt_directional_4h", "phase": "GRAVEYARD", "verdict": "BROAD_FALSIFIED"},
+        {"paradigm": 121, "slug": "hmm_realized_vol_state_x_markprice_basis_extreme_alt_directional_4h", "phase": "GRAVEYARD", "verdict": "BROAD_FALSIFIED_LESSON39_SYMMETRIC_NO_AXIS_SYNTHESIS_HMM_FILTER_INEFFECTIVE", "critical_precedent": true, "precedent_reason": "novel latent-state filter on same substrate class"},
+        {"paradigm": 131, "slug": "basis_spike_x_range_close_bidask_proxy", "phase": "GRAVEYARD", "verdict": "BROAD_FALSIFIED_LESSON_52A_LONG_DRIFT_ARTIFACT"},
+        {"paradigm": 167, "slug": "basis_markPrice_4h_MR_retry", "phase": "R-0_HALT", "verdict": "R0_HALT_BY_FAMILY_PROXY_QUADRUPLE_PRIOR_BROAD_FALSIFIED"}
+      ],
+      "family_cumulative": "4 graveyards + 1 R-0 halt + 2 R-5 LIVE (paradigm 22/24 daily FOLLOW direction only)"
+    },
+    "item_2_lesson_56_outcome_level_family_proxy": {
+      "status": "SUCCESS",
+      "instance_number": 18,
+      "mechanism_direction_analysis": {
+        "proposed_direction": "MR to Kalman filter trend on premium 1d",
+        "paradigm_22_r5_live_empirical_direction": "FOLLOW at daily scale",
+        "paradigm_111_falsified_sub_direction": "MR on basis 4h - BROAD_FALSIFIED",
+        "conclusion": "MR direction on premium/basis substrate is the empirically-falsified sub-slice; paradigm 22 R-5 seed spec direction is FOLLOW opposite"
+      }
+    },
+    "item_3_lesson_62_dna_5dim_audit": {
+      "status": "HARD_FAIL",
+      "cumulative_dogfood": 12,
+      "vs_paradigm_22_r5_live": {
+        "substrate": "IDENTICAL (premium 1d vs premium 8h derived)",
+        "statistic_class": "DIFFERENT (Kalman innovation z vs rolling z-score)",
+        "universe": "SAME_CLASS (14 alts vs 20 alts)",
+        "frame": "SAME_CLASS (1d vs 8h derived from 1d)",
+        "direction": "OPPOSITE (MR vs FOLLOW)",
+        "overlap_score": "3.5/5",
+        "hard_fail_trigger": "direction OPPOSITE is the paradigm 111 empirically-falsified sub-slice"
+      },
+      "vs_paradigm_121_broad_falsified": {
+        "substrate": "COUSIN (premium vs basis - near-identical arbitraged pair)",
+        "statistic_class": "IDENTICAL_CLASS_ANALOGY (Kalman filter vs HMM regime; both latent-state filters on premium/basis)",
+        "universe": "IDENTICAL (14 alts)",
+        "frame": "DIFFERENT (1d vs 4h)",
+        "direction": "IDENTICAL (MR)",
+        "overlap_score": "3/5",
+        "hard_fail_trigger": "statistic-class differentiator is the paradigm 121 already-tested escape variant"
+      }
+    },
+    "item_4_q2_section5_ratification": {
+      "status": "SUCCESS",
+      "policy_source": "PARADIGM_QUEUE_2026Q3.md preamble",
+      "policy_text": "premium 도메인 saturated 결정 — 추가 derivative/transformation 시도 권장 안 됨. 새 raw data 도메인 또는 novel statistical approach 우선.",
+      "proposed_violates_both_prongs": {
+        "prong_1_transformation": "Kalman innovation IS a transformation of the premium series",
+        "prong_2_novel_stat_approach": "novel statistical approach clause already spent on HMM (paradigm 119/121) which broad-falsified"
+      }
+    },
+    "item_5_novelty_budget_check": {
+      "status": "ZERO_NOVELTY_OUTSIDE_RETIRED_PERIMETER",
+      "dim_novelty": {
+        "substrate": "retired-family perimeter (premium)",
+        "statistic_class": "latent-state filter class already exhausted (paradigm 119+121)",
+        "universe": "standard 14 alts",
+        "frame": "paradigm 22 R-5 LIVE frame + direction OPPOSITE",
+        "mechanism": "MR = paradigm 111 falsified sub-direction"
+      },
+      "frontier_scout_meta_precedent": "5 consecutive frontier dispatches (82+83+84+85+86) all halt/falsified per PARADIGM_QUEUE_2026Q3.md §6.5"
+    }
+  },
+  "lessons_dogfooded": [
+    {"lesson": 61, "role": "slug_grep_permanent_asset", "instance": 9, "status": "SUCCESS"},
+    {"lesson": 56, "role": "outcome_level_family_proxy", "instance": 18, "status": "SUCCESS"},
+    {"lesson": 62, "role": "dna_5dim_audit_hard_fail", "instance": 12, "status": "HARD_FAIL"},
+    {"lesson": 69, "role": "5_item_strict_template", "instance": 5, "status": "SUCCESS"},
+    {"lesson": 21, "role": "axis_stacking_no_alpha_synthesis_saturated_substrate", "instance": 6, "status": "SUCCESS"},
+    {"lesson": 45, "role": "latent_state_filter_architectural_break", "instance": 3, "status": "SUCCESS"},
+    {"lesson": 39, "role": "exact_symmetric_mirror_risk_preemptive", "instance": "preemptive", "status": "SUCCESS"},
+    {"lesson": 28, "role": "substrate_availability", "status": "NEUTRAL", "note": "5m joblib 14 syms 2yr present, filterpy missing but scipy alternative; halt cause upstream"},
+    {"lesson": 11, "role": "sample_density", "status": "NEUTRAL", "note": "10220 sym-days pooled, would clear 30/cell floor"},
+    {"lesson": 37, "role": "hold_sweep_verdict_scan", "status": "NOT_APPLICABLE", "note": "R-1 not dispatched"},
+    {"lesson": 77, "role": "non_ohlcv_substrate_preference", "status": "NEUTRAL", "note": "premium IS microstructure but domain retired"},
+    {"lesson": 40, "role": "structural_threshold_feasibility", "status": "NEUTRAL", "note": "Kalman innovation is signed centered residual, symmetric z-trigger feasible"}
+  ],
+  "substrate_audit": {
+    "premium_5m_joblib_available": true,
+    "syms_with_5m_joblib": ["ADA", "AVAX", "BCH", "BNB", "BTC", "DOGE", "ETH", "FIL", "LINK", "LTC", "NEAR", "SOL", "WIF", "XRP"],
+    "coverage_start": "2024-05-15",
+    "coverage_end": "2026-05-13",
+    "coverage_years": 2.0,
+    "rows_per_sym_5m": 209952,
+    "daily_resample_estimated_rows_per_sym": 730,
+    "pooled_sym_days": 10220,
+    "filterpy_available": false,
+    "scipy_available": true,
+    "scipy_version": "1.17.0",
+    "note": "Substrate would independently clear R-0 gates. R-0 halt entirely upstream family-level."
+  },
+  "next_paradigm_recommendation": {
+    "option_A_preferred": {
+      "slug_candidate": "binance_perpetual_open_interest_per_symbol_composition_shift_family",
+      "hypothesis": "daily rolling 7d vs 30d OI composition Herfindahl index concentration change per-symbol × BTC vol regime overlay",
+      "substrate": "OI aggregate (not premium/basis)",
+      "novelty_axis": "concentration structure change (not level MR/FOLLOW)"
+    },
+    "option_B_preferred": {
+      "slug_candidate": "binance_futures_maintenance_margin_tier_change_event_anchored_alt_directional_3d_bilateral",
+      "hypothesis": "MM tier hike/cut events → alt directional 3d MR/FOLLOW test",
+      "substrate": "regulatory/exchange announcement event class",
+      "novelty_axis": "non-microstructure event class, fresh dimension"
+    },
+    "option_C_deferred_infrastructure": {
+      "slug_candidate": "orderflow_via_aggTrades_taker_flow_1m_intraday_persistence_family",
+      "note": "requires 1m aggTrades archive backfill (>30min ETA + Lesson #21 advisory caution family), needs explicit user greenlight"
+    },
+    "rejected_dimensions": [
+      "any premium/basis/funding derivative or novel-statistic-on-same-substrate (Q2 §5 retired)",
+      "any HMM/Kalman/BOCPD/CUSUM/wavelet on saturated substrate (Lesson #45 architectural break)"
+    ]
+  }
+}

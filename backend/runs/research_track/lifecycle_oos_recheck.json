@@ -1,0 +1,2034 @@
+{
+  "r4_date": "2026-05-13",
+  "n": 251,
+  "in_sample": {
+    "n": 241,
+    "mean": 44.74744635001924,
+    "median": 18.31584158415843,
+    "win": 57.676348547717836,
+    "se": 7.846430826388897,
+    "t": 5.702904586825118,
+    "best": 958.031067961165,
+    "worst": -50.1
+  },
+  "out_of_sample": {
+    "n": 10,
+    "mean": 11.074996645696938,
+    "median": 19.08898025159884,
+    "win": 60.0,
+    "se": 18.300948563109728,
+    "t": 0.6051597056570851,
+    "best": 104.1883778744562,
+    "worst": -50.1
+  },
+  "trades": [
+    {
+      "symbol": "0GUSDT",
+      "listing": "2025-09-17",
+      "ret": -50.1,
+      "held": 5,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "1000000BOBUSDT",
+      "listing": "2025-06-05",
+      "ret": 45.81044776119402,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "1000BONKUSDT",
+      "listing": "2023-11-22",
+      "ret": -50.1,
+      "held": 12,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "1000CATUSDT",
+      "listing": "2024-10-21",
+      "ret": -50.1,
+      "held": 24,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "1000LUNCUSDT",
+      "listing": "2022-09-08",
+      "ret": 40.19411764705883,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "1000PEPEUSDT",
+      "listing": "2023-05-05",
+      "ret": 200.37642118863053,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "1000RATSUSDT",
+      "listing": "2023-12-15",
+      "ret": 47.03118955677817,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "1000SHIBUSDT",
+      "listing": "2021-05-10",
+      "ret": 371.58968318440293,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "1000XECUSDT",
+      "listing": "2021-09-16",
+      "ret": 13.735697985911289,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "2ZUSDT",
+      "listing": "2025-10-02",
+      "ret": 229.14595951238348,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "4USDT",
+      "listing": "2025-10-08",
+      "ret": 245.34034090909088,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "ACEUSDT",
+      "listing": "2023-12-18",
+      "ret": 55.51811587713799,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "ACUUSDT",
+      "listing": "2026-01-21",
+      "ret": -50.1,
+      "held": 2,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "AGTUSDT",
+      "listing": "2025-05-20",
+      "ret": 128.67202836481079,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "AIAUSDT",
+      "listing": "2026-01-20",
+      "ret": 132.500698047354,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "AIGENSYNUSDT",
+      "listing": "2026-04-29",
+      "ret": 59.58293441094188,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "AINUSDT",
+      "listing": "2025-07-10",
+      "ret": 23.186110913362278,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "AIOUSDT",
+      "listing": "2025-08-13",
+      "ret": -10.246812860063182,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "AKEUSDT",
+      "listing": "2025-09-26",
+      "ret": 40.70329676707875,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "ALLOUSDT",
+      "listing": "2025-11-11",
+      "ret": 244.336146377894,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "ALLUSDT",
+      "listing": "2025-08-06",
+      "ret": -0.5018369690011458,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "APRUSDT",
+      "listing": "2025-10-23",
+      "ret": 144.7739561688948,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "APTUSDT",
+      "listing": "2022-10-18",
+      "ret": 54.69219677692959,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "ARBUSDT",
+      "listing": "2023-03-23",
+      "ret": -9.756491156183843,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "ARCUSDT",
+      "listing": "2025-01-17",
+      "ret": -50.1,
+      "held": 4,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "ARIAUSDT",
+      "listing": "2025-09-03",
+      "ret": -50.1,
+      "held": 9,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "ARXUSDT",
+      "listing": "2026-06-23",
+      "ret": 104.1883778744562,
+      "held": 30,
+      "reason": "time",
+      "oos": true
+    },
+    {
+      "symbol": "ASTERUSDT",
+      "listing": "2025-09-19",
+      "ret": -50.1,
+      "held": 1,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "ATUSDT",
+      "listing": "2025-10-29",
+      "ret": 85.81909882232463,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "AUSDT",
+      "listing": "2025-05-28",
+      "ret": 53.65945184374304,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "AVNTUSDT",
+      "listing": "2025-09-09",
+      "ret": -50.1,
+      "held": 1,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "AWEUSDT",
+      "listing": "2025-05-21",
+      "ret": 27.241091538042138,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "AZTECUSDT",
+      "listing": "2026-02-11",
+      "ret": -50.1,
+      "held": 2,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "BABYUSDT",
+      "listing": "2025-04-05",
+      "ret": -50.1,
+      "held": 4,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "BANKUSDT",
+      "listing": "2025-04-18",
+      "ret": -50.1,
+      "held": 21,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "BARDUSDT",
+      "listing": "2025-09-18",
+      "ret": 69.15172248037175,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "BASEDUSDT",
+      "listing": "2026-03-30",
+      "ret": -50.1,
+      "held": 17,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "BASUSDT",
+      "listing": "2025-08-26",
+      "ret": -50.1,
+      "held": 1,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "BEATUSDT",
+      "listing": "2025-11-12",
+      "ret": -50.1,
+      "held": 3,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "BICOUSDT",
+      "listing": "2023-09-28",
+      "ret": 6.799418121363255,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "BIRBUSDT",
+      "listing": "2026-01-29",
+      "ret": -50.1,
+      "held": 5,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "BLESSUSDT",
+      "listing": "2025-09-23",
+      "ret": -50.1,
+      "held": 22,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "BLUAIUSDT",
+      "listing": "2025-10-21",
+      "ret": -50.1,
+      "held": 1,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "BOMEUSDT",
+      "listing": "2024-03-16",
+      "ret": 147.47939812061375,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "BREVUSDT",
+      "listing": "2025-12-30",
+      "ret": 132.70825638240086,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "BROCCOLI714USDT",
+      "listing": "2025-03-21",
+      "ret": -50.1,
+      "held": 6,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "BSBUSDT",
+      "listing": "2026-03-25",
+      "ret": -50.1,
+      "held": 2,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "BTRUSDT",
+      "listing": "2025-08-27",
+      "ret": -50.1,
+      "held": 18,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "BTWUSDT",
+      "listing": "2026-06-04",
+      "ret": -50.1,
+      "held": 1,
+      "reason": "sl",
+      "oos": true
+    },
+    {
+      "symbol": "BULLAUSDT",
+      "listing": "2025-07-04",
+      "ret": 44.7339483394834,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "BUSDT",
+      "listing": "2025-05-22",
+      "ret": -50.1,
+      "held": 3,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "C98USDT",
+      "listing": "2021-08-23",
+      "ret": 43.072471674360045,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "CAPUSDT",
+      "listing": "2026-06-27",
+      "ret": 18.636383442265778,
+      "held": 30,
+      "reason": "time",
+      "oos": true
+    },
+    {
+      "symbol": "CARVUSDT",
+      "listing": "2025-08-07",
+      "ret": 4.1090970807875165,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "CATIUSDT",
+      "listing": "2024-09-20",
+      "ret": 101.49327284797519,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "CCUSDT",
+      "listing": "2025-10-31",
+      "ret": 64.97747318235997,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "CETUSUSDT",
+      "listing": "2024-11-06",
+      "ret": -50.1,
+      "held": 2,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "CFGUSDT",
+      "listing": "2026-03-16",
+      "ret": -8.924987605354483,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "CHZUSDT",
+      "listing": "2021-01-21",
+      "ret": -50.1,
+      "held": 20,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "CLANKERUSDT",
+      "listing": "2025-11-12",
+      "ret": 99.52233612085246,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "CLOUSDT",
+      "listing": "2025-10-14",
+      "ret": 224.12160664819947,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "COAIUSDT",
+      "listing": "2025-09-25",
+      "ret": -50.1,
+      "held": 7,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "COLLECTUSDT",
+      "listing": "2025-12-31",
+      "ret": 73.36526655896608,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "COOKIEUSDT",
+      "listing": "2025-01-07",
+      "ret": 299.07460317460317,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "COTIUSDT",
+      "listing": "2021-03-09",
+      "ret": 5.611176180974831,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "CROSSUSDT",
+      "listing": "2025-07-10",
+      "ret": -50.1,
+      "held": 1,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "CTRUSDT",
+      "listing": "2026-05-28",
+      "ret": 65.12157996146435,
+      "held": 30,
+      "reason": "time",
+      "oos": true
+    },
+    {
+      "symbol": "CTSIUSDT",
+      "listing": "2021-10-25",
+      "ret": -50.1,
+      "held": 16,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "CUSDT",
+      "listing": "2025-07-15",
+      "ret": -50.1,
+      "held": 3,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "CVCUSDT",
+      "listing": "2025-05-16",
+      "ret": 40.97471077954374,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "CVXUSDT",
+      "listing": "2025-07-23",
+      "ret": 10.530379157943694,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "CYSUSDT",
+      "listing": "2025-12-12",
+      "ret": -50.1,
+      "held": 23,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "DATAIPUSDT",
+      "listing": "2026-07-03",
+      "ret": 43.719188191881926,
+      "held": 30,
+      "reason": "time",
+      "oos": true
+    },
+    {
+      "symbol": "DEEPUSDT",
+      "listing": "2025-04-22",
+      "ret": -12.093861993861998,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "DEXEUSDT",
+      "listing": "2024-12-24",
+      "ret": -24.007082621966994,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "DODOXUSDT",
+      "listing": "2023-08-08",
+      "ret": 19.20706901369097,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "DUSKUSDT",
+      "listing": "2022-01-06",
+      "ret": -50.1,
+      "held": 9,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "EDENUSDT",
+      "listing": "2025-09-30",
+      "ret": 208.0853281853282,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "EDGEUSDT",
+      "listing": "2026-03-19",
+      "ret": -50.1,
+      "held": 15,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "ELSAUSDT",
+      "listing": "2026-01-22",
+      "ret": 124.35986643970146,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "ENAUSDT",
+      "listing": "2024-04-02",
+      "ret": -50.1,
+      "held": 1,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "ENSOUSDT",
+      "listing": "2025-10-14",
+      "ret": 228.47142857142862,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "EPICUSDT",
+      "listing": "2025-03-13",
+      "ret": 15.80612777053455,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "ERAUSDT",
+      "listing": "2025-07-17",
+      "ret": 76.29296187683285,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "ESPORTSUSDT",
+      "listing": "2025-07-29",
+      "ret": -50.1,
+      "held": 6,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "ESPUSDT",
+      "listing": "2026-02-10",
+      "ret": -50.1,
+      "held": 14,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "EULUSDT",
+      "listing": "2025-10-13",
+      "ret": 69.63944294699012,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "EVAAUSDT",
+      "listing": "2025-10-03",
+      "ret": -50.1,
+      "held": 22,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "FARTCOINUSDT",
+      "listing": "2024-12-20",
+      "ret": -50.1,
+      "held": 14,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "FETUSDT",
+      "listing": "2023-01-15",
+      "ret": -50.1,
+      "held": 19,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "FFUSDT",
+      "listing": "2025-09-29",
+      "ret": 85.1850082372323,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "FIGHTUSDT",
+      "listing": "2026-01-23",
+      "ret": 207.51804193694375,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "FLOCKUSDT",
+      "listing": "2025-09-09",
+      "ret": 53.408442776735455,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "FLUIDUSDT",
+      "listing": "2025-09-24",
+      "ret": 53.60085657808039,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "FOGOUSDT",
+      "listing": "2026-01-10",
+      "ret": 187.94975566414925,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "FOLKSUSDT",
+      "listing": "2025-11-06",
+      "ret": -50.1,
+      "held": 1,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "FRAXUSDT",
+      "listing": "2026-01-15",
+      "ret": -50.1,
+      "held": 4,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "FUSDT",
+      "listing": "2025-06-18",
+      "ret": 7.35894160583942,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "GIGGLEUSDT",
+      "listing": "2025-10-09",
+      "ret": -50.1,
+      "held": 1,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "GRAMUSDT",
+      "listing": "2026-07-02",
+      "ret": 19.5415770609319,
+      "held": 30,
+      "reason": "time",
+      "oos": true
+    },
+    {
+      "symbol": "GUAUSDT",
+      "listing": "2025-12-21",
+      "ret": -3.0907975460122805,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "GWEIUSDT",
+      "listing": "2026-01-29",
+      "ret": -3.953131749460048,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "HANAUSDT",
+      "listing": "2025-09-26",
+      "ret": -50.1,
+      "held": 9,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "HBARUSDT",
+      "listing": "2021-03-17",
+      "ret": 3.0141967372360745,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "HEIUSDT",
+      "listing": "2025-02-13",
+      "ret": 44.85532390171257,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "HEMIUSDT",
+      "listing": "2025-08-29",
+      "ret": -50.1,
+      "held": 2,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "HMSTRUSDT",
+      "listing": "2024-09-26",
+      "ret": 131.40392017106203,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "HOLOUSDT",
+      "listing": "2025-09-11",
+      "ret": 259.60496894409937,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "HOMEUSDT",
+      "listing": "2025-06-10",
+      "ret": 43.420484213379105,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "HUMAUSDT",
+      "listing": "2025-05-26",
+      "ret": 109.55871697640167,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "HUSDT",
+      "listing": "2025-06-25",
+      "ret": -50.1,
+      "held": 6,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "HYPEUSDT",
+      "listing": "2025-05-30",
+      "ret": -17.59591451917032,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "ICNTUSDT",
+      "listing": "2025-07-03",
+      "ret": 51.182051282051276,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "ICPUSDT",
+      "listing": "2021-07-30",
+      "ret": -50.1,
+      "held": 8,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "IDOLUSDT",
+      "listing": "2025-07-04",
+      "ret": -50.1,
+      "held": 7,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "INJUSDT",
+      "listing": "2022-08-16",
+      "ret": 14.228358208955216,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "INUSDT",
+      "listing": "2025-08-07",
+      "ret": 63.520262132483175,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "INXUSDT",
+      "listing": "2026-01-30",
+      "ret": 85.9322467577988,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "IOTXUSDT",
+      "listing": "2021-08-11",
+      "ret": 78.34772289929442,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "IRYSUSDT",
+      "listing": "2025-11-26",
+      "ret": 56.07977528089888,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "JCTUSDT",
+      "listing": "2025-11-10",
+      "ret": 199.59618055555555,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "JTOUSDT",
+      "listing": "2023-12-08",
+      "ret": 130.0816547917068,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "JUPUSDT",
+      "listing": "2024-01-31",
+      "ret": 7.548587203637547,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "KAITOUSDT",
+      "listing": "2025-02-20",
+      "ret": -50.1,
+      "held": 6,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "KATUSDT",
+      "listing": "2026-03-02",
+      "ret": 155.3228855721393,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "KGENUSDT",
+      "listing": "2025-10-07",
+      "ret": -50.1,
+      "held": 9,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "KITEUSDT",
+      "listing": "2025-10-29",
+      "ret": 35.033640552995394,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "KOMAUSDT",
+      "listing": "2024-12-10",
+      "ret": 74.00228509249186,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "LABUSDT",
+      "listing": "2025-10-17",
+      "ret": -50.1,
+      "held": 13,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "LAUSDT",
+      "listing": "2025-06-05",
+      "ret": 167.82828685258963,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "LDOUSDT",
+      "listing": "2022-09-21",
+      "ret": 18.31584158415843,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "LIGHTUSDT",
+      "listing": "2025-09-27",
+      "ret": -50.1,
+      "held": 1,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "LINEAUSDT",
+      "listing": "2025-09-01",
+      "ret": 54.95617977528088,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "LITUSDT",
+      "listing": "2025-12-23",
+      "ret": 106.21040363843095,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "LYNUSDT",
+      "listing": "2025-10-06",
+      "ret": 162.23006042296072,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "MAGICUSDT",
+      "listing": "2023-01-23",
+      "ret": -50.1,
+      "held": 8,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "MAGMAUSDT",
+      "listing": "2025-12-31",
+      "ret": 38.71767744404057,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "MANTRAUSDT",
+      "listing": "2026-03-04",
+      "ret": 121.12905027932962,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "MEGAUSDT",
+      "listing": "2026-01-30",
+      "ret": 4.495891437996702,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "MERLUSDT",
+      "listing": "2025-05-29",
+      "ret": 55.164675354630376,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "METUSDT",
+      "listing": "2025-10-11",
+      "ret": 302.27608584568213,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "MIRAUSDT",
+      "listing": "2025-09-26",
+      "ret": 316.9865913698233,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "MITOUSDT",
+      "listing": "2025-08-28",
+      "ret": -50.1,
+      "held": 1,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "MMTUSDT",
+      "listing": "2025-11-04",
+      "ret": 958.031067961165,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "MONUSDT",
+      "listing": "2025-10-10",
+      "ret": 41.15484904705685,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "MUBARAKUSDT",
+      "listing": "2025-03-17",
+      "ret": 610.9655737704917,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "MUSDT",
+      "listing": "2025-07-07",
+      "ret": -50.1,
+      "held": 2,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "MYXUSDT",
+      "listing": "2025-06-18",
+      "ret": -50.1,
+      "held": 5,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "NAORISUSDT",
+      "listing": "2025-07-31",
+      "ret": 104.6511312217195,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "NEIROUSDT",
+      "listing": "2024-09-16",
+      "ret": -50.1,
+      "held": 1,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "NEWTUSDT",
+      "listing": "2025-06-19",
+      "ret": -50.1,
+      "held": 3,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "NIGHTUSDT",
+      "listing": "2025-12-10",
+      "ret": -50.1,
+      "held": 11,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "NILUSDT",
+      "listing": "2025-03-24",
+      "ret": 87.91343322138982,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "NOMUSDT",
+      "listing": "2025-10-01",
+      "ret": 111.22376395534292,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "NXPCUSDT",
+      "listing": "2025-05-15",
+      "ret": 110.62094518566145,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "ONDOUSDT",
+      "listing": "2024-01-20",
+      "ret": -50.1,
+      "held": 2,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "ONUSDT",
+      "listing": "2025-10-24",
+      "ret": 120.32204394837808,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "OPENUSDT",
+      "listing": "2025-09-08",
+      "ret": 120.79967537486475,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "OPNUSDT",
+      "listing": "2026-02-21",
+      "ret": 169.0311612364244,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "OPUSDT",
+      "listing": "2022-06-01",
+      "ret": 132.69864125306663,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "ORDERUSDT",
+      "listing": "2025-09-26",
+      "ret": 19.37513318316709,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "ORDIUSDT",
+      "listing": "2023-11-07",
+      "ret": -50.1,
+      "held": 3,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "OUSDT",
+      "listing": "2026-06-24",
+      "ret": 59.94285992596922,
+      "held": 30,
+      "reason": "time",
+      "oos": true
+    },
+    {
+      "symbol": "PAXGUSDT",
+      "listing": "2025-03-27",
+      "ret": -7.813793936465752,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "PENGUUSDT",
+      "listing": "2024-12-17",
+      "ret": -50.1,
+      "held": 9,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "PIEVERSEUSDT",
+      "listing": "2025-11-14",
+      "ret": -50.1,
+      "held": 1,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "PIXELUSDT",
+      "listing": "2024-02-19",
+      "ret": -50.1,
+      "held": 19,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "PLAYUSDT",
+      "listing": "2025-07-31",
+      "ret": -50.1,
+      "held": 7,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "POWERUSDT",
+      "listing": "2025-12-06",
+      "ret": -50.1,
+      "held": 11,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "PRLUSDT",
+      "listing": "2026-04-01",
+      "ret": -50.1,
+      "held": 15,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "PROVEUSDT",
+      "listing": "2025-08-05",
+      "ret": -50.1,
+      "held": 1,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "PTBUSDT",
+      "listing": "2025-09-03",
+      "ret": -50.1,
+      "held": 2,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "PUMPBTCUSDT",
+      "listing": "2025-06-13",
+      "ret": 19.991544206215373,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "PUMPUSDT",
+      "listing": "2025-07-10",
+      "ret": 64.73306836248015,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "PYTHUSDT",
+      "listing": "2023-11-22",
+      "ret": 15.495075239398092,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "QUSDT",
+      "listing": "2025-09-02",
+      "ret": -50.1,
+      "held": 6,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "RAVEUSDT",
+      "listing": "2025-12-14",
+      "ret": -50.1,
+      "held": 1,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "RECALLUSDT",
+      "listing": "2025-10-15",
+      "ret": 221.5519972918077,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "RENDERUSDT",
+      "listing": "2024-07-26",
+      "ret": 7.2950910530482975,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "RESOLVUSDT",
+      "listing": "2025-06-10",
+      "ret": 132.81542288557216,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "REUSDT",
+      "listing": "2026-06-18",
+      "ret": -50.1,
+      "held": 1,
+      "reason": "sl",
+      "oos": true
+    },
+    {
+      "symbol": "RIFUSDT",
+      "listing": "2023-10-21",
+      "ret": 1.1447719577773463,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "RIVERUSDT",
+      "listing": "2025-10-17",
+      "ret": -50.1,
+      "held": 4,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "ROBOUSDT",
+      "listing": "2026-02-27",
+      "ret": -50.1,
+      "held": 3,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "SAGAUSDT",
+      "listing": "2024-04-09",
+      "ret": 124.99435256982089,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "SAHARAUSDT",
+      "listing": "2025-06-26",
+      "ret": -50.1,
+      "held": 27,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "SAPIENUSDT",
+      "listing": "2025-08-20",
+      "ret": -50.1,
+      "held": 18,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "SEIUSDT",
+      "listing": "2023-08-17",
+      "ret": 22.87780959198283,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "SENTUSDT",
+      "listing": "2025-11-14",
+      "ret": 43.328952635090054,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "SIRENUSDT",
+      "listing": "2025-03-22",
+      "ret": 30.222140787455253,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "SKRUSDT",
+      "listing": "2026-01-22",
+      "ret": 121.88219769923485,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "SKYAIUSDT",
+      "listing": "2025-05-13",
+      "ret": 126.05873015873014,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "SKYUSDT",
+      "listing": "2025-09-09",
+      "ret": 3.3673441936930337,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "SLPUSDT",
+      "listing": "2025-07-23",
+      "ret": 18.7698807672369,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "SLXUSDT",
+      "listing": "2026-06-01",
+      "ret": -50.1,
+      "held": 27,
+      "reason": "sl",
+      "oos": true
+    },
+    {
+      "symbol": "SOMIUSDT",
+      "listing": "2025-08-25",
+      "ret": 65.79557171183079,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "SOONUSDT",
+      "listing": "2025-05-23",
+      "ret": 129.47660676210785,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "SOPHUSDT",
+      "listing": "2025-05-28",
+      "ret": 103.24825535046304,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "SPACEUSDT",
+      "listing": "2026-01-23",
+      "ret": 80.30878896269799,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "SPKUSDT",
+      "listing": "2025-06-17",
+      "ret": 72.58882175226589,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "SPORTFUNUSDT",
+      "listing": "2026-01-16",
+      "ret": 182.98965517241382,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "SQDUSDT",
+      "listing": "2025-06-11",
+      "ret": 46.10869978607083,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "STABLEUSDT",
+      "listing": "2025-11-06",
+      "ret": -50.1,
+      "held": 1,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "STBLUSDT",
+      "listing": "2025-09-17",
+      "ret": -50.1,
+      "held": 1,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "STGUSDT",
+      "listing": "2022-08-24",
+      "ret": 85.40279833905042,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "SUIUSDT",
+      "listing": "2023-05-03",
+      "ret": 47.93952821166719,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "SYNUSDT",
+      "listing": "2024-08-16",
+      "ret": 26.082898366221094,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "TACUSDT",
+      "listing": "2025-07-15",
+      "ret": 47.06031631919482,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "TAGUSDT",
+      "listing": "2025-07-25",
+      "ret": -50.1,
+      "held": 14,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "TAIKOUSDT",
+      "listing": "2025-06-11",
+      "ret": 27.59443803369489,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "TAKEUSDT",
+      "listing": "2025-09-03",
+      "ret": -6.190026478375987,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "TAOUSDT",
+      "listing": "2024-04-11",
+      "ret": 66.62006407689229,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "TAUSDT",
+      "listing": "2025-07-21",
+      "ret": 130.81938317392155,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "TIAUSDT",
+      "listing": "2023-10-31",
+      "ret": -50.1,
+      "held": 11,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "TLMUSDT",
+      "listing": "2023-03-29",
+      "ret": 77.2122125702606,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "TONUSDT",
+      "listing": "2024-03-01",
+      "ret": -50.1,
+      "held": 11,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "TOSHIUSDT",
+      "listing": "2025-09-17",
+      "ret": 31.7430920103836,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "TOWNSUSDT",
+      "listing": "2025-08-05",
+      "ret": 75.11739130434785,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "TRADOORUSDT",
+      "listing": "2025-09-19",
+      "ret": -50.1,
+      "held": 2,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "TREEUSDT",
+      "listing": "2025-07-29",
+      "ret": 70.5826286296485,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "TRIAUSDT",
+      "listing": "2026-02-06",
+      "ret": 5.578793256433013,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "TRUMPUSDT",
+      "listing": "2025-01-18",
+      "ret": -50.1,
+      "held": 1,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "TRUSTUSDT",
+      "listing": "2025-11-05",
+      "ret": -50.1,
+      "held": 16,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "TRUTHUSDT",
+      "listing": "2025-10-01",
+      "ret": 14.562389484390893,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "TSTUSDT",
+      "listing": "2025-02-09",
+      "ret": 279.02457912457913,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "TURTLEUSDT",
+      "listing": "2025-10-22",
+      "ret": 118.36153846153844,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "TUTUSDT",
+      "listing": "2025-03-20",
+      "ret": -50.1,
+      "held": 9,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "UAIUSDT",
+      "listing": "2025-11-06",
+      "ret": -50.1,
+      "held": 1,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "UBUSDT",
+      "listing": "2025-09-12",
+      "ret": -50.1,
+      "held": 1,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "USELESSUSDT",
+      "listing": "2025-08-15",
+      "ret": 15.531030490158239,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "USUSDT",
+      "listing": "2025-12-12",
+      "ret": 146.1517680339462,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "VELVETUSDT",
+      "listing": "2025-07-15",
+      "ret": -50.1,
+      "held": 23,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "VIRTUALUSDT",
+      "listing": "2024-12-10",
+      "ret": -50.1,
+      "held": 3,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "WETUSDT",
+      "listing": "2025-12-10",
+      "ret": 81.8622830649709,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "WIFUSDT",
+      "listing": "2024-01-18",
+      "ret": -6.396968126457647,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "WLDUSDT",
+      "listing": "2023-07-24",
+      "ret": 53.492260634514146,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "WLFIUSDT",
+      "listing": "2025-08-23",
+      "ret": 39.975436115040054,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "XAIUSDT",
+      "listing": "2024-01-09",
+      "ret": -50.1,
+      "held": 5,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "XANUSDT",
+      "listing": "2025-09-29",
+      "ret": 534.588995215311,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "XAUTUSDT",
+      "listing": "2026-03-26",
+      "ret": -6.164440683970073,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "XNYUSDT",
+      "listing": "2025-08-13",
+      "ret": -50.1,
+      "held": 2,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "XPINUSDT",
+      "listing": "2025-09-12",
+      "ret": -50.1,
+      "held": 2,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "XPLUSDT",
+      "listing": "2025-08-22",
+      "ret": -50.1,
+      "held": 9,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "YBUSDT",
+      "listing": "2025-10-10",
+      "ret": 145.86327096327096,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "ZAMAUSDT",
+      "listing": "2026-01-09",
+      "ret": 343.7405797101449,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "ZBTUSDT",
+      "listing": "2025-10-17",
+      "ret": 216.5029074215761,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "ZESTUSDT",
+      "listing": "2026-06-04",
+      "ret": -50.1,
+      "held": 5,
+      "reason": "sl",
+      "oos": true
+    },
+    {
+      "symbol": "ZKCUSDT",
+      "listing": "2025-09-15",
+      "ret": 413.1054794520548,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "ZKPUSDT",
+      "listing": "2025-12-21",
+      "ret": 48.08339892010617,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    },
+    {
+      "symbol": "ZORAUSDT",
+      "listing": "2025-07-25",
+      "ret": -50.1,
+      "held": 1,
+      "reason": "sl",
+      "oos": false
+    },
+    {
+      "symbol": "龙虾USDT",
+      "listing": "2026-03-11",
+      "ret": 155.77765957446806,
+      "held": 30,
+      "reason": "time",
+      "oos": false
+    }
+  ]
+}

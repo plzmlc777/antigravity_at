@@ -1,0 +1,175 @@
+{
+  "paradigm_name": "alt_funding_rate_sign_flip_sustained_N_event_bilateral_4h_1d",
+  "paradigm_number": 246,
+  "phase": "R-0",
+  "run_ts_kst": "2026-08-06",
+  "mode": "autonomous_daily_cron_self_recommend",
+  "verdict": "R0_HALT_COMPOUND_LESSON_61_SLUG_GREP_DIRECT_HIT_LESSON_62_DNA_5_OF_6_DUPLICATE_LESSON_56_OUTCOME_FAMILY_PROXY_LESSON_55_PRESCRIPTION_RESCUE_OUT_OF_SCOPE",
+  "predecessor_direct_hit": {
+    "paradigm_number": 96,
+    "slug": "funding_rate_sign_flip_event_alt_long_4h",
+    "date": "2026-05-19",
+    "verdict": "BROAD_FALSIFIED",
+    "location": "backend/runs/research_track/funding_rate_sign_flip_event_alt_long_4h/r1/",
+    "closure_clause_from_summary": "Sign-flip categorical transform class is now documented as graveyard - no further sign-flip variants without different direction/horizon/conditioning hypothesis.",
+    "empirical_results_A_LONG_focus_hold_240m": {
+      "n_events": 3448,
+      "mean_bp": -16.47,
+      "obs_t": -4.77,
+      "signal_t_excess": -3.15,
+      "perm_p": 0.0,
+      "ci_lower_bp": -23.71,
+      "ci_upper_bp": -9.74,
+      "prob_positive_null": 0.0,
+      "three_gate_pass": false,
+      "structurally_anti_alpha": true
+    },
+    "concentration_A_LONG_focus": {
+      "n_symbols_measurable": 12,
+      "n_symbols_ci_pos": 0,
+      "n_symbols_ci_pos_ratio": 0.0,
+      "n_quarters_measurable": 10,
+      "n_quarters_pos_t": 2,
+      "quarter_pos_t_ratio": 0.20,
+      "concentration_gate_pass": false,
+      "verdict": "uniformly_anti_alpha_across_full_cohort_and_full_period"
+    },
+    "hold_sweep_A_LONG_focus": {
+      "240m_mean_bp": -16.47,
+      "480m_mean_bp": -15.94,
+      "720m_mean_bp": -16.39,
+      "note": "Monotonic anti-alpha across 4-12h hold. Mechanism is horizon-invariant, not fixable by hold sweep extension."
+    },
+    "four_quadrant_verdict_all_hold_240m": {
+      "A_LONG_focus": {"mean_bp": -16.47, "sig_t_excess": -3.15, "three_gate": "FAIL"},
+      "A_SHORT_mirror": {"mean_bp": 0.47, "sig_t_excess": 3.22, "three_gate": "FAIL", "note": "sig_t_excess positive but ci_lower -6.26 straddles 0 and perm_p=1.000 = fee floor saturation"},
+      "B_LONG_same_sign": {"mean_bp": -6.11, "sig_t_excess": -0.11, "three_gate": "FAIL"},
+      "B_SHORT_mirror": {"mean_bp": -9.89, "sig_t_excess": 0.35, "three_gate": "FAIL"}
+    }
+  },
+  "lesson_61_slug_grep": {
+    "search_pattern": "sign_flip|zero_crossing|funding.*flip|flip.*funding|sign.*change.*funding|funding.*sign.*change",
+    "direct_hits": [
+      "backend/runs/research_track/funding_rate_sign_flip_event_alt_long_4h/r1/r1_metrics.json",
+      "backend/runs/research_track/funding_rate_sign_flip_event_alt_long_4h/r1/r1_spec.md",
+      "backend/runs/research_track/funding_rate_sign_flip_event_alt_long_4h/r1/r1_summary.md"
+    ],
+    "hit_count": 3,
+    "dogfood_number_cumulative": 12,
+    "verdict": "DIRECT_HIT_HALT_MANDATED"
+  },
+  "lesson_62_dna_5_of_6_check": {
+    "predecessor_paradigm": 96,
+    "dimension_comparison": {
+      "statistic": {
+        "predecessor": "categorical sign_flip event (pos->neg | neg->pos)",
+        "current": "categorical sign_flip event + N-consecutive-same-sign prescreen filter",
+        "match": "YES (base statistic identical; N-streak is preconditioning filter, not new statistic class per Lesson 55 rescue-scope)"
+      },
+      "substrate": {
+        "predecessor": "binance_funding_rate 8h + OHLCV",
+        "current": "binance_funding_rate 8h + OHLCV",
+        "match": "YES (identical)"
+      },
+      "signal_type": {
+        "predecessor": "event_anchored_bilateral_per_sym_4quadrant_SNT",
+        "current": "event_anchored_bilateral_per_sym_4quadrant_SNT",
+        "match": "YES (identical)"
+      },
+      "hold_frame": {
+        "predecessor": "240m/480m/720m (4h/8h/12h)",
+        "current": "4h/12h/24h/48h",
+        "match": "PARTIAL (2/4 identical: 4h and 12h; adds 24h/48h)"
+      },
+      "universe": {
+        "predecessor": "13-alt Binance perp (BNBUSDT effectively absent -> 12 measurable)",
+        "current": "14-sym alt cohort (same core Binance perp pool)",
+        "match": "YES (effectively identical)"
+      },
+      "direction": {
+        "predecessor": "bilateral (LONG+SHORT via 4-quadrant SNT)",
+        "current": "bilateral (LONG+SHORT via 4-quadrant SNT)",
+        "match": "YES (identical)"
+      }
+    },
+    "match_count": "5/6 (statistic + substrate + signal_type + universe + direction; hold_frame partial)",
+    "hard_fail_threshold": "5/6",
+    "verdict": "DNA_DUPLICATE_HALT_MANDATED",
+    "dogfood_number_cumulative": 14
+  },
+  "lesson_55_prescription_rescue_scope": {
+    "predecessor_falsification_scope": "BROAD - all 4 quadrants three-gate FAIL, 0/12 symbols ci_pos in A_LONG focus, structurally anti-alpha (perm_p=0.000) across full 2.5yr window in monotonic hold sweep",
+    "proposed_rescue_mechanism": "N-consecutive-same-sign streak prescreen filter (N in {3,7,14})",
+    "rescue_type_classification": "SPATIAL_FILTER_ON_SAMPLE_SUBSET",
+    "predecessor_uniformity_verdict": "Anti-alpha mechanism is uniform across full sample - no subset heterogeneity that a filter could isolate. Per-quarter pos_t 2/10, per-symbol ci_pos 0/12.",
+    "verdict": "OUT_OF_SCOPE - Lesson 55 prescription-rescue is valid only when predecessor shows heterogeneous subset (some ci_pos symbols or some pos_t quarters that a filter could isolate). Uniform anti-alpha across full cohort cannot be rescued by narrowing to a subset that is a-priori indistinguishable from the failed base.",
+    "dogfood_number_cumulative": 6
+  },
+  "lesson_56_outcome_family_proxy": {
+    "family": "funding_rate_categorical_boundary_event_bilateral",
+    "family_falsification_evidence": "paradigm 96 R-1 empirical: 4/4 quadrants FAIL, 0/12 syms ci_pos, hold sweep 4h/8h/12h monotonic -16bp mean, perm_p=0.000",
+    "current_mechanism_invariance": "N-streak preconditioning selects a temporal subset of the same event class; does not alter the direction-of-drift after flip (which paradigm 96 proved is structurally negative for A LONG and fee-bound for A SHORT mirror). Extending hold to 24h/48h widens rather than narrows the exposure to the same anti-alpha drift.",
+    "verdict": "FAMILY_PROXY_FAIL - mechanism-invariant to the proposed variation",
+    "dogfood_number_cumulative": 22
+  },
+  "lesson_77_substrate_diversity": {
+    "current_substrate": "binance_funding_rate (non-OHLCV)",
+    "compliance": "PASS_IN_LETTER",
+    "note": "Non-OHLCV in letter but same substrate family as paradigm 96 - does not offset DNA duplicate halt"
+  },
+  "lesson_28_substrate_audit": {
+    "table": "binance_funding_rate",
+    "coverage_confirmed_via_paradigm_96_run": "13 syms 2023-11-15 to 2026-05-15+ (860 days)",
+    "current_availability": "PRESUMED_EXTENDED (860 -> ~940 days as of 2026-08-06)",
+    "note": "Not audited fresh - moot given R-0 halt"
+  },
+  "lesson_30_data_window_ratio": {
+    "value": 1.0,
+    "note": "Full window available - moot given R-0 halt"
+  },
+  "lesson_11_sample_density": {
+    "predecessor_events_per_cell": "347/346 for A/B unconditioned",
+    "current_with_N7_filter_estimate": "Approx 40-80 per sym per year (paradigm 96 showed ~289/sym across 2.5yr = 116/yr unconditioned; N-streak filter reduces this by 30-70% depending on N)",
+    "note": "Sample density would clear the prescreen - but predecessor's uniform failure with 10x this sample size proves sample density is not the limiting factor"
+  },
+  "lesson_40_structural_threshold_feasibility": {
+    "statistic": "sign_flip (categorical binary event)",
+    "structural_feasibility": "PASS (event is empirically observable at high rate per paradigm 96)",
+    "note": "Structural feasibility passes but semantic feasibility (whether the event carries alpha) empirically failed"
+  },
+  "compute_saved": {
+    "r0_backfill_bytes": 0,
+    "r1_dispatch_min_estimate": "8-12 min (12 syms x 12 cells at N in {3,7,14} x hold in {4,12,24,48})",
+    "r2_expansion_min_estimate": "20-25 min",
+    "r3_robustness_min_estimate": "15-20 min",
+    "total_saved_min_estimate": "43-57 min + zero backfill bytes"
+  },
+  "lesson_updates": {
+    "lesson_61_slug_grep_dogfood_cumulative": 12,
+    "lesson_62_dna_5_of_6_dogfood_cumulative": 14,
+    "lesson_56_outcome_family_proxy_dogfood_cumulative": 22,
+    "lesson_55_prescription_rescue_scope_dogfood_cumulative": 6,
+    "novel_lesson_candidate": null,
+    "note": "This is a textbook compound R-0 halt with no novel lesson content. Documents cumulative dogfoodings only."
+  },
+  "next_paradigm_247_recommendations": [
+    {
+      "rank": 1,
+      "slug_candidate": "alt_perp_index_price_deviation_from_spot_index_percentile_bilateral_4h",
+      "rationale": "Mark price vs spot index basis deviation z-score - novel substrate family (perp-index basis, distinct from funding/LSR/OI/TBS/sign-flip retired families). Already recommended in paradigm 245 graveyard §5 rank 1."
+    },
+    {
+      "rank": 2,
+      "slug_candidate": "alt_orderbook_liquidity_asymmetry_top10_depth_bid_ask_ratio_bilateral_1d",
+      "rationale": "L2 book snapshot bid/ask depth ratio - distinct from LSR family. Paradigm 245 §5 rank 2."
+    },
+    {
+      "rank": 3,
+      "slug_candidate": "alt_binance_perp_daily_settlement_time_reversion_15m",
+      "rationale": "UTC 00:00 daily boundary reversion - zero substrate overlap with any retired family. Paradigm 245 §5 rank 3."
+    }
+  ],
+  "banned_addendum": [
+    "Any additional funding rate categorical sign-flip variant on the Binance USDT-M perp 14-alt cohort - paradigm 96 empirically retired all 4 quadrants across full hold sweep and full cohort. No N-streak/hold-extension/quadrant-narrowing rescue admissible unless a new substrate family or a direction-inverting mechanism (not just a filter) is proposed."
+  ]
+}

@@ -1,0 +1,102 @@
+{
+  "f3e9da4a-2b6": {
+    "symbol": "STARUSDT",
+    "paper": "lifecycle-paper-starusdt-pilot",
+    "real": null,
+    "notional_usdt": 200.0
+  },
+  "c2f4f5bc-77b": {
+    "symbol": "PHAROSUSDT",
+    "paper": "lifecycle-paper-pharosusdt-445768",
+    "real": null,
+    "notional_usdt": 200.0
+  },
+  "f82fbd15-435": {
+    "symbol": "CTRUSDT",
+    "paper": "lifecycle-paper-ctrusdt-10cd97",
+    "real": null,
+    "notional_usdt": 200.0
+  },
+  "98e505ad-b0a": {
+    "symbol": "SLXUSDT",
+    "paper": "lifecycle-paper-slxusdt-e20801",
+    "real": null,
+    "notional_usdt": 200.0
+  },
+  "704be977-1ce": {
+    "symbol": "BTWUSDT",
+    "paper": "lifecycle-paper-btwusdt-3115ca",
+    "real": null,
+    "notional_usdt": 200.0
+  },
+  "f602535c-6ae": {
+    "symbol": "ZESTUSDT",
+    "paper": "lifecycle-paper-zestusdt-31f5f9",
+    "real": null,
+    "notional_usdt": 200.0
+  },
+  "ce0f3770-38f": {
+    "symbol": "REUSDT",
+    "paper": "lifecycle-paper-reusdt-e7bc8b",
+    "real": "lifecycle-real-reusdt-de5ff8",
+    "notional_usdt": 200.0,
+    "real_account_id": 8,
+    "real_leverage": 1
+  },
+  "e52a30c8-72f": {
+    "symbol": "ARXUSDT",
+    "paper": "lifecycle-paper-arxusdt-c66c2c",
+    "real": "lifecycle-real-arxusdt-7abf00",
+    "notional_usdt": 200.0,
+    "real_account_id": 8,
+    "real_leverage": 1
+  },
+  "f8b6f95f-2df": {
+    "symbol": "OUSDT",
+    "paper": "lifecycle-paper-ousdt-d2863e",
+    "real": "lifecycle-real-ousdt-1050bf",
+    "notional_usdt": 200.0,
+    "real_account_id": 8,
+    "real_leverage": 1
+  },
+  "fe21a551-d3e": {
+    "symbol": "CAPUSDT",
+    "paper": "lifecycle-paper-capusdt-3d9d01",
+    "real": "lifecycle-real-capusdt-78adc7",
+    "notional_usdt": 200.0,
+    "real_account_id": 8,
+    "real_leverage": 1
+  },
+  "03bb2bbd-055": {
+    "symbol": "GRAMUSDT",
+    "paper": "lifecycle-paper-gramusdt-28ec22",
+    "real": "lifecycle-real-gramusdt-7543b6",
+    "notional_usdt": 200.0,
+    "real_account_id": 8,
+    "real_leverage": 1
+  },
+  "5451843c-fe5": {
+    "symbol": "DATAIPUSDT",
+    "paper": "lifecycle-paper-dataipusdt-1c3baf",
+    "real": "lifecycle-real-dataipusdt-cc542c",
+    "notional_usdt": 200.0,
+    "real_account_id": 8,
+    "real_leverage": 1
+  },
+  "999c44da-39c": {
+    "symbol": "GRVTUSDT",
+    "paper": "lifecycle-paper-grvtusdt-83717d",
+    "real": "lifecycle-real-grvtusdt-d587de",
+    "notional_usdt": 200.0,
+    "real_account_id": 8,
+    "real_leverage": 1
+  },
+  "ea69c94d-378": {
+    "symbol": "DOSUSDT",
+    "paper": "lifecycle-paper-dosusdt-a664b7",
+    "real": "lifecycle-real-dosusdt-d3fc8e",
+    "notional_usdt": 200.0,
+    "real_account_id": 8,
+    "real_leverage": 1
+  }
+}

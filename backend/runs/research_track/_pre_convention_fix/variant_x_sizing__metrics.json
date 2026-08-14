@@ -1,0 +1,157 @@
+{
+  "cohort": 131,
+  "span_days": 364,
+  "initial": 724.04,
+  "results": {
+    "base|20%x1 현행": {
+      "n": 87,
+      "starved": 44,
+      "capture": 66.4,
+      "mdd": -26.8,
+      "worst": -1736.9,
+      "final": 23109.0,
+      "ret": 3091.6,
+      "max_conc": 10
+    },
+    "base|3%x1 대안A": {
+      "n": 131,
+      "starved": 0,
+      "capture": 100.0,
+      "mdd": -8.7,
+      "worst": -42.6,
+      "final": 2980.0,
+      "ret": 311.6,
+      "max_conc": 25
+    },
+    "base|3%x3 대안B": {
+      "n": 131,
+      "starved": 0,
+      "capture": 100.0,
+      "mdd": -24.5,
+      "worst": -465.2,
+      "final": 11728.0,
+      "ret": 1519.9,
+      "max_conc": 25
+    },
+    "h21|20%x1 현행": {
+      "n": 95,
+      "starved": 36,
+      "capture": 72.5,
+      "mdd": -32.6,
+      "worst": -3144.3,
+      "final": 39221.0,
+      "ret": 5316.9,
+      "max_conc": 11
+    },
+    "h21|3%x1 대안A": {
+      "n": 131,
+      "starved": 0,
+      "capture": 100.0,
+      "mdd": -9.8,
+      "worst": -37.0,
+      "final": 2590.0,
+      "ret": 257.8,
+      "max_conc": 20
+    },
+    "h21|3%x3 대안B": {
+      "n": 131,
+      "starved": 0,
+      "capture": 100.0,
+      "mdd": -26.3,
+      "worst": -457.8,
+      "final": 11574.0,
+      "ret": 1498.6,
+      "max_conc": 20
+    },
+    "earlyexit_d7|20%x1 현행": {
+      "n": 87,
+      "starved": 44,
+      "capture": 66.4,
+      "mdd": -26.8,
+      "worst": -1736.9,
+      "final": 23109.0,
+      "ret": 3091.6,
+      "max_conc": 10
+    },
+    "earlyexit_d7|3%x1 대안A": {
+      "n": 131,
+      "starved": 0,
+      "capture": 100.0,
+      "mdd": -8.7,
+      "worst": -42.6,
+      "final": 2980.0,
+      "ret": 311.6,
+      "max_conc": 25
+    },
+    "earlyexit_d7|3%x3 대안B": {
+      "n": 131,
+      "starved": 0,
+      "capture": 100.0,
+      "mdd": -24.5,
+      "worst": -465.2,
+      "final": 11728.0,
+      "ret": 1519.9,
+      "max_conc": 25
+    },
+    "earlyexit_d14|20%x1 현행": {
+      "n": 87,
+      "starved": 44,
+      "capture": 66.4,
+      "mdd": -26.8,
+      "worst": -1736.9,
+      "final": 23109.0,
+      "ret": 3091.6,
+      "max_conc": 10
+    },
+    "earlyexit_d14|3%x1 대안A": {
+      "n": 131,
+      "starved": 0,
+      "capture": 100.0,
+      "mdd": -8.7,
+      "worst": -42.6,
+      "final": 2980.0,
+      "ret": 311.6,
+      "max_conc": 25
+    },
+    "earlyexit_d14|3%x3 대안B": {
+      "n": 131,
+      "starved": 0,
+      "capture": 100.0,
+      "mdd": -24.5,
+      "worst": -465.2,
+      "final": 11728.0,
+      "ret": 1519.9,
+      "max_conc": 25
+    },
+    "bearskip|20%x1 현행": {
+      "n": 78,
+      "starved": 44,
+      "capture": 63.9,
+      "mdd": -19.8,
+      "worst": -1316.5,
+      "final": 21316.0,
+      "ret": 2844.0,
+      "max_conc": 10
+    },
+    "bearskip|3%x1 대안A": {
+      "n": 122,
+      "starved": 0,
+      "capture": 100.0,
+      "mdd": -8.7,
+      "worst": -40.7,
+      "final": 2946.0,
+      "ret": 306.9,
+      "max_conc": 25
+    },
+    "bearskip|3%x3 대안B": {
+      "n": 122,
+      "starved": 0,
+      "capture": 100.0,
+      "mdd": -24.5,
+      "worst": -412.8,
+      "final": 11452.0,
+      "ret": 1481.7,
+      "max_conc": 25
+    }
+  }
+}

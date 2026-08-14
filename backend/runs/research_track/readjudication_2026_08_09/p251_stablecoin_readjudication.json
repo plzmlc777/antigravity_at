@@ -1,0 +1,3640 @@
+{
+ "generated_at_kst": "2026-08-09T10:56:14.382437",
+ "paradigm": "alt_stablecoin_supply_net_flow_7d_z_bilateral_alt_1d_3d",
+ "purpose": "substrate stall(joblib 2026-05-12 정지)이 G1 decay 판정을 오염시켰는지 판별",
+ "signal": {
+  "days": 299,
+  "start": "2025-10-14",
+  "end": "2026-08-08"
+ },
+ "joblib_common_end": "2026-05-12",
+ "source_parity_close": {
+  "SOLUSDT": {
+   "n_days": 862,
+   "max_rel_err": 0.0,
+   "median_rel_err": 0.0
+  },
+  "AVAXUSDT": {
+   "n_days": 862,
+   "max_rel_err": 0.0,
+   "median_rel_err": 0.0
+  },
+  "DOGEUSDT": {
+   "n_days": 862,
+   "max_rel_err": 0.0,
+   "median_rel_err": 0.0
+  },
+  "LINKUSDT": {
+   "n_days": 862,
+   "max_rel_err": 0.0,
+   "median_rel_err": 0.0
+  },
+  "XRPUSDT": {
+   "n_days": 862,
+   "max_rel_err": 0.0,
+   "median_rel_err": 0.0
+  },
+  "BNBUSDT": {
+   "n_days": 862,
+   "max_rel_err": 0.0,
+   "median_rel_err": 0.0
+  }
+ },
+ "spec": {
+  "fee_rt": 0.0008,
+  "z_thresh": 1.0,
+  "roll_win": 60,
+  "net_days": 7,
+  "holds": [
+   1,
+   2,
+   3
+  ],
+  "universe": [
+   "SOLUSDT",
+   "AVAXUSDT",
+   "DOGEUSDT",
+   "LINKUSDT",
+   "XRPUSDT",
+   "BNBUSDT"
+  ]
+ },
+ "scenarios": {
+  "A_STALE_joblib": {
+   "SOLUSDT_h1d": {
+    "n": 85,
+    "skipped_no_price": 36,
+    "raw_edge_pct": 1.1372,
+    "last_exit": "2026-05-06",
+    "verdict_now_today": {
+     "G1": {
+      "n_trades": 85,
+      "wt_edge_pct": 0.7082,
+      "wt_t": 1.143,
+      "recent_edge_pct": -0.6383,
+      "older_edge_pct": 1.4934,
+      "decay_ratio": -0.427,
+      "raw_edge_pct": 1.1372,
+      "ok": false,
+      "fail": [
+       "시간가중 t 1.14 < 1.5",
+       "최근 1/3 엣지 -0.638% <= 0",
+       "decay_ratio -0.43 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 1.0x < 3.0x (보유 1440분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 1.2469,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.761,
+       "net_headroom": 15.59,
+       "cycle_margin": 1.0
+      },
+      "notes": []
+     },
+     "passed": false
+    },
+    "verdict_now_dataend": {
+     "G1": {
+      "n_trades": 85,
+      "wt_edge_pct": 0.7082,
+      "wt_t": 1.143,
+      "recent_edge_pct": -0.6383,
+      "older_edge_pct": 1.4934,
+      "decay_ratio": -0.427,
+      "raw_edge_pct": 1.1372,
+      "ok": false,
+      "fail": [
+       "시간가중 t 1.14 < 1.5",
+       "최근 1/3 엣지 -0.638% <= 0",
+       "decay_ratio -0.43 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 1.0x < 3.0x (보유 1440분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 1.2469,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.761,
+       "net_headroom": 15.59,
+       "cycle_margin": 1.0
+      },
+      "notes": []
+     },
+     "passed": false
+    }
+   },
+   "SOLUSDT_h2d": {
+    "n": 85,
+    "skipped_no_price": 36,
+    "raw_edge_pct": 1.7026,
+    "last_exit": "2026-05-07",
+    "verdict_now_today": {
+     "G1": {
+      "n_trades": 85,
+      "wt_edge_pct": 1.0692,
+      "wt_t": 1.468,
+      "recent_edge_pct": -0.6783,
+      "older_edge_pct": 2.2754,
+      "decay_ratio": -0.298,
+      "raw_edge_pct": 1.7026,
+      "ok": false,
+      "fail": [
+       "시간가중 t 1.47 < 1.5",
+       "최근 1/3 엣지 -0.678% <= 0",
+       "decay_ratio -0.30 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 2.0x < 3.0x (보유 2880분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 1.8771,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.756,
+       "net_headroom": 23.46,
+       "cycle_margin": 2.0
+      },
+      "notes": []
+     },
+     "passed": false
+    },
+    "verdict_now_dataend": {
+     "G1": {
+      "n_trades": 85,
+      "wt_edge_pct": 1.0692,
+      "wt_t": 1.468,
+      "recent_edge_pct": -0.6783,
+      "older_edge_pct": 2.2754,
+      "decay_ratio": -0.298,
+      "raw_edge_pct": 1.7026,
+      "ok": false,
+      "fail": [
+       "시간가중 t 1.47 < 1.5",
+       "최근 1/3 엣지 -0.678% <= 0",
+       "decay_ratio -0.30 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 2.0x < 3.0x (보유 2880분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 1.8771,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.756,
+       "net_headroom": 23.46,
+       "cycle_margin": 2.0
+      },
+      "notes": []
+     },
+     "passed": false
+    }
+   },
+   "SOLUSDT_h3d": {
+    "n": 85,
+    "skipped_no_price": 36,
+    "raw_edge_pct": 2.3221,
+    "last_exit": "2026-05-08",
+    "verdict_now_today": {
+     "G1": {
+      "n_trades": 85,
+      "wt_edge_pct": 1.3439,
+      "wt_t": 1.616,
+      "recent_edge_pct": -0.8767,
+      "older_edge_pct": 3.4573,
+      "decay_ratio": -0.254,
+      "raw_edge_pct": 2.3221,
+      "ok": false,
+      "fail": [
+       "최근 1/3 엣지 -0.877% <= 0",
+       "decay_ratio -0.25 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": true,
+      "blocked": [],
+      "metrics": {
+       "edge_after_1bar_pct": 2.7628,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 2.056,
+       "net_headroom": 34.53,
+       "cycle_margin": 3.0
+      },
+      "notes": []
+     },
+     "passed": false
+    },
+    "verdict_now_dataend": {
+     "G1": {
+      "n_trades": 85,
+      "wt_edge_pct": 1.3439,
+      "wt_t": 1.616,
+      "recent_edge_pct": -0.8767,
+      "older_edge_pct": 3.4573,
+      "decay_ratio": -0.254,
+      "raw_edge_pct": 2.3221,
+      "ok": false,
+      "fail": [
+       "최근 1/3 엣지 -0.877% <= 0",
+       "decay_ratio -0.25 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": true,
+      "blocked": [],
+      "metrics": {
+       "edge_after_1bar_pct": 2.7628,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 2.056,
+       "net_headroom": 34.53,
+       "cycle_margin": 3.0
+      },
+      "notes": []
+     },
+     "passed": false
+    }
+   },
+   "AVAXUSDT_h1d": {
+    "n": 85,
+    "skipped_no_price": 36,
+    "raw_edge_pct": 0.9435,
+    "last_exit": "2026-05-06",
+    "verdict_now_today": {
+     "G1": {
+      "n_trades": 85,
+      "wt_edge_pct": 0.5723,
+      "wt_t": 1.014,
+      "recent_edge_pct": -0.358,
+      "older_edge_pct": 1.6351,
+      "decay_ratio": -0.219,
+      "raw_edge_pct": 0.9435,
+      "ok": false,
+      "fail": [
+       "시간가중 t 1.01 < 1.5",
+       "최근 1/3 엣지 -0.358% <= 0",
+       "decay_ratio -0.22 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 1.0x < 3.0x (보유 1440분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 1.1308,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.976,
+       "net_headroom": 14.13,
+       "cycle_margin": 1.0
+      },
+      "notes": []
+     },
+     "passed": false
+    },
+    "verdict_now_dataend": {
+     "G1": {
+      "n_trades": 85,
+      "wt_edge_pct": 0.5723,
+      "wt_t": 1.014,
+      "recent_edge_pct": -0.358,
+      "older_edge_pct": 1.6351,
+      "decay_ratio": -0.219,
+      "raw_edge_pct": 0.9435,
+      "ok": false,
+      "fail": [
+       "시간가중 t 1.01 < 1.5",
+       "최근 1/3 엣지 -0.358% <= 0",
+       "decay_ratio -0.22 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 1.0x < 3.0x (보유 1440분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 1.1308,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.976,
+       "net_headroom": 14.13,
+       "cycle_margin": 1.0
+      },
+      "notes": []
+     },
+     "passed": false
+    }
+   },
+   "AVAXUSDT_h2d": {
+    "n": 85,
+    "skipped_no_price": 36,
+    "raw_edge_pct": 1.5021,
+    "last_exit": "2026-05-07",
+    "verdict_now_today": {
+     "G1": {
+      "n_trades": 85,
+      "wt_edge_pct": 0.9713,
+      "wt_t": 1.482,
+      "recent_edge_pct": -0.2536,
+      "older_edge_pct": 2.2474,
+      "decay_ratio": -0.113,
+      "raw_edge_pct": 1.5021,
+      "ok": false,
+      "fail": [
+       "시간가중 t 1.48 < 1.5",
+       "최근 1/3 엣지 -0.254% <= 0",
+       "decay_ratio -0.11 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 2.0x < 3.0x (보유 2880분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 1.5237,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.569,
+       "net_headroom": 19.05,
+       "cycle_margin": 2.0
+      },
+      "notes": []
+     },
+     "passed": false
+    },
+    "verdict_now_dataend": {
+     "G1": {
+      "n_trades": 85,
+      "wt_edge_pct": 0.9713,
+      "wt_t": 1.482,
+      "recent_edge_pct": -0.2536,
+      "older_edge_pct": 2.2474,
+      "decay_ratio": -0.113,
+      "raw_edge_pct": 1.5021,
+      "ok": false,
+      "fail": [
+       "시간가중 t 1.48 < 1.5",
+       "최근 1/3 엣지 -0.254% <= 0",
+       "decay_ratio -0.11 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 2.0x < 3.0x (보유 2880분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 1.5237,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.569,
+       "net_headroom": 19.05,
+       "cycle_margin": 2.0
+      },
+      "notes": []
+     },
+     "passed": false
+    }
+   },
+   "AVAXUSDT_h3d": {
+    "n": 85,
+    "skipped_no_price": 36,
+    "raw_edge_pct": 1.889,
+    "last_exit": "2026-05-08",
+    "verdict_now_today": {
+     "G1": {
+      "n_trades": 85,
+      "wt_edge_pct": 1.0822,
+      "wt_t": 1.436,
+      "recent_edge_pct": -0.584,
+      "older_edge_pct": 2.9916,
+      "decay_ratio": -0.195,
+      "raw_edge_pct": 1.889,
+      "ok": false,
+      "fail": [
+       "시간가중 t 1.44 < 1.5",
+       "최근 1/3 엣지 -0.584% <= 0",
+       "decay_ratio -0.20 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": true,
+      "blocked": [],
+      "metrics": {
+       "edge_after_1bar_pct": 2.0735,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.916,
+       "net_headroom": 25.92,
+       "cycle_margin": 3.0
+      },
+      "notes": []
+     },
+     "passed": false
+    },
+    "verdict_now_dataend": {
+     "G1": {
+      "n_trades": 85,
+      "wt_edge_pct": 1.0822,
+      "wt_t": 1.436,
+      "recent_edge_pct": -0.584,
+      "older_edge_pct": 2.9916,
+      "decay_ratio": -0.195,
+      "raw_edge_pct": 1.889,
+      "ok": false,
+      "fail": [
+       "시간가중 t 1.44 < 1.5",
+       "최근 1/3 엣지 -0.584% <= 0",
+       "decay_ratio -0.20 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": true,
+      "blocked": [],
+      "metrics": {
+       "edge_after_1bar_pct": 2.0735,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.916,
+       "net_headroom": 25.92,
+       "cycle_margin": 3.0
+      },
+      "notes": []
+     },
+     "passed": false
+    }
+   },
+   "DOGEUSDT_h1d": {
+    "n": 85,
+    "skipped_no_price": 36,
+    "raw_edge_pct": 1.142,
+    "last_exit": "2026-05-06",
+    "verdict_now_today": {
+     "G1": {
+      "n_trades": 85,
+      "wt_edge_pct": 0.8289,
+      "wt_t": 1.376,
+      "recent_edge_pct": -0.329,
+      "older_edge_pct": 1.3027,
+      "decay_ratio": -0.253,
+      "raw_edge_pct": 1.142,
+      "ok": false,
+      "fail": [
+       "시간가중 t 1.38 < 1.5",
+       "최근 1/3 엣지 -0.329% <= 0",
+       "decay_ratio -0.25 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 1.0x < 3.0x (보유 1440분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 1.2749,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.538,
+       "net_headroom": 15.94,
+       "cycle_margin": 1.0
+      },
+      "notes": []
+     },
+     "passed": false
+    },
+    "verdict_now_dataend": {
+     "G1": {
+      "n_trades": 85,
+      "wt_edge_pct": 0.8289,
+      "wt_t": 1.376,
+      "recent_edge_pct": -0.329,
+      "older_edge_pct": 1.3027,
+      "decay_ratio": -0.253,
+      "raw_edge_pct": 1.142,
+      "ok": false,
+      "fail": [
+       "시간가중 t 1.38 < 1.5",
+       "최근 1/3 엣지 -0.329% <= 0",
+       "decay_ratio -0.25 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 1.0x < 3.0x (보유 1440분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 1.2749,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.538,
+       "net_headroom": 15.94,
+       "cycle_margin": 1.0
+      },
+      "notes": []
+     },
+     "passed": false
+    }
+   },
+   "DOGEUSDT_h2d": {
+    "n": 85,
+    "skipped_no_price": 36,
+    "raw_edge_pct": 1.7693,
+    "last_exit": "2026-05-07",
+    "verdict_now_today": {
+     "G1": {
+      "n_trades": 85,
+      "wt_edge_pct": 1.4348,
+      "wt_t": 2.033,
+      "recent_edge_pct": 0.0846,
+      "older_edge_pct": 1.9216,
+      "decay_ratio": 0.044,
+      "raw_edge_pct": 1.7693,
+      "ok": false,
+      "fail": [
+       "decay_ratio 0.04 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 2.0x < 3.0x (보유 2880분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 2.0723,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.444,
+       "net_headroom": 25.9,
+       "cycle_margin": 2.0
+      },
+      "notes": []
+     },
+     "passed": false
+    },
+    "verdict_now_dataend": {
+     "G1": {
+      "n_trades": 85,
+      "wt_edge_pct": 1.4348,
+      "wt_t": 2.033,
+      "recent_edge_pct": 0.0846,
+      "older_edge_pct": 1.9216,
+      "decay_ratio": 0.044,
+      "raw_edge_pct": 1.7693,
+      "ok": false,
+      "fail": [
+       "decay_ratio 0.04 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 2.0x < 3.0x (보유 2880분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 2.0723,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.444,
+       "net_headroom": 25.9,
+       "cycle_margin": 2.0
+      },
+      "notes": []
+     },
+     "passed": false
+    }
+   },
+   "DOGEUSDT_h3d": {
+    "n": 85,
+    "skipped_no_price": 36,
+    "raw_edge_pct": 2.5718,
+    "last_exit": "2026-05-08",
+    "verdict_now_today": {
+     "G1": {
+      "n_trades": 85,
+      "wt_edge_pct": 2.0932,
+      "wt_t": 2.781,
+      "recent_edge_pct": 0.3968,
+      "older_edge_pct": 2.8794,
+      "decay_ratio": 0.138,
+      "raw_edge_pct": 2.5718,
+      "ok": false,
+      "fail": [
+       "decay_ratio 0.14 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": true,
+      "blocked": [],
+      "metrics": {
+       "edge_after_1bar_pct": 3.0123,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.439,
+       "net_headroom": 37.65,
+       "cycle_margin": 3.0
+      },
+      "notes": []
+     },
+     "passed": false
+    },
+    "verdict_now_dataend": {
+     "G1": {
+      "n_trades": 85,
+      "wt_edge_pct": 2.0932,
+      "wt_t": 2.781,
+      "recent_edge_pct": 0.3968,
+      "older_edge_pct": 2.8794,
+      "decay_ratio": 0.138,
+      "raw_edge_pct": 2.5718,
+      "ok": false,
+      "fail": [
+       "decay_ratio 0.14 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": true,
+      "blocked": [],
+      "metrics": {
+       "edge_after_1bar_pct": 3.0123,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.439,
+       "net_headroom": 37.65,
+       "cycle_margin": 3.0
+      },
+      "notes": []
+     },
+     "passed": false
+    }
+   },
+   "LINKUSDT_h1d": {
+    "n": 85,
+    "skipped_no_price": 36,
+    "raw_edge_pct": 0.9617,
+    "last_exit": "2026-05-06",
+    "verdict_now_today": {
+     "G1": {
+      "n_trades": 85,
+      "wt_edge_pct": 0.4813,
+      "wt_t": 0.85,
+      "recent_edge_pct": -0.8212,
+      "older_edge_pct": 1.5582,
+      "decay_ratio": -0.527,
+      "raw_edge_pct": 0.9617,
+      "ok": false,
+      "fail": [
+       "시간가중 t 0.85 < 1.5",
+       "최근 1/3 엣지 -0.821% <= 0",
+       "decay_ratio -0.53 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 1.0x < 3.0x (보유 1440분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 0.9992,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 2.076,
+       "net_headroom": 12.49,
+       "cycle_margin": 1.0
+      },
+      "notes": []
+     },
+     "passed": false
+    },
+    "verdict_now_dataend": {
+     "G1": {
+      "n_trades": 85,
+      "wt_edge_pct": 0.4813,
+      "wt_t": 0.85,
+      "recent_edge_pct": -0.8212,
+      "older_edge_pct": 1.5582,
+      "decay_ratio": -0.527,
+      "raw_edge_pct": 0.9617,
+      "ok": false,
+      "fail": [
+       "시간가중 t 0.85 < 1.5",
+       "최근 1/3 엣지 -0.821% <= 0",
+       "decay_ratio -0.53 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 1.0x < 3.0x (보유 1440분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 0.9992,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 2.076,
+       "net_headroom": 12.49,
+       "cycle_margin": 1.0
+      },
+      "notes": []
+     },
+     "passed": false
+    }
+   },
+   "LINKUSDT_h2d": {
+    "n": 85,
+    "skipped_no_price": 36,
+    "raw_edge_pct": 1.3883,
+    "last_exit": "2026-05-07",
+    "verdict_now_today": {
+     "G1": {
+      "n_trades": 85,
+      "wt_edge_pct": 0.6914,
+      "wt_t": 1.019,
+      "recent_edge_pct": -1.0556,
+      "older_edge_pct": 2.2486,
+      "decay_ratio": -0.469,
+      "raw_edge_pct": 1.3883,
+      "ok": false,
+      "fail": [
+       "시간가중 t 1.02 < 1.5",
+       "최근 1/3 엣지 -1.056% <= 0",
+       "decay_ratio -0.47 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 2.0x < 3.0x (보유 2880분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 1.5135,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 2.189,
+       "net_headroom": 18.92,
+       "cycle_margin": 2.0
+      },
+      "notes": []
+     },
+     "passed": false
+    },
+    "verdict_now_dataend": {
+     "G1": {
+      "n_trades": 85,
+      "wt_edge_pct": 0.6914,
+      "wt_t": 1.019,
+      "recent_edge_pct": -1.0556,
+      "older_edge_pct": 2.2486,
+      "decay_ratio": -0.469,
+      "raw_edge_pct": 1.3883,
+      "ok": false,
+      "fail": [
+       "시간가중 t 1.02 < 1.5",
+       "최근 1/3 엣지 -1.056% <= 0",
+       "decay_ratio -0.47 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 2.0x < 3.0x (보유 2880분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 1.5135,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 2.189,
+       "net_headroom": 18.92,
+       "cycle_margin": 2.0
+      },
+      "notes": []
+     },
+     "passed": false
+    }
+   },
+   "LINKUSDT_h3d": {
+    "n": 85,
+    "skipped_no_price": 36,
+    "raw_edge_pct": 1.9028,
+    "last_exit": "2026-05-08",
+    "verdict_now_today": {
+     "G1": {
+      "n_trades": 85,
+      "wt_edge_pct": 0.8419,
+      "wt_t": 1.075,
+      "recent_edge_pct": -1.4588,
+      "older_edge_pct": 3.272,
+      "decay_ratio": -0.446,
+      "raw_edge_pct": 1.9028,
+      "ok": false,
+      "fail": [
+       "시간가중 t 1.08 < 1.5",
+       "최근 1/3 엣지 -1.459% <= 0",
+       "decay_ratio -0.45 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": true,
+      "blocked": [],
+      "metrics": {
+       "edge_after_1bar_pct": 2.2458,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 2.668,
+       "net_headroom": 28.07,
+       "cycle_margin": 3.0
+      },
+      "notes": []
+     },
+     "passed": false
+    },
+    "verdict_now_dataend": {
+     "G1": {
+      "n_trades": 85,
+      "wt_edge_pct": 0.8419,
+      "wt_t": 1.075,
+      "recent_edge_pct": -1.4588,
+      "older_edge_pct": 3.272,
+      "decay_ratio": -0.446,
+      "raw_edge_pct": 1.9028,
+      "ok": false,
+      "fail": [
+       "시간가중 t 1.08 < 1.5",
+       "최근 1/3 엣지 -1.459% <= 0",
+       "decay_ratio -0.45 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": true,
+      "blocked": [],
+      "metrics": {
+       "edge_after_1bar_pct": 2.2458,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 2.668,
+       "net_headroom": 28.07,
+       "cycle_margin": 3.0
+      },
+      "notes": []
+     },
+     "passed": false
+    }
+   },
+   "XRPUSDT_h1d": {
+    "n": 85,
+    "skipped_no_price": 36,
+    "raw_edge_pct": 0.8852,
+    "last_exit": "2026-05-06",
+    "verdict_now_today": {
+     "G1": {
+      "n_trades": 85,
+      "wt_edge_pct": 0.6773,
+      "wt_t": 1.231,
+      "recent_edge_pct": -0.4209,
+      "older_edge_pct": 0.4825,
+      "decay_ratio": -0.872,
+      "raw_edge_pct": 0.8852,
+      "ok": false,
+      "fail": [
+       "시간가중 t 1.23 < 1.5",
+       "최근 1/3 엣지 -0.421% <= 0",
+       "decay_ratio -0.87 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 1.0x < 3.0x (보유 1440분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 0.8474,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.251,
+       "net_headroom": 10.59,
+       "cycle_margin": 1.0
+      },
+      "notes": []
+     },
+     "passed": false
+    },
+    "verdict_now_dataend": {
+     "G1": {
+      "n_trades": 85,
+      "wt_edge_pct": 0.6773,
+      "wt_t": 1.231,
+      "recent_edge_pct": -0.4209,
+      "older_edge_pct": 0.4825,
+      "decay_ratio": -0.872,
+      "raw_edge_pct": 0.8852,
+      "ok": false,
+      "fail": [
+       "시간가중 t 1.23 < 1.5",
+       "최근 1/3 엣지 -0.421% <= 0",
+       "decay_ratio -0.87 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 1.0x < 3.0x (보유 1440분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 0.8474,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.251,
+       "net_headroom": 10.59,
+       "cycle_margin": 1.0
+      },
+      "notes": []
+     },
+     "passed": false
+    }
+   },
+   "XRPUSDT_h2d": {
+    "n": 85,
+    "skipped_no_price": 36,
+    "raw_edge_pct": 1.1539,
+    "last_exit": "2026-05-07",
+    "verdict_now_today": {
+     "G1": {
+      "n_trades": 85,
+      "wt_edge_pct": 0.8979,
+      "wt_t": 1.355,
+      "recent_edge_pct": -0.4115,
+      "older_edge_pct": 0.8462,
+      "decay_ratio": -0.486,
+      "raw_edge_pct": 1.1539,
+      "ok": false,
+      "fail": [
+       "시간가중 t 1.36 < 1.5",
+       "최근 1/3 엣지 -0.411% <= 0",
+       "decay_ratio -0.49 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 2.0x < 3.0x (보유 2880분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 1.3605,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.515,
+       "net_headroom": 17.01,
+       "cycle_margin": 2.0
+      },
+      "notes": []
+     },
+     "passed": false
+    },
+    "verdict_now_dataend": {
+     "G1": {
+      "n_trades": 85,
+      "wt_edge_pct": 0.8979,
+      "wt_t": 1.355,
+      "recent_edge_pct": -0.4115,
+      "older_edge_pct": 0.8462,
+      "decay_ratio": -0.486,
+      "raw_edge_pct": 1.1539,
+      "ok": false,
+      "fail": [
+       "시간가중 t 1.36 < 1.5",
+       "최근 1/3 엣지 -0.411% <= 0",
+       "decay_ratio -0.49 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 2.0x < 3.0x (보유 2880분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 1.3605,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.515,
+       "net_headroom": 17.01,
+       "cycle_margin": 2.0
+      },
+      "notes": []
+     },
+     "passed": false
+    }
+   },
+   "XRPUSDT_h3d": {
+    "n": 85,
+    "skipped_no_price": 36,
+    "raw_edge_pct": 1.6712,
+    "last_exit": "2026-05-08",
+    "verdict_now_today": {
+     "G1": {
+      "n_trades": 85,
+      "wt_edge_pct": 1.2202,
+      "wt_t": 1.689,
+      "recent_edge_pct": -0.5436,
+      "older_edge_pct": 1.4053,
+      "decay_ratio": -0.387,
+      "raw_edge_pct": 1.6712,
+      "ok": false,
+      "fail": [
+       "최근 1/3 엣지 -0.544% <= 0",
+       "decay_ratio -0.39 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": true,
+      "blocked": [],
+      "metrics": {
+       "edge_after_1bar_pct": 1.9853,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.627,
+       "net_headroom": 24.82,
+       "cycle_margin": 3.0
+      },
+      "notes": []
+     },
+     "passed": false
+    },
+    "verdict_now_dataend": {
+     "G1": {
+      "n_trades": 85,
+      "wt_edge_pct": 1.2202,
+      "wt_t": 1.689,
+      "recent_edge_pct": -0.5436,
+      "older_edge_pct": 1.4053,
+      "decay_ratio": -0.387,
+      "raw_edge_pct": 1.6712,
+      "ok": false,
+      "fail": [
+       "최근 1/3 엣지 -0.544% <= 0",
+       "decay_ratio -0.39 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": true,
+      "blocked": [],
+      "metrics": {
+       "edge_after_1bar_pct": 1.9853,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.627,
+       "net_headroom": 24.82,
+       "cycle_margin": 3.0
+      },
+      "notes": []
+     },
+     "passed": false
+    }
+   },
+   "BNBUSDT_h1d": {
+    "n": 85,
+    "skipped_no_price": 36,
+    "raw_edge_pct": 1.0354,
+    "last_exit": "2026-05-06",
+    "verdict_now_today": {
+     "G1": {
+      "n_trades": 85,
+      "wt_edge_pct": 0.6951,
+      "wt_t": 1.467,
+      "recent_edge_pct": -0.1041,
+      "older_edge_pct": 1.4974,
+      "decay_ratio": -0.07,
+      "raw_edge_pct": 1.0354,
+      "ok": false,
+      "fail": [
+       "시간가중 t 1.47 < 1.5",
+       "최근 1/3 엣지 -0.104% <= 0",
+       "decay_ratio -0.07 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 1.0x < 3.0x (보유 1440분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 1.1104,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.597,
+       "net_headroom": 13.88,
+       "cycle_margin": 1.0
+      },
+      "notes": []
+     },
+     "passed": false
+    },
+    "verdict_now_dataend": {
+     "G1": {
+      "n_trades": 85,
+      "wt_edge_pct": 0.6951,
+      "wt_t": 1.467,
+      "recent_edge_pct": -0.1041,
+      "older_edge_pct": 1.4974,
+      "decay_ratio": -0.07,
+      "raw_edge_pct": 1.0354,
+      "ok": false,
+      "fail": [
+       "시간가중 t 1.47 < 1.5",
+       "최근 1/3 엣지 -0.104% <= 0",
+       "decay_ratio -0.07 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 1.0x < 3.0x (보유 1440분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 1.1104,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.597,
+       "net_headroom": 13.88,
+       "cycle_margin": 1.0
+      },
+      "notes": []
+     },
+     "passed": false
+    }
+   },
+   "BNBUSDT_h2d": {
+    "n": 85,
+    "skipped_no_price": 36,
+    "raw_edge_pct": 1.5459,
+    "last_exit": "2026-05-07",
+    "verdict_now_today": {
+     "G1": {
+      "n_trades": 85,
+      "wt_edge_pct": 1.0242,
+      "wt_t": 1.795,
+      "recent_edge_pct": -0.1304,
+      "older_edge_pct": 2.2871,
+      "decay_ratio": -0.057,
+      "raw_edge_pct": 1.5459,
+      "ok": false,
+      "fail": [
+       "최근 1/3 엣지 -0.130% <= 0",
+       "decay_ratio -0.06 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 2.0x < 3.0x (보유 2880분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 1.6409,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.602,
+       "net_headroom": 20.51,
+       "cycle_margin": 2.0
+      },
+      "notes": []
+     },
+     "passed": false
+    },
+    "verdict_now_dataend": {
+     "G1": {
+      "n_trades": 85,
+      "wt_edge_pct": 1.0242,
+      "wt_t": 1.795,
+      "recent_edge_pct": -0.1304,
+      "older_edge_pct": 2.2871,
+      "decay_ratio": -0.057,
+      "raw_edge_pct": 1.5459,
+      "ok": false,
+      "fail": [
+       "최근 1/3 엣지 -0.130% <= 0",
+       "decay_ratio -0.06 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 2.0x < 3.0x (보유 2880분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 1.6409,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.602,
+       "net_headroom": 20.51,
+       "cycle_margin": 2.0
+      },
+      "notes": []
+     },
+     "passed": false
+    }
+   },
+   "BNBUSDT_h3d": {
+    "n": 85,
+    "skipped_no_price": 36,
+    "raw_edge_pct": 2.0761,
+    "last_exit": "2026-05-08",
+    "verdict_now_today": {
+     "G1": {
+      "n_trades": 85,
+      "wt_edge_pct": 1.3276,
+      "wt_t": 2.03,
+      "recent_edge_pct": -0.1593,
+      "older_edge_pct": 3.0882,
+      "decay_ratio": -0.052,
+      "raw_edge_pct": 2.0761,
+      "ok": false,
+      "fail": [
+       "최근 1/3 엣지 -0.159% <= 0",
+       "decay_ratio -0.05 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": true,
+      "blocked": [],
+      "metrics": {
+       "edge_after_1bar_pct": 2.2014,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.658,
+       "net_headroom": 27.52,
+       "cycle_margin": 3.0
+      },
+      "notes": []
+     },
+     "passed": false
+    },
+    "verdict_now_dataend": {
+     "G1": {
+      "n_trades": 85,
+      "wt_edge_pct": 1.3276,
+      "wt_t": 2.03,
+      "recent_edge_pct": -0.1593,
+      "older_edge_pct": 3.0882,
+      "decay_ratio": -0.052,
+      "raw_edge_pct": 2.0761,
+      "ok": false,
+      "fail": [
+       "최근 1/3 엣지 -0.159% <= 0",
+       "decay_ratio -0.05 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": true,
+      "blocked": [],
+      "metrics": {
+       "edge_after_1bar_pct": 2.2014,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.658,
+       "net_headroom": 27.52,
+       "cycle_margin": 3.0
+      },
+      "notes": []
+     },
+     "passed": false
+    }
+   }
+  },
+  "B_FRESH_db_same_window": {
+   "SOLUSDT_h1d": {
+    "n": 85,
+    "skipped_no_price": 36,
+    "raw_edge_pct": 1.1372,
+    "last_exit": "2026-05-06",
+    "verdict_now_today": {
+     "G1": {
+      "n_trades": 85,
+      "wt_edge_pct": 0.7082,
+      "wt_t": 1.143,
+      "recent_edge_pct": -0.6383,
+      "older_edge_pct": 1.4934,
+      "decay_ratio": -0.427,
+      "raw_edge_pct": 1.1372,
+      "ok": false,
+      "fail": [
+       "시간가중 t 1.14 < 1.5",
+       "최근 1/3 엣지 -0.638% <= 0",
+       "decay_ratio -0.43 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 1.0x < 3.0x (보유 1440분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 1.2469,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.761,
+       "net_headroom": 15.59,
+       "cycle_margin": 1.0
+      },
+      "notes": []
+     },
+     "passed": false
+    },
+    "verdict_now_dataend": {
+     "G1": {
+      "n_trades": 85,
+      "wt_edge_pct": 0.7082,
+      "wt_t": 1.143,
+      "recent_edge_pct": -0.6383,
+      "older_edge_pct": 1.4934,
+      "decay_ratio": -0.427,
+      "raw_edge_pct": 1.1372,
+      "ok": false,
+      "fail": [
+       "시간가중 t 1.14 < 1.5",
+       "최근 1/3 엣지 -0.638% <= 0",
+       "decay_ratio -0.43 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 1.0x < 3.0x (보유 1440분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 1.2469,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.761,
+       "net_headroom": 15.59,
+       "cycle_margin": 1.0
+      },
+      "notes": []
+     },
+     "passed": false
+    }
+   },
+   "SOLUSDT_h2d": {
+    "n": 85,
+    "skipped_no_price": 36,
+    "raw_edge_pct": 1.7026,
+    "last_exit": "2026-05-07",
+    "verdict_now_today": {
+     "G1": {
+      "n_trades": 85,
+      "wt_edge_pct": 1.0692,
+      "wt_t": 1.468,
+      "recent_edge_pct": -0.6783,
+      "older_edge_pct": 2.2754,
+      "decay_ratio": -0.298,
+      "raw_edge_pct": 1.7026,
+      "ok": false,
+      "fail": [
+       "시간가중 t 1.47 < 1.5",
+       "최근 1/3 엣지 -0.678% <= 0",
+       "decay_ratio -0.30 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 2.0x < 3.0x (보유 2880분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 1.8771,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.756,
+       "net_headroom": 23.46,
+       "cycle_margin": 2.0
+      },
+      "notes": []
+     },
+     "passed": false
+    },
+    "verdict_now_dataend": {
+     "G1": {
+      "n_trades": 85,
+      "wt_edge_pct": 1.0692,
+      "wt_t": 1.468,
+      "recent_edge_pct": -0.6783,
+      "older_edge_pct": 2.2754,
+      "decay_ratio": -0.298,
+      "raw_edge_pct": 1.7026,
+      "ok": false,
+      "fail": [
+       "시간가중 t 1.47 < 1.5",
+       "최근 1/3 엣지 -0.678% <= 0",
+       "decay_ratio -0.30 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 2.0x < 3.0x (보유 2880분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 1.8771,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.756,
+       "net_headroom": 23.46,
+       "cycle_margin": 2.0
+      },
+      "notes": []
+     },
+     "passed": false
+    }
+   },
+   "SOLUSDT_h3d": {
+    "n": 85,
+    "skipped_no_price": 36,
+    "raw_edge_pct": 2.3221,
+    "last_exit": "2026-05-08",
+    "verdict_now_today": {
+     "G1": {
+      "n_trades": 85,
+      "wt_edge_pct": 1.3439,
+      "wt_t": 1.616,
+      "recent_edge_pct": -0.8767,
+      "older_edge_pct": 3.4573,
+      "decay_ratio": -0.254,
+      "raw_edge_pct": 2.3221,
+      "ok": false,
+      "fail": [
+       "최근 1/3 엣지 -0.877% <= 0",
+       "decay_ratio -0.25 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": true,
+      "blocked": [],
+      "metrics": {
+       "edge_after_1bar_pct": 2.7628,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 2.056,
+       "net_headroom": 34.53,
+       "cycle_margin": 3.0
+      },
+      "notes": []
+     },
+     "passed": false
+    },
+    "verdict_now_dataend": {
+     "G1": {
+      "n_trades": 85,
+      "wt_edge_pct": 1.3439,
+      "wt_t": 1.616,
+      "recent_edge_pct": -0.8767,
+      "older_edge_pct": 3.4573,
+      "decay_ratio": -0.254,
+      "raw_edge_pct": 2.3221,
+      "ok": false,
+      "fail": [
+       "최근 1/3 엣지 -0.877% <= 0",
+       "decay_ratio -0.25 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": true,
+      "blocked": [],
+      "metrics": {
+       "edge_after_1bar_pct": 2.7628,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 2.056,
+       "net_headroom": 34.53,
+       "cycle_margin": 3.0
+      },
+      "notes": []
+     },
+     "passed": false
+    }
+   },
+   "AVAXUSDT_h1d": {
+    "n": 85,
+    "skipped_no_price": 36,
+    "raw_edge_pct": 0.9435,
+    "last_exit": "2026-05-06",
+    "verdict_now_today": {
+     "G1": {
+      "n_trades": 85,
+      "wt_edge_pct": 0.5723,
+      "wt_t": 1.014,
+      "recent_edge_pct": -0.358,
+      "older_edge_pct": 1.6351,
+      "decay_ratio": -0.219,
+      "raw_edge_pct": 0.9435,
+      "ok": false,
+      "fail": [
+       "시간가중 t 1.01 < 1.5",
+       "최근 1/3 엣지 -0.358% <= 0",
+       "decay_ratio -0.22 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 1.0x < 3.0x (보유 1440분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 1.1308,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.976,
+       "net_headroom": 14.13,
+       "cycle_margin": 1.0
+      },
+      "notes": []
+     },
+     "passed": false
+    },
+    "verdict_now_dataend": {
+     "G1": {
+      "n_trades": 85,
+      "wt_edge_pct": 0.5723,
+      "wt_t": 1.014,
+      "recent_edge_pct": -0.358,
+      "older_edge_pct": 1.6351,
+      "decay_ratio": -0.219,
+      "raw_edge_pct": 0.9435,
+      "ok": false,
+      "fail": [
+       "시간가중 t 1.01 < 1.5",
+       "최근 1/3 엣지 -0.358% <= 0",
+       "decay_ratio -0.22 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 1.0x < 3.0x (보유 1440분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 1.1308,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.976,
+       "net_headroom": 14.13,
+       "cycle_margin": 1.0
+      },
+      "notes": []
+     },
+     "passed": false
+    }
+   },
+   "AVAXUSDT_h2d": {
+    "n": 85,
+    "skipped_no_price": 36,
+    "raw_edge_pct": 1.5021,
+    "last_exit": "2026-05-07",
+    "verdict_now_today": {
+     "G1": {
+      "n_trades": 85,
+      "wt_edge_pct": 0.9713,
+      "wt_t": 1.482,
+      "recent_edge_pct": -0.2536,
+      "older_edge_pct": 2.2474,
+      "decay_ratio": -0.113,
+      "raw_edge_pct": 1.5021,
+      "ok": false,
+      "fail": [
+       "시간가중 t 1.48 < 1.5",
+       "최근 1/3 엣지 -0.254% <= 0",
+       "decay_ratio -0.11 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 2.0x < 3.0x (보유 2880분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 1.5237,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.569,
+       "net_headroom": 19.05,
+       "cycle_margin": 2.0
+      },
+      "notes": []
+     },
+     "passed": false
+    },
+    "verdict_now_dataend": {
+     "G1": {
+      "n_trades": 85,
+      "wt_edge_pct": 0.9713,
+      "wt_t": 1.482,
+      "recent_edge_pct": -0.2536,
+      "older_edge_pct": 2.2474,
+      "decay_ratio": -0.113,
+      "raw_edge_pct": 1.5021,
+      "ok": false,
+      "fail": [
+       "시간가중 t 1.48 < 1.5",
+       "최근 1/3 엣지 -0.254% <= 0",
+       "decay_ratio -0.11 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 2.0x < 3.0x (보유 2880분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 1.5237,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.569,
+       "net_headroom": 19.05,
+       "cycle_margin": 2.0
+      },
+      "notes": []
+     },
+     "passed": false
+    }
+   },
+   "AVAXUSDT_h3d": {
+    "n": 85,
+    "skipped_no_price": 36,
+    "raw_edge_pct": 1.889,
+    "last_exit": "2026-05-08",
+    "verdict_now_today": {
+     "G1": {
+      "n_trades": 85,
+      "wt_edge_pct": 1.0822,
+      "wt_t": 1.436,
+      "recent_edge_pct": -0.584,
+      "older_edge_pct": 2.9916,
+      "decay_ratio": -0.195,
+      "raw_edge_pct": 1.889,
+      "ok": false,
+      "fail": [
+       "시간가중 t 1.44 < 1.5",
+       "최근 1/3 엣지 -0.584% <= 0",
+       "decay_ratio -0.20 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": true,
+      "blocked": [],
+      "metrics": {
+       "edge_after_1bar_pct": 2.0735,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.916,
+       "net_headroom": 25.92,
+       "cycle_margin": 3.0
+      },
+      "notes": []
+     },
+     "passed": false
+    },
+    "verdict_now_dataend": {
+     "G1": {
+      "n_trades": 85,
+      "wt_edge_pct": 1.0822,
+      "wt_t": 1.436,
+      "recent_edge_pct": -0.584,
+      "older_edge_pct": 2.9916,
+      "decay_ratio": -0.195,
+      "raw_edge_pct": 1.889,
+      "ok": false,
+      "fail": [
+       "시간가중 t 1.44 < 1.5",
+       "최근 1/3 엣지 -0.584% <= 0",
+       "decay_ratio -0.20 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": true,
+      "blocked": [],
+      "metrics": {
+       "edge_after_1bar_pct": 2.0735,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.916,
+       "net_headroom": 25.92,
+       "cycle_margin": 3.0
+      },
+      "notes": []
+     },
+     "passed": false
+    }
+   },
+   "DOGEUSDT_h1d": {
+    "n": 85,
+    "skipped_no_price": 36,
+    "raw_edge_pct": 1.142,
+    "last_exit": "2026-05-06",
+    "verdict_now_today": {
+     "G1": {
+      "n_trades": 85,
+      "wt_edge_pct": 0.8289,
+      "wt_t": 1.376,
+      "recent_edge_pct": -0.329,
+      "older_edge_pct": 1.3027,
+      "decay_ratio": -0.253,
+      "raw_edge_pct": 1.142,
+      "ok": false,
+      "fail": [
+       "시간가중 t 1.38 < 1.5",
+       "최근 1/3 엣지 -0.329% <= 0",
+       "decay_ratio -0.25 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 1.0x < 3.0x (보유 1440분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 1.2749,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.538,
+       "net_headroom": 15.94,
+       "cycle_margin": 1.0
+      },
+      "notes": []
+     },
+     "passed": false
+    },
+    "verdict_now_dataend": {
+     "G1": {
+      "n_trades": 85,
+      "wt_edge_pct": 0.8289,
+      "wt_t": 1.376,
+      "recent_edge_pct": -0.329,
+      "older_edge_pct": 1.3027,
+      "decay_ratio": -0.253,
+      "raw_edge_pct": 1.142,
+      "ok": false,
+      "fail": [
+       "시간가중 t 1.38 < 1.5",
+       "최근 1/3 엣지 -0.329% <= 0",
+       "decay_ratio -0.25 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 1.0x < 3.0x (보유 1440분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 1.2749,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.538,
+       "net_headroom": 15.94,
+       "cycle_margin": 1.0
+      },
+      "notes": []
+     },
+     "passed": false
+    }
+   },
+   "DOGEUSDT_h2d": {
+    "n": 85,
+    "skipped_no_price": 36,
+    "raw_edge_pct": 1.7693,
+    "last_exit": "2026-05-07",
+    "verdict_now_today": {
+     "G1": {
+      "n_trades": 85,
+      "wt_edge_pct": 1.4348,
+      "wt_t": 2.033,
+      "recent_edge_pct": 0.0846,
+      "older_edge_pct": 1.9216,
+      "decay_ratio": 0.044,
+      "raw_edge_pct": 1.7693,
+      "ok": false,
+      "fail": [
+       "decay_ratio 0.04 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 2.0x < 3.0x (보유 2880분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 2.0723,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.444,
+       "net_headroom": 25.9,
+       "cycle_margin": 2.0
+      },
+      "notes": []
+     },
+     "passed": false
+    },
+    "verdict_now_dataend": {
+     "G1": {
+      "n_trades": 85,
+      "wt_edge_pct": 1.4348,
+      "wt_t": 2.033,
+      "recent_edge_pct": 0.0846,
+      "older_edge_pct": 1.9216,
+      "decay_ratio": 0.044,
+      "raw_edge_pct": 1.7693,
+      "ok": false,
+      "fail": [
+       "decay_ratio 0.04 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 2.0x < 3.0x (보유 2880분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 2.0723,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.444,
+       "net_headroom": 25.9,
+       "cycle_margin": 2.0
+      },
+      "notes": []
+     },
+     "passed": false
+    }
+   },
+   "DOGEUSDT_h3d": {
+    "n": 85,
+    "skipped_no_price": 36,
+    "raw_edge_pct": 2.5718,
+    "last_exit": "2026-05-08",
+    "verdict_now_today": {
+     "G1": {
+      "n_trades": 85,
+      "wt_edge_pct": 2.0932,
+      "wt_t": 2.781,
+      "recent_edge_pct": 0.3968,
+      "older_edge_pct": 2.8794,
+      "decay_ratio": 0.138,
+      "raw_edge_pct": 2.5718,
+      "ok": false,
+      "fail": [
+       "decay_ratio 0.14 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": true,
+      "blocked": [],
+      "metrics": {
+       "edge_after_1bar_pct": 3.0123,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.439,
+       "net_headroom": 37.65,
+       "cycle_margin": 3.0
+      },
+      "notes": []
+     },
+     "passed": false
+    },
+    "verdict_now_dataend": {
+     "G1": {
+      "n_trades": 85,
+      "wt_edge_pct": 2.0932,
+      "wt_t": 2.781,
+      "recent_edge_pct": 0.3968,
+      "older_edge_pct": 2.8794,
+      "decay_ratio": 0.138,
+      "raw_edge_pct": 2.5718,
+      "ok": false,
+      "fail": [
+       "decay_ratio 0.14 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": true,
+      "blocked": [],
+      "metrics": {
+       "edge_after_1bar_pct": 3.0123,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.439,
+       "net_headroom": 37.65,
+       "cycle_margin": 3.0
+      },
+      "notes": []
+     },
+     "passed": false
+    }
+   },
+   "LINKUSDT_h1d": {
+    "n": 85,
+    "skipped_no_price": 36,
+    "raw_edge_pct": 0.9617,
+    "last_exit": "2026-05-06",
+    "verdict_now_today": {
+     "G1": {
+      "n_trades": 85,
+      "wt_edge_pct": 0.4813,
+      "wt_t": 0.85,
+      "recent_edge_pct": -0.8212,
+      "older_edge_pct": 1.5582,
+      "decay_ratio": -0.527,
+      "raw_edge_pct": 0.9617,
+      "ok": false,
+      "fail": [
+       "시간가중 t 0.85 < 1.5",
+       "최근 1/3 엣지 -0.821% <= 0",
+       "decay_ratio -0.53 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 1.0x < 3.0x (보유 1440분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 0.9992,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 2.076,
+       "net_headroom": 12.49,
+       "cycle_margin": 1.0
+      },
+      "notes": []
+     },
+     "passed": false
+    },
+    "verdict_now_dataend": {
+     "G1": {
+      "n_trades": 85,
+      "wt_edge_pct": 0.4813,
+      "wt_t": 0.85,
+      "recent_edge_pct": -0.8212,
+      "older_edge_pct": 1.5582,
+      "decay_ratio": -0.527,
+      "raw_edge_pct": 0.9617,
+      "ok": false,
+      "fail": [
+       "시간가중 t 0.85 < 1.5",
+       "최근 1/3 엣지 -0.821% <= 0",
+       "decay_ratio -0.53 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 1.0x < 3.0x (보유 1440분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 0.9992,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 2.076,
+       "net_headroom": 12.49,
+       "cycle_margin": 1.0
+      },
+      "notes": []
+     },
+     "passed": false
+    }
+   },
+   "LINKUSDT_h2d": {
+    "n": 85,
+    "skipped_no_price": 36,
+    "raw_edge_pct": 1.3883,
+    "last_exit": "2026-05-07",
+    "verdict_now_today": {
+     "G1": {
+      "n_trades": 85,
+      "wt_edge_pct": 0.6914,
+      "wt_t": 1.019,
+      "recent_edge_pct": -1.0556,
+      "older_edge_pct": 2.2486,
+      "decay_ratio": -0.469,
+      "raw_edge_pct": 1.3883,
+      "ok": false,
+      "fail": [
+       "시간가중 t 1.02 < 1.5",
+       "최근 1/3 엣지 -1.056% <= 0",
+       "decay_ratio -0.47 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 2.0x < 3.0x (보유 2880분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 1.5135,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 2.189,
+       "net_headroom": 18.92,
+       "cycle_margin": 2.0
+      },
+      "notes": []
+     },
+     "passed": false
+    },
+    "verdict_now_dataend": {
+     "G1": {
+      "n_trades": 85,
+      "wt_edge_pct": 0.6914,
+      "wt_t": 1.019,
+      "recent_edge_pct": -1.0556,
+      "older_edge_pct": 2.2486,
+      "decay_ratio": -0.469,
+      "raw_edge_pct": 1.3883,
+      "ok": false,
+      "fail": [
+       "시간가중 t 1.02 < 1.5",
+       "최근 1/3 엣지 -1.056% <= 0",
+       "decay_ratio -0.47 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 2.0x < 3.0x (보유 2880분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 1.5135,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 2.189,
+       "net_headroom": 18.92,
+       "cycle_margin": 2.0
+      },
+      "notes": []
+     },
+     "passed": false
+    }
+   },
+   "LINKUSDT_h3d": {
+    "n": 85,
+    "skipped_no_price": 36,
+    "raw_edge_pct": 1.9028,
+    "last_exit": "2026-05-08",
+    "verdict_now_today": {
+     "G1": {
+      "n_trades": 85,
+      "wt_edge_pct": 0.8419,
+      "wt_t": 1.075,
+      "recent_edge_pct": -1.4588,
+      "older_edge_pct": 3.272,
+      "decay_ratio": -0.446,
+      "raw_edge_pct": 1.9028,
+      "ok": false,
+      "fail": [
+       "시간가중 t 1.08 < 1.5",
+       "최근 1/3 엣지 -1.459% <= 0",
+       "decay_ratio -0.45 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": true,
+      "blocked": [],
+      "metrics": {
+       "edge_after_1bar_pct": 2.2458,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 2.668,
+       "net_headroom": 28.07,
+       "cycle_margin": 3.0
+      },
+      "notes": []
+     },
+     "passed": false
+    },
+    "verdict_now_dataend": {
+     "G1": {
+      "n_trades": 85,
+      "wt_edge_pct": 0.8419,
+      "wt_t": 1.075,
+      "recent_edge_pct": -1.4588,
+      "older_edge_pct": 3.272,
+      "decay_ratio": -0.446,
+      "raw_edge_pct": 1.9028,
+      "ok": false,
+      "fail": [
+       "시간가중 t 1.08 < 1.5",
+       "최근 1/3 엣지 -1.459% <= 0",
+       "decay_ratio -0.45 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": true,
+      "blocked": [],
+      "metrics": {
+       "edge_after_1bar_pct": 2.2458,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 2.668,
+       "net_headroom": 28.07,
+       "cycle_margin": 3.0
+      },
+      "notes": []
+     },
+     "passed": false
+    }
+   },
+   "XRPUSDT_h1d": {
+    "n": 85,
+    "skipped_no_price": 36,
+    "raw_edge_pct": 0.8852,
+    "last_exit": "2026-05-06",
+    "verdict_now_today": {
+     "G1": {
+      "n_trades": 85,
+      "wt_edge_pct": 0.6773,
+      "wt_t": 1.231,
+      "recent_edge_pct": -0.4209,
+      "older_edge_pct": 0.4825,
+      "decay_ratio": -0.872,
+      "raw_edge_pct": 0.8852,
+      "ok": false,
+      "fail": [
+       "시간가중 t 1.23 < 1.5",
+       "최근 1/3 엣지 -0.421% <= 0",
+       "decay_ratio -0.87 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 1.0x < 3.0x (보유 1440분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 0.8474,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.251,
+       "net_headroom": 10.59,
+       "cycle_margin": 1.0
+      },
+      "notes": []
+     },
+     "passed": false
+    },
+    "verdict_now_dataend": {
+     "G1": {
+      "n_trades": 85,
+      "wt_edge_pct": 0.6773,
+      "wt_t": 1.231,
+      "recent_edge_pct": -0.4209,
+      "older_edge_pct": 0.4825,
+      "decay_ratio": -0.872,
+      "raw_edge_pct": 0.8852,
+      "ok": false,
+      "fail": [
+       "시간가중 t 1.23 < 1.5",
+       "최근 1/3 엣지 -0.421% <= 0",
+       "decay_ratio -0.87 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 1.0x < 3.0x (보유 1440분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 0.8474,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.251,
+       "net_headroom": 10.59,
+       "cycle_margin": 1.0
+      },
+      "notes": []
+     },
+     "passed": false
+    }
+   },
+   "XRPUSDT_h2d": {
+    "n": 85,
+    "skipped_no_price": 36,
+    "raw_edge_pct": 1.1539,
+    "last_exit": "2026-05-07",
+    "verdict_now_today": {
+     "G1": {
+      "n_trades": 85,
+      "wt_edge_pct": 0.8979,
+      "wt_t": 1.355,
+      "recent_edge_pct": -0.4115,
+      "older_edge_pct": 0.8462,
+      "decay_ratio": -0.486,
+      "raw_edge_pct": 1.1539,
+      "ok": false,
+      "fail": [
+       "시간가중 t 1.36 < 1.5",
+       "최근 1/3 엣지 -0.411% <= 0",
+       "decay_ratio -0.49 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 2.0x < 3.0x (보유 2880분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 1.3605,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.515,
+       "net_headroom": 17.01,
+       "cycle_margin": 2.0
+      },
+      "notes": []
+     },
+     "passed": false
+    },
+    "verdict_now_dataend": {
+     "G1": {
+      "n_trades": 85,
+      "wt_edge_pct": 0.8979,
+      "wt_t": 1.355,
+      "recent_edge_pct": -0.4115,
+      "older_edge_pct": 0.8462,
+      "decay_ratio": -0.486,
+      "raw_edge_pct": 1.1539,
+      "ok": false,
+      "fail": [
+       "시간가중 t 1.36 < 1.5",
+       "최근 1/3 엣지 -0.411% <= 0",
+       "decay_ratio -0.49 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 2.0x < 3.0x (보유 2880분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 1.3605,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.515,
+       "net_headroom": 17.01,
+       "cycle_margin": 2.0
+      },
+      "notes": []
+     },
+     "passed": false
+    }
+   },
+   "XRPUSDT_h3d": {
+    "n": 85,
+    "skipped_no_price": 36,
+    "raw_edge_pct": 1.6712,
+    "last_exit": "2026-05-08",
+    "verdict_now_today": {
+     "G1": {
+      "n_trades": 85,
+      "wt_edge_pct": 1.2202,
+      "wt_t": 1.689,
+      "recent_edge_pct": -0.5436,
+      "older_edge_pct": 1.4053,
+      "decay_ratio": -0.387,
+      "raw_edge_pct": 1.6712,
+      "ok": false,
+      "fail": [
+       "최근 1/3 엣지 -0.544% <= 0",
+       "decay_ratio -0.39 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": true,
+      "blocked": [],
+      "metrics": {
+       "edge_after_1bar_pct": 1.9853,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.627,
+       "net_headroom": 24.82,
+       "cycle_margin": 3.0
+      },
+      "notes": []
+     },
+     "passed": false
+    },
+    "verdict_now_dataend": {
+     "G1": {
+      "n_trades": 85,
+      "wt_edge_pct": 1.2202,
+      "wt_t": 1.689,
+      "recent_edge_pct": -0.5436,
+      "older_edge_pct": 1.4053,
+      "decay_ratio": -0.387,
+      "raw_edge_pct": 1.6712,
+      "ok": false,
+      "fail": [
+       "최근 1/3 엣지 -0.544% <= 0",
+       "decay_ratio -0.39 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": true,
+      "blocked": [],
+      "metrics": {
+       "edge_after_1bar_pct": 1.9853,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.627,
+       "net_headroom": 24.82,
+       "cycle_margin": 3.0
+      },
+      "notes": []
+     },
+     "passed": false
+    }
+   },
+   "BNBUSDT_h1d": {
+    "n": 85,
+    "skipped_no_price": 36,
+    "raw_edge_pct": 1.0354,
+    "last_exit": "2026-05-06",
+    "verdict_now_today": {
+     "G1": {
+      "n_trades": 85,
+      "wt_edge_pct": 0.6951,
+      "wt_t": 1.467,
+      "recent_edge_pct": -0.1041,
+      "older_edge_pct": 1.4974,
+      "decay_ratio": -0.07,
+      "raw_edge_pct": 1.0354,
+      "ok": false,
+      "fail": [
+       "시간가중 t 1.47 < 1.5",
+       "최근 1/3 엣지 -0.104% <= 0",
+       "decay_ratio -0.07 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 1.0x < 3.0x (보유 1440분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 1.1104,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.597,
+       "net_headroom": 13.88,
+       "cycle_margin": 1.0
+      },
+      "notes": []
+     },
+     "passed": false
+    },
+    "verdict_now_dataend": {
+     "G1": {
+      "n_trades": 85,
+      "wt_edge_pct": 0.6951,
+      "wt_t": 1.467,
+      "recent_edge_pct": -0.1041,
+      "older_edge_pct": 1.4974,
+      "decay_ratio": -0.07,
+      "raw_edge_pct": 1.0354,
+      "ok": false,
+      "fail": [
+       "시간가중 t 1.47 < 1.5",
+       "최근 1/3 엣지 -0.104% <= 0",
+       "decay_ratio -0.07 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 1.0x < 3.0x (보유 1440분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 1.1104,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.597,
+       "net_headroom": 13.88,
+       "cycle_margin": 1.0
+      },
+      "notes": []
+     },
+     "passed": false
+    }
+   },
+   "BNBUSDT_h2d": {
+    "n": 85,
+    "skipped_no_price": 36,
+    "raw_edge_pct": 1.5459,
+    "last_exit": "2026-05-07",
+    "verdict_now_today": {
+     "G1": {
+      "n_trades": 85,
+      "wt_edge_pct": 1.0242,
+      "wt_t": 1.795,
+      "recent_edge_pct": -0.1304,
+      "older_edge_pct": 2.2871,
+      "decay_ratio": -0.057,
+      "raw_edge_pct": 1.5459,
+      "ok": false,
+      "fail": [
+       "최근 1/3 엣지 -0.130% <= 0",
+       "decay_ratio -0.06 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 2.0x < 3.0x (보유 2880분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 1.6409,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.602,
+       "net_headroom": 20.51,
+       "cycle_margin": 2.0
+      },
+      "notes": []
+     },
+     "passed": false
+    },
+    "verdict_now_dataend": {
+     "G1": {
+      "n_trades": 85,
+      "wt_edge_pct": 1.0242,
+      "wt_t": 1.795,
+      "recent_edge_pct": -0.1304,
+      "older_edge_pct": 2.2871,
+      "decay_ratio": -0.057,
+      "raw_edge_pct": 1.5459,
+      "ok": false,
+      "fail": [
+       "최근 1/3 엣지 -0.130% <= 0",
+       "decay_ratio -0.06 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 2.0x < 3.0x (보유 2880분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 1.6409,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.602,
+       "net_headroom": 20.51,
+       "cycle_margin": 2.0
+      },
+      "notes": []
+     },
+     "passed": false
+    }
+   },
+   "BNBUSDT_h3d": {
+    "n": 85,
+    "skipped_no_price": 36,
+    "raw_edge_pct": 2.0761,
+    "last_exit": "2026-05-08",
+    "verdict_now_today": {
+     "G1": {
+      "n_trades": 85,
+      "wt_edge_pct": 1.3276,
+      "wt_t": 2.03,
+      "recent_edge_pct": -0.1593,
+      "older_edge_pct": 3.0882,
+      "decay_ratio": -0.052,
+      "raw_edge_pct": 2.0761,
+      "ok": false,
+      "fail": [
+       "최근 1/3 엣지 -0.159% <= 0",
+       "decay_ratio -0.05 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": true,
+      "blocked": [],
+      "metrics": {
+       "edge_after_1bar_pct": 2.2014,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.658,
+       "net_headroom": 27.52,
+       "cycle_margin": 3.0
+      },
+      "notes": []
+     },
+     "passed": false
+    },
+    "verdict_now_dataend": {
+     "G1": {
+      "n_trades": 85,
+      "wt_edge_pct": 1.3276,
+      "wt_t": 2.03,
+      "recent_edge_pct": -0.1593,
+      "older_edge_pct": 3.0882,
+      "decay_ratio": -0.052,
+      "raw_edge_pct": 2.0761,
+      "ok": false,
+      "fail": [
+       "최근 1/3 엣지 -0.159% <= 0",
+       "decay_ratio -0.05 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": true,
+      "blocked": [],
+      "metrics": {
+       "edge_after_1bar_pct": 2.2014,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.658,
+       "net_headroom": 27.52,
+       "cycle_margin": 3.0
+      },
+      "notes": []
+     },
+     "passed": false
+    }
+   }
+  },
+  "C_FRESH_db_full": {
+   "SOLUSDT_h1d": {
+    "n": 118,
+    "skipped_no_price": 3,
+    "raw_edge_pct": 1.0293,
+    "last_exit": "2026-07-25",
+    "verdict_now_today": {
+     "G1": {
+      "n_trades": 118,
+      "wt_edge_pct": 0.5817,
+      "wt_t": 1.168,
+      "recent_edge_pct": 0.2758,
+      "older_edge_pct": 1.1902,
+      "decay_ratio": 0.232,
+      "raw_edge_pct": 1.0293,
+      "ok": false,
+      "fail": [
+       "시간가중 t 1.17 < 1.5",
+       "decay_ratio 0.23 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 1.0x < 3.0x (보유 1440분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 1.1413,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.962,
+       "net_headroom": 14.27,
+       "cycle_margin": 1.0
+      },
+      "notes": []
+     },
+     "passed": false
+    },
+    "verdict_now_dataend": {
+     "G1": {
+      "n_trades": 118,
+      "wt_edge_pct": 0.5817,
+      "wt_t": 1.168,
+      "recent_edge_pct": 0.2758,
+      "older_edge_pct": 1.1902,
+      "decay_ratio": 0.232,
+      "raw_edge_pct": 1.0293,
+      "ok": false,
+      "fail": [
+       "시간가중 t 1.17 < 1.5",
+       "decay_ratio 0.23 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 1.0x < 3.0x (보유 1440분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 1.1413,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.962,
+       "net_headroom": 14.27,
+       "cycle_margin": 1.0
+      },
+      "notes": []
+     },
+     "passed": false
+    }
+   },
+   "SOLUSDT_h2d": {
+    "n": 117,
+    "skipped_no_price": 4,
+    "raw_edge_pct": 1.5179,
+    "last_exit": "2026-07-26",
+    "verdict_now_today": {
+     "G1": {
+      "n_trades": 117,
+      "wt_edge_pct": 0.889,
+      "wt_t": 1.53,
+      "recent_edge_pct": 0.2835,
+      "older_edge_pct": 1.6311,
+      "decay_ratio": 0.174,
+      "raw_edge_pct": 1.5179,
+      "ok": false,
+      "fail": [
+       "decay_ratio 0.17 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 2.0x < 3.0x (보유 2880분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 1.5992,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.799,
+       "net_headroom": 19.99,
+       "cycle_margin": 2.0
+      },
+      "notes": []
+     },
+     "passed": false
+    },
+    "verdict_now_dataend": {
+     "G1": {
+      "n_trades": 117,
+      "wt_edge_pct": 0.889,
+      "wt_t": 1.53,
+      "recent_edge_pct": 0.2835,
+      "older_edge_pct": 1.6311,
+      "decay_ratio": 0.174,
+      "raw_edge_pct": 1.5179,
+      "ok": false,
+      "fail": [
+       "decay_ratio 0.17 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 2.0x < 3.0x (보유 2880분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 1.5992,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.799,
+       "net_headroom": 19.99,
+       "cycle_margin": 2.0
+      },
+      "notes": []
+     },
+     "passed": false
+    }
+   },
+   "SOLUSDT_h3d": {
+    "n": 117,
+    "skipped_no_price": 4,
+    "raw_edge_pct": 2.0866,
+    "last_exit": "2026-07-27",
+    "verdict_now_today": {
+     "G1": {
+      "n_trades": 117,
+      "wt_edge_pct": 1.2146,
+      "wt_t": 1.811,
+      "recent_edge_pct": 0.3706,
+      "older_edge_pct": 2.1897,
+      "decay_ratio": 0.169,
+      "raw_edge_pct": 2.0866,
+      "ok": false,
+      "fail": [
+       "decay_ratio 0.17 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": true,
+      "blocked": [],
+      "metrics": {
+       "edge_after_1bar_pct": 2.2912,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.886,
+       "net_headroom": 28.64,
+       "cycle_margin": 3.0
+      },
+      "notes": []
+     },
+     "passed": false
+    },
+    "verdict_now_dataend": {
+     "G1": {
+      "n_trades": 117,
+      "wt_edge_pct": 1.2146,
+      "wt_t": 1.811,
+      "recent_edge_pct": 0.3706,
+      "older_edge_pct": 2.1897,
+      "decay_ratio": 0.169,
+      "raw_edge_pct": 2.0866,
+      "ok": false,
+      "fail": [
+       "decay_ratio 0.17 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": true,
+      "blocked": [],
+      "metrics": {
+       "edge_after_1bar_pct": 2.2912,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.886,
+       "net_headroom": 28.64,
+       "cycle_margin": 3.0
+      },
+      "notes": []
+     },
+     "passed": false
+    }
+   },
+   "AVAXUSDT_h1d": {
+    "n": 118,
+    "skipped_no_price": 3,
+    "raw_edge_pct": 0.9387,
+    "last_exit": "2026-07-25",
+    "verdict_now_today": {
+     "G1": {
+      "n_trades": 118,
+      "wt_edge_pct": 0.6429,
+      "wt_t": 1.349,
+      "recent_edge_pct": 0.4613,
+      "older_edge_pct": 0.8822,
+      "decay_ratio": 0.523,
+      "raw_edge_pct": 0.9387,
+      "ok": false,
+      "fail": [
+       "시간가중 t 1.35 < 1.5"
+      ]
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 1.0x < 3.0x (보유 1440분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 1.1802,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.836,
+       "net_headroom": 14.75,
+       "cycle_margin": 1.0
+      },
+      "notes": []
+     },
+     "passed": false
+    },
+    "verdict_now_dataend": {
+     "G1": {
+      "n_trades": 118,
+      "wt_edge_pct": 0.6429,
+      "wt_t": 1.349,
+      "recent_edge_pct": 0.4613,
+      "older_edge_pct": 0.8822,
+      "decay_ratio": 0.523,
+      "raw_edge_pct": 0.9387,
+      "ok": false,
+      "fail": [
+       "시간가중 t 1.35 < 1.5"
+      ]
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 1.0x < 3.0x (보유 1440분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 1.1802,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.836,
+       "net_headroom": 14.75,
+       "cycle_margin": 1.0
+      },
+      "notes": []
+     },
+     "passed": false
+    }
+   },
+   "AVAXUSDT_h2d": {
+    "n": 117,
+    "skipped_no_price": 4,
+    "raw_edge_pct": 1.4779,
+    "last_exit": "2026-07-26",
+    "verdict_now_today": {
+     "G1": {
+      "n_trades": 117,
+      "wt_edge_pct": 1.0879,
+      "wt_t": 2.084,
+      "recent_edge_pct": 0.6961,
+      "older_edge_pct": 1.4002,
+      "decay_ratio": 0.497,
+      "raw_edge_pct": 1.4779,
+      "ok": true,
+      "fail": []
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 2.0x < 3.0x (보유 2880분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 1.5089,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.387,
+       "net_headroom": 18.86,
+       "cycle_margin": 2.0
+      },
+      "notes": []
+     },
+     "passed": false
+    },
+    "verdict_now_dataend": {
+     "G1": {
+      "n_trades": 117,
+      "wt_edge_pct": 1.0879,
+      "wt_t": 2.084,
+      "recent_edge_pct": 0.6961,
+      "older_edge_pct": 1.4002,
+      "decay_ratio": 0.497,
+      "raw_edge_pct": 1.4779,
+      "ok": true,
+      "fail": []
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 2.0x < 3.0x (보유 2880분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 1.5089,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.387,
+       "net_headroom": 18.86,
+       "cycle_margin": 2.0
+      },
+      "notes": []
+     },
+     "passed": false
+    }
+   },
+   "AVAXUSDT_h3d": {
+    "n": 117,
+    "skipped_no_price": 4,
+    "raw_edge_pct": 1.939,
+    "last_exit": "2026-07-27",
+    "verdict_now_today": {
+     "G1": {
+      "n_trades": 117,
+      "wt_edge_pct": 1.4326,
+      "wt_t": 2.42,
+      "recent_edge_pct": 0.9724,
+      "older_edge_pct": 1.7019,
+      "decay_ratio": 0.571,
+      "raw_edge_pct": 1.939,
+      "ok": true,
+      "fail": []
+     },
+     "G2": {
+      "ok": true,
+      "blocked": [],
+      "metrics": {
+       "edge_after_1bar_pct": 2.0185,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.409,
+       "net_headroom": 25.23,
+       "cycle_margin": 3.0
+      },
+      "notes": []
+     },
+     "passed": true
+    },
+    "verdict_now_dataend": {
+     "G1": {
+      "n_trades": 117,
+      "wt_edge_pct": 1.4326,
+      "wt_t": 2.42,
+      "recent_edge_pct": 0.9724,
+      "older_edge_pct": 1.7019,
+      "decay_ratio": 0.571,
+      "raw_edge_pct": 1.939,
+      "ok": true,
+      "fail": []
+     },
+     "G2": {
+      "ok": true,
+      "blocked": [],
+      "metrics": {
+       "edge_after_1bar_pct": 2.0185,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.409,
+       "net_headroom": 25.23,
+       "cycle_margin": 3.0
+      },
+      "notes": []
+     },
+     "passed": true
+    }
+   },
+   "DOGEUSDT_h1d": {
+    "n": 118,
+    "skipped_no_price": 3,
+    "raw_edge_pct": 0.945,
+    "last_exit": "2026-07-25",
+    "verdict_now_today": {
+     "G1": {
+      "n_trades": 118,
+      "wt_edge_pct": 0.5048,
+      "wt_t": 1.038,
+      "recent_edge_pct": 0.0713,
+      "older_edge_pct": 1.0965,
+      "decay_ratio": 0.065,
+      "raw_edge_pct": 0.945,
+      "ok": false,
+      "fail": [
+       "시간가중 t 1.04 < 1.5",
+       "decay_ratio 0.07 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 1.0x < 3.0x (보유 1440분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 1.183,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 2.344,
+       "net_headroom": 14.79,
+       "cycle_margin": 1.0
+      },
+      "notes": []
+     },
+     "passed": false
+    },
+    "verdict_now_dataend": {
+     "G1": {
+      "n_trades": 118,
+      "wt_edge_pct": 0.5048,
+      "wt_t": 1.038,
+      "recent_edge_pct": 0.0713,
+      "older_edge_pct": 1.0965,
+      "decay_ratio": 0.065,
+      "raw_edge_pct": 0.945,
+      "ok": false,
+      "fail": [
+       "시간가중 t 1.04 < 1.5",
+       "decay_ratio 0.07 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 1.0x < 3.0x (보유 1440분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 1.183,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 2.344,
+       "net_headroom": 14.79,
+       "cycle_margin": 1.0
+      },
+      "notes": []
+     },
+     "passed": false
+    }
+   },
+   "DOGEUSDT_h2d": {
+    "n": 117,
+    "skipped_no_price": 4,
+    "raw_edge_pct": 1.5346,
+    "last_exit": "2026-07-26",
+    "verdict_now_today": {
+     "G1": {
+      "n_trades": 117,
+      "wt_edge_pct": 1.0265,
+      "wt_t": 1.834,
+      "recent_edge_pct": 0.5965,
+      "older_edge_pct": 1.4986,
+      "decay_ratio": 0.398,
+      "raw_edge_pct": 1.5346,
+      "ok": true,
+      "fail": []
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 2.0x < 3.0x (보유 2880분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 1.8067,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.76,
+       "net_headroom": 22.58,
+       "cycle_margin": 2.0
+      },
+      "notes": []
+     },
+     "passed": false
+    },
+    "verdict_now_dataend": {
+     "G1": {
+      "n_trades": 117,
+      "wt_edge_pct": 1.0265,
+      "wt_t": 1.834,
+      "recent_edge_pct": 0.5965,
+      "older_edge_pct": 1.4986,
+      "decay_ratio": 0.398,
+      "raw_edge_pct": 1.5346,
+      "ok": true,
+      "fail": []
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 2.0x < 3.0x (보유 2880분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 1.8067,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.76,
+       "net_headroom": 22.58,
+       "cycle_margin": 2.0
+      },
+      "notes": []
+     },
+     "passed": false
+    }
+   },
+   "DOGEUSDT_h3d": {
+    "n": 117,
+    "skipped_no_price": 4,
+    "raw_edge_pct": 2.2561,
+    "last_exit": "2026-07-27",
+    "verdict_now_today": {
+     "G1": {
+      "n_trades": 117,
+      "wt_edge_pct": 1.5376,
+      "wt_t": 2.574,
+      "recent_edge_pct": 1.0553,
+      "older_edge_pct": 2.1938,
+      "decay_ratio": 0.481,
+      "raw_edge_pct": 2.2561,
+      "ok": true,
+      "fail": []
+     },
+     "G2": {
+      "ok": true,
+      "blocked": [],
+      "metrics": {
+       "edge_after_1bar_pct": 2.5904,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.685,
+       "net_headroom": 32.38,
+       "cycle_margin": 3.0
+      },
+      "notes": []
+     },
+     "passed": true
+    },
+    "verdict_now_dataend": {
+     "G1": {
+      "n_trades": 117,
+      "wt_edge_pct": 1.5376,
+      "wt_t": 2.574,
+      "recent_edge_pct": 1.0553,
+      "older_edge_pct": 2.1938,
+      "decay_ratio": 0.481,
+      "raw_edge_pct": 2.2561,
+      "ok": true,
+      "fail": []
+     },
+     "G2": {
+      "ok": true,
+      "blocked": [],
+      "metrics": {
+       "edge_after_1bar_pct": 2.5904,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.685,
+       "net_headroom": 32.38,
+       "cycle_margin": 3.0
+      },
+      "notes": []
+     },
+     "passed": true
+    }
+   },
+   "LINKUSDT_h1d": {
+    "n": 118,
+    "skipped_no_price": 3,
+    "raw_edge_pct": 0.9677,
+    "last_exit": "2026-07-25",
+    "verdict_now_today": {
+     "G1": {
+      "n_trades": 118,
+      "wt_edge_pct": 0.6674,
+      "wt_t": 1.405,
+      "recent_edge_pct": 0.3182,
+      "older_edge_pct": 1.0934,
+      "decay_ratio": 0.291,
+      "raw_edge_pct": 0.9677,
+      "ok": false,
+      "fail": [
+       "시간가중 t 1.41 < 1.5",
+       "decay_ratio 0.29 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 1.0x < 3.0x (보유 1440분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 1.032,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.546,
+       "net_headroom": 12.9,
+       "cycle_margin": 1.0
+      },
+      "notes": []
+     },
+     "passed": false
+    },
+    "verdict_now_dataend": {
+     "G1": {
+      "n_trades": 118,
+      "wt_edge_pct": 0.6674,
+      "wt_t": 1.405,
+      "recent_edge_pct": 0.3182,
+      "older_edge_pct": 1.0934,
+      "decay_ratio": 0.291,
+      "raw_edge_pct": 0.9677,
+      "ok": false,
+      "fail": [
+       "시간가중 t 1.41 < 1.5",
+       "decay_ratio 0.29 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 1.0x < 3.0x (보유 1440분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 1.032,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.546,
+       "net_headroom": 12.9,
+       "cycle_margin": 1.0
+      },
+      "notes": []
+     },
+     "passed": false
+    }
+   },
+   "LINKUSDT_h2d": {
+    "n": 117,
+    "skipped_no_price": 4,
+    "raw_edge_pct": 1.4307,
+    "last_exit": "2026-07-26",
+    "verdict_now_today": {
+     "G1": {
+      "n_trades": 117,
+      "wt_edge_pct": 1.0605,
+      "wt_t": 1.893,
+      "recent_edge_pct": 0.5114,
+      "older_edge_pct": 1.4616,
+      "decay_ratio": 0.35,
+      "raw_edge_pct": 1.4307,
+      "ok": true,
+      "fail": []
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 2.0x < 3.0x (보유 2880분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 1.4388,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.357,
+       "net_headroom": 17.99,
+       "cycle_margin": 2.0
+      },
+      "notes": []
+     },
+     "passed": false
+    },
+    "verdict_now_dataend": {
+     "G1": {
+      "n_trades": 117,
+      "wt_edge_pct": 1.0605,
+      "wt_t": 1.893,
+      "recent_edge_pct": 0.5114,
+      "older_edge_pct": 1.4616,
+      "decay_ratio": 0.35,
+      "raw_edge_pct": 1.4307,
+      "ok": true,
+      "fail": []
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 2.0x < 3.0x (보유 2880분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 1.4388,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.357,
+       "net_headroom": 17.99,
+       "cycle_margin": 2.0
+      },
+      "notes": []
+     },
+     "passed": false
+    }
+   },
+   "LINKUSDT_h3d": {
+    "n": 117,
+    "skipped_no_price": 4,
+    "raw_edge_pct": 1.9294,
+    "last_exit": "2026-07-27",
+    "verdict_now_today": {
+     "G1": {
+      "n_trades": 117,
+      "wt_edge_pct": 1.3543,
+      "wt_t": 2.186,
+      "recent_edge_pct": 0.5234,
+      "older_edge_pct": 2.0794,
+      "decay_ratio": 0.252,
+      "raw_edge_pct": 1.9294,
+      "ok": false,
+      "fail": [
+       "decay_ratio 0.25 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": true,
+      "blocked": [],
+      "metrics": {
+       "edge_after_1bar_pct": 2.0703,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.529,
+       "net_headroom": 25.88,
+       "cycle_margin": 3.0
+      },
+      "notes": []
+     },
+     "passed": false
+    },
+    "verdict_now_dataend": {
+     "G1": {
+      "n_trades": 117,
+      "wt_edge_pct": 1.3543,
+      "wt_t": 2.186,
+      "recent_edge_pct": 0.5234,
+      "older_edge_pct": 2.0794,
+      "decay_ratio": 0.252,
+      "raw_edge_pct": 1.9294,
+      "ok": false,
+      "fail": [
+       "decay_ratio 0.25 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": true,
+      "blocked": [],
+      "metrics": {
+       "edge_after_1bar_pct": 2.0703,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.529,
+       "net_headroom": 25.88,
+       "cycle_margin": 3.0
+      },
+      "notes": []
+     },
+     "passed": false
+    }
+   },
+   "XRPUSDT_h1d": {
+    "n": 121,
+    "skipped_no_price": 0,
+    "raw_edge_pct": 0.9115,
+    "last_exit": "2026-07-25",
+    "verdict_now_today": {
+     "G1": {
+      "n_trades": 121,
+      "wt_edge_pct": 0.7009,
+      "wt_t": 1.529,
+      "recent_edge_pct": 0.7638,
+      "older_edge_pct": 0.4794,
+      "decay_ratio": 1.593,
+      "raw_edge_pct": 0.9115,
+      "ok": true,
+      "fail": []
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 1.0x < 3.0x (보유 1440분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 0.9775,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.395,
+       "net_headroom": 12.22,
+       "cycle_margin": 1.0
+      },
+      "notes": []
+     },
+     "passed": false
+    },
+    "verdict_now_dataend": {
+     "G1": {
+      "n_trades": 121,
+      "wt_edge_pct": 0.7009,
+      "wt_t": 1.529,
+      "recent_edge_pct": 0.7638,
+      "older_edge_pct": 0.4794,
+      "decay_ratio": 1.593,
+      "raw_edge_pct": 0.9115,
+      "ok": true,
+      "fail": []
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 1.0x < 3.0x (보유 1440분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 0.9775,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.395,
+       "net_headroom": 12.22,
+       "cycle_margin": 1.0
+      },
+      "notes": []
+     },
+     "passed": false
+    }
+   },
+   "XRPUSDT_h2d": {
+    "n": 121,
+    "skipped_no_price": 0,
+    "raw_edge_pct": 1.2828,
+    "last_exit": "2026-07-26",
+    "verdict_now_today": {
+     "G1": {
+      "n_trades": 121,
+      "wt_edge_pct": 1.1025,
+      "wt_t": 2.01,
+      "recent_edge_pct": 1.3181,
+      "older_edge_pct": 0.3382,
+      "decay_ratio": 3.897,
+      "raw_edge_pct": 1.2828,
+      "ok": true,
+      "fail": []
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 2.0x < 3.0x (보유 2880분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 1.4553,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.32,
+       "net_headroom": 18.19,
+       "cycle_margin": 2.0
+      },
+      "notes": []
+     },
+     "passed": false
+    },
+    "verdict_now_dataend": {
+     "G1": {
+      "n_trades": 121,
+      "wt_edge_pct": 1.1025,
+      "wt_t": 2.01,
+      "recent_edge_pct": 1.3181,
+      "older_edge_pct": 0.3382,
+      "decay_ratio": 3.897,
+      "raw_edge_pct": 1.2828,
+      "ok": true,
+      "fail": []
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 2.0x < 3.0x (보유 2880분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 1.4553,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.32,
+       "net_headroom": 18.19,
+       "cycle_margin": 2.0
+      },
+      "notes": []
+     },
+     "passed": false
+    }
+   },
+   "XRPUSDT_h3d": {
+    "n": 121,
+    "skipped_no_price": 0,
+    "raw_edge_pct": 1.7609,
+    "last_exit": "2026-07-27",
+    "verdict_now_today": {
+     "G1": {
+      "n_trades": 121,
+      "wt_edge_pct": 1.423,
+      "wt_t": 2.378,
+      "recent_edge_pct": 1.617,
+      "older_edge_pct": 0.7057,
+      "decay_ratio": 2.291,
+      "raw_edge_pct": 1.7609,
+      "ok": true,
+      "fail": []
+     },
+     "G2": {
+      "ok": true,
+      "blocked": [],
+      "metrics": {
+       "edge_after_1bar_pct": 1.9922,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.4,
+       "net_headroom": 24.9,
+       "cycle_margin": 3.0
+      },
+      "notes": []
+     },
+     "passed": true
+    },
+    "verdict_now_dataend": {
+     "G1": {
+      "n_trades": 121,
+      "wt_edge_pct": 1.423,
+      "wt_t": 2.378,
+      "recent_edge_pct": 1.617,
+      "older_edge_pct": 0.7057,
+      "decay_ratio": 2.291,
+      "raw_edge_pct": 1.7609,
+      "ok": true,
+      "fail": []
+     },
+     "G2": {
+      "ok": true,
+      "blocked": [],
+      "metrics": {
+       "edge_after_1bar_pct": 1.9922,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.4,
+       "net_headroom": 24.9,
+       "cycle_margin": 3.0
+      },
+      "notes": []
+     },
+     "passed": true
+    }
+   },
+   "BNBUSDT_h1d": {
+    "n": 121,
+    "skipped_no_price": 0,
+    "raw_edge_pct": 0.9448,
+    "last_exit": "2026-07-25",
+    "verdict_now_today": {
+     "G1": {
+      "n_trades": 121,
+      "wt_edge_pct": 0.6015,
+      "wt_t": 1.463,
+      "recent_edge_pct": 0.4694,
+      "older_edge_pct": 1.0971,
+      "decay_ratio": 0.428,
+      "raw_edge_pct": 0.9448,
+      "ok": false,
+      "fail": [
+       "시간가중 t 1.46 < 1.5"
+      ]
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 1.0x < 3.0x (보유 1440분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 1.086,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.805,
+       "net_headroom": 13.57,
+       "cycle_margin": 1.0
+      },
+      "notes": []
+     },
+     "passed": false
+    },
+    "verdict_now_dataend": {
+     "G1": {
+      "n_trades": 121,
+      "wt_edge_pct": 0.6015,
+      "wt_t": 1.463,
+      "recent_edge_pct": 0.4694,
+      "older_edge_pct": 1.0971,
+      "decay_ratio": 0.428,
+      "raw_edge_pct": 0.9448,
+      "ok": false,
+      "fail": [
+       "시간가중 t 1.46 < 1.5"
+      ]
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 1.0x < 3.0x (보유 1440분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 1.086,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.805,
+       "net_headroom": 13.57,
+       "cycle_margin": 1.0
+      },
+      "notes": []
+     },
+     "passed": false
+    }
+   },
+   "BNBUSDT_h2d": {
+    "n": 121,
+    "skipped_no_price": 0,
+    "raw_edge_pct": 1.4475,
+    "last_exit": "2026-07-26",
+    "verdict_now_today": {
+     "G1": {
+      "n_trades": 121,
+      "wt_edge_pct": 0.9613,
+      "wt_t": 1.947,
+      "recent_edge_pct": 0.825,
+      "older_edge_pct": 1.5085,
+      "decay_ratio": 0.547,
+      "raw_edge_pct": 1.4475,
+      "ok": true,
+      "fail": []
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 2.0x < 3.0x (보유 2880분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 1.5413,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.603,
+       "net_headroom": 19.27,
+       "cycle_margin": 2.0
+      },
+      "notes": []
+     },
+     "passed": false
+    },
+    "verdict_now_dataend": {
+     "G1": {
+      "n_trades": 121,
+      "wt_edge_pct": 0.9613,
+      "wt_t": 1.947,
+      "recent_edge_pct": 0.825,
+      "older_edge_pct": 1.5085,
+      "decay_ratio": 0.547,
+      "raw_edge_pct": 1.4475,
+      "ok": true,
+      "fail": []
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 2.0x < 3.0x (보유 2880분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 1.5413,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.603,
+       "net_headroom": 19.27,
+       "cycle_margin": 2.0
+      },
+      "notes": []
+     },
+     "passed": false
+    }
+   },
+   "BNBUSDT_h3d": {
+    "n": 121,
+    "skipped_no_price": 0,
+    "raw_edge_pct": 1.906,
+    "last_exit": "2026-07-27",
+    "verdict_now_today": {
+     "G1": {
+      "n_trades": 121,
+      "wt_edge_pct": 1.2165,
+      "wt_t": 2.199,
+      "recent_edge_pct": 0.9772,
+      "older_edge_pct": 1.8915,
+      "decay_ratio": 0.517,
+      "raw_edge_pct": 1.906,
+      "ok": true,
+      "fail": []
+     },
+     "G2": {
+      "ok": true,
+      "blocked": [],
+      "metrics": {
+       "edge_after_1bar_pct": 2.0143,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.656,
+       "net_headroom": 25.18,
+       "cycle_margin": 3.0
+      },
+      "notes": []
+     },
+     "passed": true
+    },
+    "verdict_now_dataend": {
+     "G1": {
+      "n_trades": 121,
+      "wt_edge_pct": 1.2165,
+      "wt_t": 2.199,
+      "recent_edge_pct": 0.9772,
+      "older_edge_pct": 1.8915,
+      "decay_ratio": 0.517,
+      "raw_edge_pct": 1.906,
+      "ok": true,
+      "fail": []
+     },
+     "G2": {
+      "ok": true,
+      "blocked": [],
+      "metrics": {
+       "edge_after_1bar_pct": 2.0143,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 1.656,
+       "net_headroom": 25.18,
+       "cycle_margin": 3.0
+      },
+      "notes": []
+     },
+     "passed": true
+    }
+   }
+  }
+ }
+}

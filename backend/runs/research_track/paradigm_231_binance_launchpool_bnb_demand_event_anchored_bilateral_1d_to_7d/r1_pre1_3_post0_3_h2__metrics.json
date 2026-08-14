@@ -1,0 +1,219 @@
+{
+  "paradigm_number": 231,
+  "paradigm_slug": "binance_launchpool_bnb_demand_event_anchored_bilateral_1d_to_7d",
+  "phase": "R-1",
+  "tag": "r1_pre1_3_post0_3_h2",
+  "config": {
+    "pre_days_window": [
+      1,
+      3
+    ],
+    "post_days_window": [
+      0,
+      3
+    ],
+    "hold_days": 2,
+    "fee_bps": 8.0,
+    "target_symbol": "BNBUSDT",
+    "n_events": 34,
+    "events_window": [
+      "2024-01-04",
+      "2024-12-30"
+    ],
+    "kline_window": [
+      "2024-01-02",
+      "2026-05-12"
+    ]
+  },
+  "density": {
+    "n_days_total": 862,
+    "n_pre_farm_days": 95,
+    "n_post_farm_days": 129,
+    "n_pre_bar_up_days": 57,
+    "n_post_bar_dn_days": 66,
+    "pre_pct": 11.02,
+    "post_pct": 14.97
+  },
+  "quadrants": {
+    "A_focus": {
+      "n_bars": 57,
+      "n_events": 32,
+      "n_events_pos": 18,
+      "event_pos_ratio": 0.5625,
+      "mean_bp": 91.61077802260006,
+      "std_bp": 356.30916122006914,
+      "event_mean_bp": 47.41428468921056,
+      "event_std_bp": 282.8643667394954,
+      "obs_t": 1.941140677350661,
+      "signal_t_excess": 1.6770540046240188,
+      "null_mean_t": 0.26408667272664227,
+      "ci_lower_bp": 4.017306464701955,
+      "ci_upper_bp": 194.5430845009162,
+      "ci_lower_bp_event_agg": -47.120010482209004,
+      "perm_p_one_sided": 0.048,
+      "three_gate_pass": false,
+      "three_gate_pass_event_agg": false,
+      "quarter_stats": {
+        "2024Q1": {
+          "n": 18,
+          "mean_bp": 115.6243840268242,
+          "t": 1.7172250610787125
+        },
+        "2024Q2": {
+          "n": 16,
+          "mean_bp": 97.65287385752208,
+          "t": 0.7388205244273889
+        },
+        "2024Q3": {
+          "n": 13,
+          "mean_bp": 133.2959414492361,
+          "t": 2.111452204411696
+        },
+        "2024Q4": {
+          "n": 10,
+          "mean_bp": -15.47177857550552,
+          "t": -0.16841839442647133
+        }
+      },
+      "quarter_pos_t_ratio": 0.75,
+      "n_pool": 860
+    },
+    "A_mirror": {
+      "n_bars": 57,
+      "n_events": 32,
+      "n_events_pos": 13,
+      "event_pos_ratio": 0.40625,
+      "mean_bp": -107.61077802260006,
+      "std_bp": 356.30916122006914,
+      "event_mean_bp": -63.41428468921056,
+      "event_std_bp": 282.8643667394954,
+      "obs_t": -2.2801646602050423,
+      "signal_t_excess": -1.704954889956319,
+      "null_mean_t": -0.5752097702487233,
+      "ci_lower_bp": -210.54308450091617,
+      "ci_upper_bp": -20.017306464702074,
+      "ci_lower_bp_event_agg": -162.37410093106212,
+      "perm_p_one_sided": 0.044,
+      "three_gate_pass": false,
+      "three_gate_pass_event_agg": false,
+      "quarter_stats": {
+        "2024Q1": {
+          "n": 18,
+          "mean_bp": -131.62438402682417,
+          "t": -1.9548531462660483
+        },
+        "2024Q2": {
+          "n": 16,
+          "mean_bp": -113.65287385752207,
+          "t": -0.8598730641415354
+        },
+        "2024Q3": {
+          "n": 13,
+          "mean_bp": -149.2959414492361,
+          "t": -2.3648975449320826
+        },
+        "2024Q4": {
+          "n": 10,
+          "mean_bp": -0.5282214244944783,
+          "t": -0.005749966222749984
+        }
+      },
+      "quarter_pos_t_ratio": 0.0,
+      "n_pool": 860
+    },
+    "B_focus": {
+      "n_bars": 66,
+      "n_events": 32,
+      "n_events_pos": 14,
+      "event_pos_ratio": 0.4375,
+      "mean_bp": -51.871862654728695,
+      "std_bp": 468.35972142009814,
+      "event_mean_bp": -102.15794046568989,
+      "event_std_bp": 312.2833595340471,
+      "obs_t": -0.899755006791099,
+      "signal_t_excess": -0.22962409052387722,
+      "null_mean_t": -0.6701309162672218,
+      "ci_lower_bp": -164.15995212812246,
+      "ci_upper_bp": 52.385377026569884,
+      "ci_lower_bp_event_agg": -217.35248305904724,
+      "perm_p_one_sided": 0.39,
+      "three_gate_pass": false,
+      "three_gate_pass_event_agg": false,
+      "quarter_stats": {
+        "2024Q1": {
+          "n": 16,
+          "mean_bp": -224.03017597576175,
+          "t": -1.296923322370727
+        },
+        "2024Q2": {
+          "n": 22,
+          "mean_bp": -49.630893855064556,
+          "t": -0.6747206260114916
+        },
+        "2024Q3": {
+          "n": 14,
+          "mean_bp": 97.90384170940057,
+          "t": 0.8426262842365688
+        },
+        "2024Q4": {
+          "n": 12,
+          "mean_bp": -3.533309387171954,
+          "t": -0.03641024071079482
+        },
+        "2025Q1": {
+          "n": 2,
+          "t": null
+        }
+      },
+      "quarter_pos_t_ratio": 0.25,
+      "n_pool": 860
+    },
+    "B_mirror": {
+      "n_bars": 66,
+      "n_events": 32,
+      "n_events_pos": 17,
+      "event_pos_ratio": 0.53125,
+      "mean_bp": 35.87186265472869,
+      "std_bp": 468.35972142009814,
+      "event_mean_bp": 86.15794046568989,
+      "event_std_bp": 312.2833595340472,
+      "obs_t": 0.6222234246984861,
+      "signal_t_excess": 0.28620021730647976,
+      "null_mean_t": 0.33602320739200636,
+      "ci_lower_bp": -68.38537702656996,
+      "ci_upper_bp": 148.15995212812243,
+      "ci_lower_bp_event_agg": -14.714484320679576,
+      "perm_p_one_sided": 0.372,
+      "three_gate_pass": false,
+      "three_gate_pass_event_agg": false,
+      "quarter_stats": {
+        "2024Q1": {
+          "n": 16,
+          "mean_bp": 208.03017597576172,
+          "t": 1.2042984200889169
+        },
+        "2024Q2": {
+          "n": 22,
+          "mean_bp": 33.630893855064535,
+          "t": 0.4572042933879104
+        },
+        "2024Q3": {
+          "n": 14,
+          "mean_bp": -113.90384170940055,
+          "t": -0.9803330413197343
+        },
+        "2024Q4": {
+          "n": 12,
+          "mean_bp": -12.466690612828037,
+          "t": -0.12846743841002467
+        },
+        "2025Q1": {
+          "n": 2,
+          "t": null
+        }
+      },
+      "quarter_pos_t_ratio": 0.5,
+      "n_pool": 860
+    }
+  }
+}

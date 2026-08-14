@@ -1,0 +1,36 @@
+{
+  "passed": false,
+  "blocked_by": [
+    "시간가중 엣지 -0.075% <= 0",
+    "시간가중 t -0.03 < 1.5",
+    "decay_ratio 0.29 < 0.3"
+  ],
+  "label": "p248 XRPUSDT A_focus 3d",
+  "G1": {
+    "n_trades": 52,
+    "wt_edge_pct": -0.075,
+    "wt_t": -0.033,
+    "recent_edge_pct": 1.2967,
+    "older_edge_pct": 4.4846,
+    "decay_ratio": 0.289,
+    "raw_edge_pct": 3.9144,
+    "ok": false,
+    "fail": [
+      "시간가중 엣지 -0.075% <= 0",
+      "시간가중 t -0.03 < 1.5",
+      "decay_ratio 0.29 < 0.3"
+    ]
+  },
+  "G2": {
+    "ok": true,
+    "blocked": [],
+    "metrics": {
+      "edge_after_1bar_pct": 2.8823,
+      "roundtrip_friction_pct": 0.08,
+      "delay_retention": -38.431,
+      "net_headroom": 36.03,
+      "cycle_margin": 3.0
+    },
+    "notes": []
+  }
+}

@@ -23,6 +23,19 @@
     스펙을 여기서 다시 쓰지 않는 것이 핵심이다. 교훈 #88 — 클래스만 고치고
     팩토리를 안 보면 인자가 조용히 버려진다.
 
+패러다임 정의 (2026-08-14 대표님 개정)
+    종전: "상장 Day-1 종가 숏 **한 번**".
+    개정: **리스크를 줄이고 수익을 극대화하는 것이 절대 정의**다. "상장당 한 번"은
+    그 수단이었을 뿐 목적이 아니다.
+
+    따라서 익절로 나간 뒤 같은 종목이 다시 우위를 가지면 **재선택이 옳다**.
+    다만 무제한은 아니다 — 상장 후 `entry_window_days` 까지만 재진입한다.
+
+    ⚠ 진입창은 원래 익절 재진입을 막으려던 장치가 아니다. 소스가 -1.0 을 영원히
+      내보내 REUSDT 가 8회, DATAIPUSDT 가 4회 진입한 **결함**(교훈 #88) 때문에
+      2026-08-12 에 3일로 닫았다. 개정된 정의는 그 수정과 양립한다 — 창은 두되
+      그 안에서는 경쟁으로 재선택한다. 창 값은 스윕으로 정한다.
+
 코호트
     `lifecycle_variant_backtest.py` 와 같은 규칙 — `listing_dates.json` 의
     onboard_date 가 있고 상장 후 35일 창에 일봉 31개 이상. 비교가 목적이므로
@@ -62,6 +75,31 @@ VARIANTS = [("base", 30, None, "baseline"), ("h21", 21, None, "baseline"),
             ("bearskip", 30, None, "bear_skip")]
 
 BEAR_THRESHOLD = -0.05
+
+# 익절 스윕 기본값 (%). `none` 은 익절 없음 = **현행**이다.
+#
+# 배선: 정책 kwargs `tp_pct` 만 바꾼다. 커널·정책을 건드리지 않는다.
+#   tp_pct = 1.0   → tp_price = 0.0        → 커널이 **비활성**으로 읽는다 (현행)
+#   tp_pct = 0.10  → tp_price = 진입가×0.9 → 숏이 10% 하락하면 청산
+# (`LifecycleDecayPolicy.decide`: `tp_price = open*(1-tp_pct) if tp_pct < 1.0 else 0.0`,
+#  `kernel._forced_exit`: `tp_price > 0` 일 때만 수준으로 읽는다)
+#
+# ⚠ 익절은 이 패러다임에서 **사고 이력이 있다.** 2026-08-13 에 lifecycle 454거래
+#   중 354건이 "선언한 적 없는 +10% 익절"로 나가 무효 처리됐다. 원인은
+#   orchestrator 의 `action.tp_price or price*0.90` 이 0.0(명시적 비활성)과
+#   None(미지정)을 뭉갠 것이다(2026-08-08 수정).
+#
+#   여기서 하는 것은 그것과 다르다 — **명시적으로 선언한 익절을 스윕**한다.
+#   기본값은 `none` 이고, 스윕 결과가 좋아도 그것만으로 운영을 바꾸지 않는다.
+#   같은 데이터에서 최적값을 고르면 과최적화다.
+TP_SWEEP_DEFAULT = "none,5,10,15,20,30,50"
+
+
+def tp_kwarg(tp: str | float) -> float:
+    """스윕 값 → 정책 `tp_pct`. `none` 은 1.0(비활성)."""
+    if isinstance(tp, str) and tp.lower() in ("none", "off", ""):
+        return 1.0
+    return float(tp) / 100.0
 
 WINDOW_DAYS = 35
 MIN_DAILY_BARS = 31
@@ -112,7 +150,8 @@ def btc_pre_ret(listing_date: str) -> float | None:
 
 
 def run_one(sym: str, ld, variant: str, hold: int, early, policy_variant,
-            bars_1m, bars_daily):
+            bars_1m, bars_daily, tp: str | float = "none",
+            window: int | None = None):
     """한 상장 사건 × 한 변형 — 정본 커널로 실행. 거래 목록을 돌려준다."""
     from app.composer_framework.backtester import GenericBacktester
     from app.composer_framework.pipeline_spec import build_pipeline
@@ -135,6 +174,20 @@ def run_one(sym: str, ld, variant: str, hold: int, early, policy_variant,
         bear_skip_threshold=BEAR_THRESHOLD,
     )
     ps = spec["pipeline_spec"]
+    # 익절 주입 — **스펙 사본에만** 쓴다. build_session_spec 이 준 원본을
+    # 그대로 두어야 CANON 세션과 대조할 수 있다.
+    tp_pct = tp_kwarg(tp)
+    if tp_pct < 1.0 or window is not None:
+        import copy
+        ps = copy.deepcopy(ps)
+    if tp_pct < 1.0:
+        ps.setdefault("policy", {}).setdefault("kwargs", {})["tp_pct"] = tp_pct
+    if window is not None:
+        # 재진입 창 — 상장 후 이 날까지만 다시 들어간다.
+        # 모든 소스 kwargs 에 넣는다(base/early_exit/bear_skip 소스가 다르다).
+        for src in ps.get("sources") or []:
+            if "entry_window_days" in (src.get("kwargs") or {}):
+                src["kwargs"]["entry_window_days"] = int(window)
     ctx = SourceContext(symbol=sym,
                         eval_freq_minutes=ps["config"]["eval_freq_minutes"],
                         ohlcv_1m=bars_1m, ohlcv_eval=bars_daily)
@@ -163,11 +216,20 @@ def main() -> int:
     p = argparse.ArgumentParser(description="신상저격수 백테스트 (정본 커널)")
     p.add_argument("--out", default=str(OUT))
     p.add_argument("--limit", type=int, default=0, help="앞에서 N 사건만 (빠른 확인)")
+    p.add_argument("--window", default="",
+                   help="재진입 창(상장 후 일수) 스윕, 쉼표 구분. 비우면 스펙 기본(3일)")
+    p.add_argument("--tp", default="none",
+                   help=f"익절 스윕, 쉼표 구분 %%. 예: {TP_SWEEP_DEFAULT}. "
+                        "'none' 은 익절 없음(현행)")
     a = p.parse_args()
 
     listings = json.load(open(LISTINGS))
     from app.db.session import engine
 
+    tps = [x.strip() for x in a.tp.split(",") if x.strip()]
+    wins = [int(x) for x in a.window.split(",") if x.strip()] or [None]
+    log.info("익절 스윕: %s · 재진입 창: %s", tps,
+             [("스펙기본(3)" if w is None else f"{w}일") for w in wins])
     rows, skipped, failed = [], 0, []
     with engine.connect() as conn:
         items = sorted(listings.items())
@@ -184,25 +246,35 @@ def main() -> int:
             rec = {"symbol": sym, "listing": str(ld)}
             ok = True
             for name, hold, early, pv in VARIANTS:
+              for tp in tps:
+               for w in wins:
+                key = name if tp == "none" else f"{name}@tp{tp}"
+                if w is not None:
+                    key += f"/w{w}"
                 try:
-                    trades = run_one(sym, ld, name, hold, early, pv, None, dl)
+                    trades = run_one(sym, ld, name, hold, early, pv, None, dl, tp, w)
                 except Exception as exc:
-                    failed.append(f"{sym}/{name}: {type(exc).__name__}: {exc}")
+                    failed.append(f"{sym}/{key}: {type(exc).__name__}: {exc}")
                     ok = False
                     break
                 if trades is None:      # bearskip 레짐 미상 — 이 사건은 표본 밖
-                    rec[f"{name}_n"] = None
-                    rec[f"{name}"] = None
-                    rec[f"{name}_reason"] = "regime_unknown"
+                    rec[f"{key}_n"] = None
+                    rec[f"{key}"] = None
+                    rec[f"{key}_reason"] = "regime_unknown"
                     continue
                 # 진입 1회가 패러다임이다. 2회 이상이면 재진입 — 기록해 둔다.
-                rec[f"{name}_n"] = len(trades)
+                rec[f"{key}_n"] = len(trades)
                 # 거래 0건은 두 가지다: bearskip 이 BEAR 로 억제했거나(정상),
                 # 신호가 아예 없었거나. 억제는 **수익률 0** 이 아니라 표본 밖이다.
-                rec[f"{name}"] = (float(trades[0].return_pct) * 100
-                                  if trades else None)
-                rec[f"{name}_reason"] = (trades[0].exit_reason if trades
-                                         else "no_entry")
+                rec[f"{key}"] = (float(trades[0].return_pct) * 100
+                                 if trades else None)
+                rec[f"{key}_reason"] = (trades[0].exit_reason if trades
+                                        else "no_entry")
+                # **모든** 거래를 남긴다. 익절을 켜면 재진입이 폭증하는데
+                # (실측: 익절 없음 35건 → tp5 217건) 첫 거래만 세면 그 손익이
+                # 통째로 빠진다 — 익절 비교에서 가장 큰 구멍이었다.
+                rec[f"{key}_rets"] = [float(t.return_pct) * 100 for t in trades]
+                rec[f"{key}_reasons"] = [t.exit_reason for t in trades]
             if ok:
                 rows.append(rec)
             if a.limit and len(rows) >= a.limit:
@@ -210,16 +282,38 @@ def main() -> int:
             if i % 50 == 0:
                 log.info("%d/%d (사용 %d)", i, len(items), len(rows))
 
-    out = {"cohort": len(rows), "skipped": skipped,
+    out = {"cohort": len(rows), "skipped": skipped, "tp_sweep": tps,
            "engine": "canon_kernel", "variants": {}}
-    for name, _, _, _ in VARIANTS:
-        v = np.array([r[name] for r in rows if r.get(name) is not None])
-        out["variants"][name] = stats(v)
-        out["variants"][name]["reentry_events"] = sum(
-            1 for r in rows if (r.get(f"{name}_n") or 0) > 1)
-        # 억제/미상으로 표본에서 빠진 사건 — bearskip 의 n 이 왜 작은지 설명한다
-        out["variants"][name]["excluded"] = sum(
-            1 for r in rows if r.get(name) is None)
+    keys = [((n if tp == "none" else f"{n}@tp{tp}")
+             + ("" if w is None else f"/w{w}"))
+            for n, _, _, _ in VARIANTS for tp in tps for w in wins]
+    for name in keys:
+        # (1) 사건 기준 — 첫 거래만. 패러다임 정의("상장당 한 번")에 대응하고
+        #     익절 없음 실행과 직접 비교된다.
+        first = np.array([r[name] for r in rows if r.get(name) is not None])
+        # (2) 거래 기준 — 재진입 포함 **전부**. 실제로 계좌가 겪는 것이다.
+        allr = np.array([x for r in rows for x in (r.get(f"{name}_rets") or [])])
+        st_first, st_all = stats(first), stats(allr)
+        reasons = [x for r in rows for x in (r.get(f"{name}_reasons") or [])]
+        out["variants"][name] = {
+            **st_all,                                   # n/mean/med/win/t = 거래 기준
+            "n_events": int(len(first)),
+            "n_trades": int(len(allr)),
+            # 총수익 = 거래당 수익률의 합(%p). 각 거래가 같은 명목을 쓴다는
+            # 가정 아래 "이 설정이 코호트 전체에서 몇 %p 를 걷었나"를 답한다.
+            # 복리가 아니다 — 복리는 사이징에 좌우되고 그건 포트폴리오 시뮬의 몫이다.
+            "total_ret": float(allr.sum()) if len(allr) else 0.0,
+            "first_mean": st_first.get("mean"),
+            "first_t": st_first.get("t"),
+            # 위험 — 개정 정의는 "리스크를 줄이고 수익을 극대화"다. 총수익만
+            # 보면 거래를 늘려 부풀릴 수 있으므로 최악 거래와 산포를 함께 낸다.
+            "worst": float(allr.min()) if len(allr) else None,
+            "std": float(allr.std(ddof=1)) if len(allr) > 1 else None,
+            "tp_exits": sum(1 for x in reasons if x == "tp"),
+            "sl_exits": sum(1 for x in reasons if x == "sl"),
+            "reentry_events": sum(1 for r in rows if (r.get(f"{name}_n") or 0) > 1),
+            "excluded": sum(1 for r in rows if r.get(name) is None),
+        }
     out["rows"] = rows
     out["failed"] = failed[:20]
 
@@ -228,20 +322,29 @@ def main() -> int:
     print("=" * 78)
     print(f"정본 커널 백테스트 — 코호트 {len(rows)} (제외 {skipped}, 실패 {len(failed)})")
     print("=" * 78)
-    print(f"  {'변형':<15}{'n':>6}{'평균%':>10}{'중앙%':>10}{'승률%':>8}{'t':>8}"
-          f"{'재진입':>8}{'제외':>8}")
-    for name, _, _, _ in VARIANTS:
+    print(f"  {'변형':<26}{'사건':>5}{'거래':>6}{'총수익%p':>10}{'평균%':>9}"
+          f"{'승률%':>7}{'t':>7}{'최악%':>8}{'익절':>6}{'손절':>6}{'재진입':>7}")
+    for name in keys:
         s = out["variants"][name]
         if "mean" not in s:
-            print(f"  {name:<15}{s.get('n', 0):>6}   (표본 부족)")
+            print(f"  {name:<26}{s.get('n_events', 0):>5}{s.get('n_trades', 0):>6}"
+                  f"   (표본 부족)")
             continue
-        print(f"  {name:<15}{s['n']:>6}{s['mean']:>10.2f}{s['med']:>10.2f}"
-              f"{s['win']:>8.1f}{s['t']:>8.2f}{s['reentry_events']:>8}"
-              f"{s['excluded']:>8}")
+        print(f"  {name:<26}{s['n_events']:>5}{s['n_trades']:>6}"
+              f"{s['total_ret']:>10.1f}{s['mean']:>9.2f}"
+              f"{s['win']:>7.1f}{s['t']:>7.2f}{(s['worst'] or 0):>8.1f}"
+              f"{s['tp_exits']:>6}{s['sl_exits']:>6}{s['reentry_events']:>7}")
     if failed:
         print("-" * 78)
         for f in failed[:5]:
             print(f"  실패: {f}")
+    print("=" * 78)
+    print("-" * 78)
+    print("  사건=상장 건수(첫 거래 기준) · 거래=재진입 포함 전부")
+    print("  총수익%p = 거래별 수익률의 합. 복리 아님 — 복리는 사이징에 좌우되고")
+    print("             그건 포트폴리오 시뮬의 몫이다")
+    print("  평균/승률/t/최악 은 **거래 기준**이다 (중앙값·first_* 는 JSON 참조)")
+    print("  /wN = 재진입 창 N일. 없으면 스펙 기본(3일)")
     print("=" * 78)
     print(f"  → {a.out}")
     return 0

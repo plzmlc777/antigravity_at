@@ -1,0 +1,221 @@
+{
+  "paradigm_number": 231,
+  "paradigm_slug": "binance_launchpool_bnb_demand_event_anchored_bilateral_1d_to_7d",
+  "phase": "R-1",
+  "tag": "r1_pre3_7_post1_7_h3",
+  "config": {
+    "pre_days_window": [
+      3,
+      7
+    ],
+    "post_days_window": [
+      1,
+      7
+    ],
+    "hold_days": 3,
+    "fee_bps": 8.0,
+    "target_symbol": "BNBUSDT",
+    "n_events": 34,
+    "events_window": [
+      "2024-01-04",
+      "2024-12-30"
+    ],
+    "kline_window": [
+      "2024-01-02",
+      "2026-05-12"
+    ]
+  },
+  "density": {
+    "n_days_total": 862,
+    "n_pre_farm_days": 153,
+    "n_post_farm_days": 210,
+    "n_pre_bar_up_days": 80,
+    "n_post_bar_dn_days": 106,
+    "pre_pct": 17.75,
+    "post_pct": 24.36
+  },
+  "quadrants": {
+    "A_focus": {
+      "n_bars": 80,
+      "n_events": 31,
+      "n_events_pos": 17,
+      "event_pos_ratio": 0.5483870967741935,
+      "mean_bp": 40.92722232400525,
+      "std_bp": 427.17681306195897,
+      "event_mean_bp": 42.86931718469529,
+      "event_std_bp": 392.6013205256682,
+      "obs_t": 0.8569383772564353,
+      "signal_t_excess": 0.2247502442576289,
+      "null_mean_t": 0.6321881329988064,
+      "ci_lower_bp": -50.81010107245292,
+      "ci_upper_bp": 134.01246423956457,
+      "ci_lower_bp_event_agg": -86.85488351335087,
+      "perm_p_one_sided": 0.398,
+      "three_gate_pass": false,
+      "three_gate_pass_event_agg": false,
+      "quarter_stats": {
+        "2024Q1": {
+          "n": 27,
+          "mean_bp": -7.119404574098132,
+          "t": -0.08220963521547502
+        },
+        "2024Q2": {
+          "n": 19,
+          "mean_bp": 137.21279752839408,
+          "t": 1.2843333478060293
+        },
+        "2024Q3": {
+          "n": 17,
+          "mean_bp": 34.9167598494462,
+          "t": 0.42346650080331716
+        },
+        "2024Q4": {
+          "n": 17,
+          "mean_bp": 15.633743467117437,
+          "t": 0.14531286296959683
+        }
+      },
+      "quarter_pos_t_ratio": 0.75,
+      "n_pool": 859
+    },
+    "A_mirror": {
+      "n_bars": 80,
+      "n_events": 31,
+      "n_events_pos": 14,
+      "event_pos_ratio": 0.45161290322580644,
+      "mean_bp": -56.92722232400524,
+      "std_bp": 427.17681306195897,
+      "event_mean_bp": -58.86931718469532,
+      "event_std_bp": 392.6013205256682,
+      "obs_t": -1.1919480177240458,
+      "signal_t_excess": -0.2550829981116286,
+      "null_mean_t": -0.9368650196124172,
+      "ci_lower_bp": -150.01246423956457,
+      "ci_upper_bp": 34.81010107245288,
+      "ci_lower_bp_event_agg": -204.17612037519405,
+      "perm_p_one_sided": 0.388,
+      "three_gate_pass": false,
+      "three_gate_pass_event_agg": false,
+      "quarter_stats": {
+        "2024Q1": {
+          "n": 27,
+          "mean_bp": -8.880595425901847,
+          "t": -0.10254656872791786
+        },
+        "2024Q2": {
+          "n": 19,
+          "mean_bp": -153.21279752839405,
+          "t": -1.4340958622000972
+        },
+        "2024Q3": {
+          "n": 17,
+          "mean_bp": -50.91675984944623,
+          "t": -0.6175126849872872
+        },
+        "2024Q4": {
+          "n": 17,
+          "mean_bp": -31.633743467117444,
+          "t": -0.2940300152245095
+        }
+      },
+      "quarter_pos_t_ratio": 0.0,
+      "n_pool": 859
+    },
+    "B_focus": {
+      "n_bars": 106,
+      "n_events": 34,
+      "n_events_pos": 11,
+      "event_pos_ratio": 0.3235294117647059,
+      "mean_bp": -86.68695730083238,
+      "std_bp": 505.04371062057294,
+      "event_mean_bp": -186.8501122706855,
+      "event_std_bp": 420.1704740888421,
+      "obs_t": -1.7671675374795714,
+      "signal_t_excess": -0.7968717180016214,
+      "null_mean_t": -0.9702958194779501,
+      "ci_lower_bp": -183.38318082812785,
+      "ci_upper_bp": 8.676099429865218,
+      "ci_lower_bp_event_agg": -329.4455550223086,
+      "perm_p_one_sided": 0.176,
+      "three_gate_pass": false,
+      "three_gate_pass_event_agg": false,
+      "quarter_stats": {
+        "2024Q1": {
+          "n": 27,
+          "mean_bp": -269.05427217916184,
+          "t": -2.185736626767902
+        },
+        "2024Q2": {
+          "n": 29,
+          "mean_bp": -81.76927596626062,
+          "t": -1.178298243385478
+        },
+        "2024Q3": {
+          "n": 24,
+          "mean_bp": 193.5301730638843,
+          "t": 1.9639346399648911
+        },
+        "2024Q4": {
+          "n": 21,
+          "mean_bp": -214.64066624915523,
+          "t": -2.333171568705335
+        },
+        "2025Q1": {
+          "n": 5,
+          "mean_bp": 61.93734313394651,
+          "t": 0.9638068673230076
+        }
+      },
+      "quarter_pos_t_ratio": 0.4,
+      "n_pool": 859
+    },
+    "B_mirror": {
+      "n_bars": 106,
+      "n_events": 34,
+      "n_events_pos": 23,
+      "event_pos_ratio": 0.6764705882352942,
+      "mean_bp": 70.68695730083238,
+      "std_bp": 505.043710620573,
+      "event_mean_bp": 170.8501122706855,
+      "event_std_bp": 420.1704740888421,
+      "obs_t": 1.4409975866581266,
+      "signal_t_excess": 0.816597837630998,
+      "null_mean_t": 0.6243997490271286,
+      "ci_lower_bp": -24.676099429865236,
+      "ci_upper_bp": 167.38318082812776,
+      "ci_lower_bp_event_agg": 32.96040886493676,
+      "perm_p_one_sided": 0.17,
+      "three_gate_pass": false,
+      "three_gate_pass_event_agg": false,
+      "quarter_stats": {
+        "2024Q1": {
+          "n": 27,
+          "mean_bp": 253.05427217916184,
+          "t": 2.0557562114968935
+        },
+        "2024Q2": {
+          "n": 29,
+          "mean_bp": 65.76927596626066,
+          "t": 0.9477376609248168
+        },
+        "2024Q3": {
+          "n": 24,
+          "mean_bp": -209.5301730638843,
+          "t": -2.126301849904116
+        },
+        "2024Q4": {
+          "n": 21,
+          "mean_bp": 198.64066624915523,
+          "t": 2.1592495167864696
+        },
+        "2025Q1": {
+          "n": 5,
+          "mean_bp": -77.93734313394648,
+          "t": -1.2127828339513893
+        }
+      },
+      "quarter_pos_t_ratio": 0.6,
+      "n_pool": 859
+    }
+  }
+}

@@ -1,0 +1,5471 @@
+{
+ "generated_at_kst": "2026-08-09T11:49:07.991511",
+ "paradigm": "alt_stablecoin_supply_net_flow_7d_z_bilateral_alt_1d_3d",
+ "purpose": "214종목 횡단면 — 단일 시계열 신호이므로 이벤트별 동일가중 포트폴리오로 검정",
+ "signal": {
+  "days": 2823,
+  "start": "2018-11-16",
+  "end": "2026-08-08",
+  "triggers": 973
+ },
+ "liquidity_floor_usd": 5000000.0,
+ "cg_window_start": "2025-08-09",
+ "spec": {
+  "fee_rt": 0.0008,
+  "z_thresh": 1.0,
+  "roll_win": 60,
+  "net_days": 7,
+  "holds": [
+   1,
+   2,
+   3
+  ]
+ },
+ "bnb_rank": {
+  "h1d": {
+   "bnb_edge_pct": 0.719,
+   "bnb_percentile": 0.6553,
+   "n_symbols": 206
+  },
+  "h2d": {
+   "bnb_edge_pct": 1.1338,
+   "bnb_percentile": 0.6359,
+   "n_symbols": 206
+  },
+  "h3d": {
+   "bnb_edge_pct": 1.4925,
+   "bnb_percentile": 0.6408,
+   "n_symbols": 206
+  }
+ },
+ "results": {
+  "h1d": {
+   "n_symbols": 206,
+   "n_symbols_liquid": 125,
+   "pct_symbols_positive_edge": 0.5874,
+   "pct_symbols_positive_edge_liquid": 0.576,
+   "median_symbol_edge_pct": 0.291,
+   "median_symbol_edge_pct_liquid": 0.2555,
+   "portfolio_all": {
+    "n_events": 380,
+    "edge_pct": 0.4292,
+    "t_stat": 1.526,
+    "win_rate_events": 0.5132,
+    "verdict": {
+     "G1": {
+      "n_trades": 380,
+      "raw_edge_pct": 0.4292,
+      "raw_t": 1.526,
+      "wt_t": -0.103,
+      "t_used": 1.526,
+      "t_carried_by": "raw_t",
+      "recent_edge_pct": 0.2056,
+      "older_edge_pct": 0.8626,
+      "decay_ratio": 0.238,
+      "wt_edge_pct": -0.0364,
+      "ok": false,
+      "fail": [
+       "decay_ratio 0.24 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "지연 후 엣지 미측정",
+       "실행주기 정합 1.0x < 3.0x (보유 1440분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "cycle_margin": 1.0
+      },
+      "notes": []
+     },
+     "passed": false,
+     "raw_t_unweighted": 1.526,
+     "win_rate": 0.5132
+    },
+    "out_of_window": {
+     "n_events": 226,
+     "edge_pct": 0.5267,
+     "t_stat": 1.324,
+     "verdict": {
+      "G1": {
+       "n_trades": 226,
+       "raw_edge_pct": 0.5267,
+       "raw_t": 1.324,
+       "wt_t": 0.089,
+       "t_used": 1.324,
+       "t_carried_by": "raw_t",
+       "recent_edge_pct": -0.7095,
+       "older_edge_pct": 0.1538,
+       "decay_ratio": -4.613,
+       "wt_edge_pct": 0.0523,
+       "ok": false,
+       "fail": [
+        "t 1.32 < 1.5 (전구간 1.32 / 최근가중 0.09 둘 다 미달)",
+        "최근 1/3 엣지 -0.710% <= 0",
+        "decay_ratio -4.61 < 0.3"
+       ]
+      },
+      "G2": {
+       "ok": false,
+       "blocked": [
+        "지연 후 엣지 미측정",
+        "실행주기 정합 1.0x < 3.0x (보유 1440분 / 사이클 1440분)"
+       ],
+       "metrics": {
+        "cycle_margin": 1.0
+       },
+       "notes": []
+      },
+      "passed": false,
+      "raw_t_unweighted": 1.324,
+      "win_rate": 0.5221
+     }
+    }
+   },
+   "portfolio_liquid": {
+    "n_events": 380,
+    "edge_pct": 0.4928,
+    "t_stat": 1.665,
+    "win_rate_events": 0.5132,
+    "verdict": {
+     "G1": {
+      "n_trades": 380,
+      "raw_edge_pct": 0.4928,
+      "raw_t": 1.665,
+      "wt_t": 0.074,
+      "t_used": 1.665,
+      "t_carried_by": "raw_t",
+      "recent_edge_pct": 0.1664,
+      "older_edge_pct": 0.8626,
+      "decay_ratio": 0.193,
+      "wt_edge_pct": 0.0308,
+      "ok": false,
+      "fail": [
+       "decay_ratio 0.19 < 0.3"
+      ]
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 1.0x < 3.0x (보유 1440분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 0.5804,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 18.844,
+       "net_headroom": 7.26,
+       "cycle_margin": 1.0
+      },
+      "notes": []
+     },
+     "passed": false,
+     "raw_t_unweighted": 1.665,
+     "win_rate": 0.5132
+    },
+    "out_of_window": {
+     "n_events": 226,
+     "edge_pct": 0.5487,
+     "t_stat": 1.352,
+     "verdict": {
+      "G1": {
+       "n_trades": 226,
+       "raw_edge_pct": 0.5487,
+       "raw_t": 1.352,
+       "wt_t": 0.178,
+       "t_used": 1.352,
+       "t_carried_by": "raw_t",
+       "recent_edge_pct": -0.6433,
+       "older_edge_pct": 0.1538,
+       "decay_ratio": -4.183,
+       "wt_edge_pct": 0.1152,
+       "ok": false,
+       "fail": [
+        "t 1.35 < 1.5 (전구간 1.35 / 최근가중 0.18 둘 다 미달)",
+        "최근 1/3 엣지 -0.643% <= 0",
+        "decay_ratio -4.18 < 0.3"
+       ]
+      },
+      "G2": {
+       "ok": false,
+       "blocked": [
+        "지연 후 엣지 미측정",
+        "실행주기 정합 1.0x < 3.0x (보유 1440분 / 사이클 1440분)"
+       ],
+       "metrics": {
+        "cycle_margin": 1.0
+       },
+       "notes": []
+      },
+      "passed": false,
+      "raw_t_unweighted": 1.352,
+      "win_rate": 0.5221
+     }
+    }
+   },
+   "per_symbol": {
+    "000660": {
+     "n": 101,
+     "raw_edge_pct": -0.9269,
+     "raw_t": -1.554,
+     "win_rate": 0.4158,
+     "liquid": true,
+     "median_quote_vol_usd": 1878169108375.0
+    },
+    "005930": {
+     "n": 95,
+     "raw_edge_pct": -0.0886,
+     "raw_t": -0.165,
+     "win_rate": 0.5474,
+     "liquid": true,
+     "median_quote_vol_usd": 3069704828150.0
+    },
+    "007210": {
+     "n": 103,
+     "raw_edge_pct": -0.5116,
+     "raw_t": -2.118,
+     "win_rate": 0.4757,
+     "liquid": true,
+     "median_quote_vol_usd": 313240684.0
+    },
+    "055550": {
+     "n": 101,
+     "raw_edge_pct": -0.5203,
+     "raw_t": -1.673,
+     "win_rate": 0.4554,
+     "liquid": true,
+     "median_quote_vol_usd": 92665832800.0
+    },
+    "061090": {
+     "n": 55,
+     "raw_edge_pct": -1.7083,
+     "raw_t": -1.706,
+     "win_rate": 0.4727,
+     "liquid": true,
+     "median_quote_vol_usd": 1528586300.0
+    },
+    "0GUSDT": {
+     "n": 92,
+     "raw_edge_pct": 0.291,
+     "raw_t": 0.23,
+     "win_rate": 0.5435,
+     "liquid": true,
+     "median_quote_vol_usd": 22777610.0
+    },
+    "1000000BOBUSDT": {
+     "n": 134,
+     "raw_edge_pct": -0.5819,
+     "raw_t": -0.608,
+     "win_rate": 0.5,
+     "liquid": false,
+     "median_quote_vol_usd": 1341995.0
+    },
+    "1000LUNCUSDT": {
+     "n": 75,
+     "raw_edge_pct": -0.5635,
+     "raw_t": -0.565,
+     "win_rate": 0.4133,
+     "liquid": true,
+     "median_quote_vol_usd": 6588342.0
+    },
+    "122630": {
+     "n": 95,
+     "raw_edge_pct": -0.3879,
+     "raw_t": -0.505,
+     "win_rate": 0.5053,
+     "liquid": true,
+     "median_quote_vol_usd": 1210147875014.0
+    },
+    "196170": {
+     "n": 101,
+     "raw_edge_pct": -0.6684,
+     "raw_t": -1.159,
+     "win_rate": 0.4851,
+     "liquid": true,
+     "median_quote_vol_usd": 156263805500.0
+    },
+    "2ZUSDT": {
+     "n": 92,
+     "raw_edge_pct": 0.1108,
+     "raw_t": 0.12,
+     "win_rate": 0.5217,
+     "liquid": true,
+     "median_quote_vol_usd": 6208686.0
+    },
+    "4USDT": {
+     "n": 89,
+     "raw_edge_pct": -0.5792,
+     "raw_t": -0.327,
+     "win_rate": 0.4831,
+     "liquid": true,
+     "median_quote_vol_usd": 13291794.0
+    },
+    "ACUUSDT": {
+     "n": 48,
+     "raw_edge_pct": -0.1479,
+     "raw_t": -0.077,
+     "win_rate": 0.5208,
+     "liquid": false,
+     "median_quote_vol_usd": 2557628.0
+    },
+    "ADAUSDT": {
+     "n": 380,
+     "raw_edge_pct": 0.6155,
+     "raw_t": 1.433,
+     "win_rate": 0.5316,
+     "liquid": true,
+     "median_quote_vol_usd": 273029483.0
+    },
+    "AGTUSDT": {
+     "n": 139,
+     "raw_edge_pct": 1.5649,
+     "raw_t": 1.044,
+     "win_rate": 0.5108,
+     "liquid": false,
+     "median_quote_vol_usd": 4930991.0
+    },
+    "AIAUSDT": {
+     "n": 86,
+     "raw_edge_pct": -3.0881,
+     "raw_t": -0.573,
+     "win_rate": 0.4767,
+     "liquid": true,
+     "median_quote_vol_usd": 7417436.0
+    },
+    "AINUSDT": {
+     "n": 126,
+     "raw_edge_pct": 0.7526,
+     "raw_t": 0.7,
+     "win_rate": 0.5397,
+     "liquid": false,
+     "median_quote_vol_usd": 2743143.0
+    },
+    "AIOUSDT": {
+     "n": 111,
+     "raw_edge_pct": 1.0706,
+     "raw_t": 1.241,
+     "win_rate": 0.6036,
+     "liquid": false,
+     "median_quote_vol_usd": 2369334.0
+    },
+    "AKEUSDT": {
+     "n": 92,
+     "raw_edge_pct": -0.5011,
+     "raw_t": -0.367,
+     "win_rate": 0.5,
+     "liquid": false,
+     "median_quote_vol_usd": 2426553.0
+    },
+    "ALLOUSDT": {
+     "n": 72,
+     "raw_edge_pct": 2.8554,
+     "raw_t": 2.039,
+     "win_rate": 0.5833,
+     "liquid": true,
+     "median_quote_vol_usd": 6031025.0
+    },
+    "ALLUSDT": {
+     "n": 111,
+     "raw_edge_pct": 0.4359,
+     "raw_t": 0.879,
+     "win_rate": 0.5766,
+     "liquid": false,
+     "median_quote_vol_usd": 1491593.0
+    },
+    "APRUSDT": {
+     "n": 86,
+     "raw_edge_pct": 1.0766,
+     "raw_t": 0.843,
+     "win_rate": 0.5116,
+     "liquid": true,
+     "median_quote_vol_usd": 5455628.0
+    },
+    "ARIAUSDT": {
+     "n": 96,
+     "raw_edge_pct": 1.6119,
+     "raw_t": 1.071,
+     "win_rate": 0.5521,
+     "liquid": false,
+     "median_quote_vol_usd": 4423753.0
+    },
+    "ARXUSDT": {
+     "n": 27,
+     "raw_edge_pct": 1.3666,
+     "raw_t": 0.998,
+     "win_rate": 0.6296,
+     "liquid": false,
+     "median_quote_vol_usd": 79626.0
+    },
+    "ASTERUSDT": {
+     "n": 92,
+     "raw_edge_pct": -0.5162,
+     "raw_t": -0.626,
+     "win_rate": 0.4674,
+     "liquid": true,
+     "median_quote_vol_usd": 170537455.0
+    },
+    "ATUSDT": {
+     "n": 85,
+     "raw_edge_pct": 0.0434,
+     "raw_t": 0.039,
+     "win_rate": 0.4235,
+     "liquid": true,
+     "median_quote_vol_usd": 7503105.0
+    },
+    "AUSDT": {
+     "n": 137,
+     "raw_edge_pct": 0.0522,
+     "raw_t": 0.105,
+     "win_rate": 0.5547,
+     "liquid": true,
+     "median_quote_vol_usd": 5554376.0
+    },
+    "AVAXUSDT": {
+     "n": 377,
+     "raw_edge_pct": 0.6048,
+     "raw_t": 1.792,
+     "win_rate": 0.5332,
+     "liquid": true,
+     "median_quote_vol_usd": 237121611.0
+    },
+    "AVNTUSDT": {
+     "n": 93,
+     "raw_edge_pct": -1.0082,
+     "raw_t": -0.742,
+     "win_rate": 0.5269,
+     "liquid": true,
+     "median_quote_vol_usd": 21263493.0
+    },
+    "AWEUSDT": {
+     "n": 139,
+     "raw_edge_pct": 0.1499,
+     "raw_t": 0.328,
+     "win_rate": 0.5324,
+     "liquid": false,
+     "median_quote_vol_usd": 3165630.0
+    },
+    "AXSUSDT": {
+     "n": 75,
+     "raw_edge_pct": -0.2387,
+     "raw_t": -0.293,
+     "win_rate": 0.4,
+     "liquid": true,
+     "median_quote_vol_usd": 13641537.0
+    },
+    "AZTECUSDT": {
+     "n": 34,
+     "raw_edge_pct": -0.2533,
+     "raw_t": -0.105,
+     "win_rate": 0.5294,
+     "liquid": false,
+     "median_quote_vol_usd": 4361561.0
+    },
+    "BARDUSDT": {
+     "n": 92,
+     "raw_edge_pct": -0.6829,
+     "raw_t": -0.937,
+     "win_rate": 0.4565,
+     "liquid": true,
+     "median_quote_vol_usd": 13456133.0
+    },
+    "BASUSDT": {
+     "n": 101,
+     "raw_edge_pct": 3.7815,
+     "raw_t": 2.099,
+     "win_rate": 0.6436,
+     "liquid": true,
+     "median_quote_vol_usd": 8980165.0
+    },
+    "BCHUSDT": {
+     "n": 380,
+     "raw_edge_pct": 0.2555,
+     "raw_t": 0.869,
+     "win_rate": 0.5105,
+     "liquid": true,
+     "median_quote_vol_usd": 141680144.0
+    },
+    "BEATUSDT": {
+     "n": 71,
+     "raw_edge_pct": -1.0359,
+     "raw_t": -0.366,
+     "win_rate": 0.6761,
+     "liquid": true,
+     "median_quote_vol_usd": 39205808.0
+    },
+    "BIRBUSDT": {
+     "n": 41,
+     "raw_edge_pct": -0.8569,
+     "raw_t": -0.567,
+     "win_rate": 0.4878,
+     "liquid": false,
+     "median_quote_vol_usd": 2828327.0
+    },
+    "BLESSUSDT": {
+     "n": 92,
+     "raw_edge_pct": 2.0338,
+     "raw_t": 1.162,
+     "win_rate": 0.5435,
+     "liquid": true,
+     "median_quote_vol_usd": 5280779.0
+    },
+    "BLUAIUSDT": {
+     "n": 86,
+     "raw_edge_pct": 2.2048,
+     "raw_t": 1.491,
+     "win_rate": 0.5581,
+     "liquid": true,
+     "median_quote_vol_usd": 5454741.0
+    },
+    "BNBUSDT": {
+     "n": 380,
+     "raw_edge_pct": 0.719,
+     "raw_t": 3.464,
+     "win_rate": 0.5237,
+     "liquid": true,
+     "median_quote_vol_usd": 425882175.0
+    },
+    "BREVUSDT": {
+     "n": 55,
+     "raw_edge_pct": 0.5169,
+     "raw_t": 0.48,
+     "win_rate": 0.5091,
+     "liquid": true,
+     "median_quote_vol_usd": 5305636.0
+    },
+    "BTCUSDT": {
+     "n": 61,
+     "raw_edge_pct": 0.198,
+     "raw_t": 0.497,
+     "win_rate": 0.4426,
+     "liquid": true,
+     "median_quote_vol_usd": 11148944213.0
+    },
+    "BTRUSDT": {
+     "n": 100,
+     "raw_edge_pct": -0.9842,
+     "raw_t": -0.473,
+     "win_rate": 0.49,
+     "liquid": false,
+     "median_quote_vol_usd": 4160069.0
+    },
+    "BTWUSDT": {
+     "n": 35,
+     "raw_edge_pct": -11.076,
+     "raw_t": -1.774,
+     "win_rate": 0.4286,
+     "liquid": false,
+     "median_quote_vol_usd": 181137.0
+    },
+    "BULLAUSDT": {
+     "n": 126,
+     "raw_edge_pct": -5.5626,
+     "raw_t": -1.643,
+     "win_rate": 0.4762,
+     "liquid": false,
+     "median_quote_vol_usd": 2980317.0
+    },
+    "BUSDT": {
+     "n": 139,
+     "raw_edge_pct": 0.2917,
+     "raw_t": 0.318,
+     "win_rate": 0.554,
+     "liquid": true,
+     "median_quote_vol_usd": 5814741.0
+    },
+    "CAPUSDT": {
+     "n": 27,
+     "raw_edge_pct": 5.4047,
+     "raw_t": 1.887,
+     "win_rate": 0.7037,
+     "liquid": false,
+     "median_quote_vol_usd": 12549.0
+    },
+    "CARVUSDT": {
+     "n": 111,
+     "raw_edge_pct": 0.166,
+     "raw_t": 0.253,
+     "win_rate": 0.5586,
+     "liquid": false,
+     "median_quote_vol_usd": 1363741.0
+    },
+    "CCUSDT": {
+     "n": 83,
+     "raw_edge_pct": -0.4469,
+     "raw_t": -0.363,
+     "win_rate": 0.494,
+     "liquid": true,
+     "median_quote_vol_usd": 9331745.0
+    },
+    "CLANKERUSDT": {
+     "n": 71,
+     "raw_edge_pct": -1.4732,
+     "raw_t": -0.816,
+     "win_rate": 0.5493,
+     "liquid": false,
+     "median_quote_vol_usd": 2265190.0
+    },
+    "CLOUSDT": {
+     "n": 87,
+     "raw_edge_pct": 3.405,
+     "raw_t": 2.014,
+     "win_rate": 0.5172,
+     "liquid": true,
+     "median_quote_vol_usd": 12246218.0
+    },
+    "COAIUSDT": {
+     "n": 92,
+     "raw_edge_pct": 18.7404,
+     "raw_t": 2.019,
+     "win_rate": 0.6196,
+     "liquid": true,
+     "median_quote_vol_usd": 8111764.0
+    },
+    "COLLECTUSDT": {
+     "n": 55,
+     "raw_edge_pct": 5.0195,
+     "raw_t": 2.416,
+     "win_rate": 0.6182,
+     "liquid": true,
+     "median_quote_vol_usd": 11325266.0
+    },
+    "COMPUSDT": {
+     "n": 75,
+     "raw_edge_pct": -0.4015,
+     "raw_t": -0.579,
+     "win_rate": 0.4667,
+     "liquid": false,
+     "median_quote_vol_usd": 4082032.0
+    },
+    "CROSSUSDT": {
+     "n": 126,
+     "raw_edge_pct": 2.2172,
+     "raw_t": 1.934,
+     "win_rate": 0.5635,
+     "liquid": false,
+     "median_quote_vol_usd": 2005465.0
+    },
+    "CTRUSDT": {
+     "n": 40,
+     "raw_edge_pct": -0.2821,
+     "raw_t": -0.284,
+     "win_rate": 0.4,
+     "liquid": false,
+     "median_quote_vol_usd": 241.0
+    },
+    "CUSDT": {
+     "n": 125,
+     "raw_edge_pct": 1.7319,
+     "raw_t": 1.557,
+     "win_rate": 0.528,
+     "liquid": true,
+     "median_quote_vol_usd": 5793446.0
+    },
+    "CVCUSDT": {
+     "n": 141,
+     "raw_edge_pct": 0.206,
+     "raw_t": 0.462,
+     "win_rate": 0.4894,
+     "liquid": false,
+     "median_quote_vol_usd": 1325221.0
+    },
+    "CVXUSDT": {
+     "n": 141,
+     "raw_edge_pct": 0.8803,
+     "raw_t": 0.97,
+     "win_rate": 0.4397,
+     "liquid": false,
+     "median_quote_vol_usd": 2067810.0
+    },
+    "CYSUSDT": {
+     "n": 60,
+     "raw_edge_pct": 1.0693,
+     "raw_t": 0.463,
+     "win_rate": 0.55,
+     "liquid": true,
+     "median_quote_vol_usd": 12581387.0
+    },
+    "DATAIPUSDT": {
+     "n": 22,
+     "raw_edge_pct": 0.0579,
+     "raw_t": 0.063,
+     "win_rate": 0.5455,
+     "liquid": false,
+     "median_quote_vol_usd": 6687.0
+    },
+    "DOGEUSDT": {
+     "n": 377,
+     "raw_edge_pct": 0.5252,
+     "raw_t": 1.333,
+     "win_rate": 0.5199,
+     "liquid": true,
+     "median_quote_vol_usd": 789395032.0
+    },
+    "EDENUSDT": {
+     "n": 92,
+     "raw_edge_pct": 0.6793,
+     "raw_t": 0.631,
+     "win_rate": 0.5543,
+     "liquid": false,
+     "median_quote_vol_usd": 4013463.0
+    },
+    "ELSAUSDT": {
+     "n": 47,
+     "raw_edge_pct": 1.6442,
+     "raw_t": 1.174,
+     "win_rate": 0.4681,
+     "liquid": false,
+     "median_quote_vol_usd": 2037935.0
+    },
+    "ENSOUSDT": {
+     "n": 87,
+     "raw_edge_pct": -1.407,
+     "raw_t": -0.556,
+     "win_rate": 0.5172,
+     "liquid": true,
+     "median_quote_vol_usd": 15739696.0
+    },
+    "ERAUSDT": {
+     "n": 123,
+     "raw_edge_pct": 0.0356,
+     "raw_t": 0.055,
+     "win_rate": 0.5122,
+     "liquid": false,
+     "median_quote_vol_usd": 4119514.0
+    },
+    "ESPORTSUSDT": {
+     "n": 115,
+     "raw_edge_pct": -2.4074,
+     "raw_t": -2.422,
+     "win_rate": 0.4,
+     "liquid": false,
+     "median_quote_vol_usd": 3745310.0
+    },
+    "ESPUSDT": {
+     "n": 35,
+     "raw_edge_pct": -3.5109,
+     "raw_t": -2.488,
+     "win_rate": 0.4,
+     "liquid": true,
+     "median_quote_vol_usd": 7078169.0
+    },
+    "ETCUSDT": {
+     "n": 75,
+     "raw_edge_pct": -0.5532,
+     "raw_t": -1.455,
+     "win_rate": 0.5067,
+     "liquid": true,
+     "median_quote_vol_usd": 22232776.0
+    },
+    "ETHUSDT": {
+     "n": 58,
+     "raw_edge_pct": -0.2926,
+     "raw_t": -0.58,
+     "win_rate": 0.431,
+     "liquid": true,
+     "median_quote_vol_usd": 8308209261.0
+    },
+    "EULUSDT": {
+     "n": 87,
+     "raw_edge_pct": 2.2258,
+     "raw_t": 1.979,
+     "win_rate": 0.5862,
+     "liquid": false,
+     "median_quote_vol_usd": 4076555.0
+    },
+    "EVAAUSDT": {
+     "n": 92,
+     "raw_edge_pct": 3.5886,
+     "raw_t": 2.616,
+     "win_rate": 0.5652,
+     "liquid": false,
+     "median_quote_vol_usd": 4334191.0
+    },
+    "FFUSDT": {
+     "n": 92,
+     "raw_edge_pct": -0.4543,
+     "raw_t": -0.551,
+     "win_rate": 0.4783,
+     "liquid": true,
+     "median_quote_vol_usd": 9014689.0
+    },
+    "FIGHTUSDT": {
+     "n": 47,
+     "raw_edge_pct": 1.647,
+     "raw_t": 0.634,
+     "win_rate": 0.4468,
+     "liquid": false,
+     "median_quote_vol_usd": 4652667.0
+    },
+    "FILUSDT": {
+     "n": 380,
+     "raw_edge_pct": 0.1161,
+     "raw_t": 0.213,
+     "win_rate": 0.5342,
+     "liquid": true,
+     "median_quote_vol_usd": 132027516.0
+    },
+    "FLOCKUSDT": {
+     "n": 93,
+     "raw_edge_pct": 0.291,
+     "raw_t": 0.318,
+     "win_rate": 0.4624,
+     "liquid": false,
+     "median_quote_vol_usd": 2497964.0
+    },
+    "FLUIDUSDT": {
+     "n": 92,
+     "raw_edge_pct": -0.2908,
+     "raw_t": -0.371,
+     "win_rate": 0.5326,
+     "liquid": false,
+     "median_quote_vol_usd": 1581117.0
+    },
+    "FOGOUSDT": {
+     "n": 54,
+     "raw_edge_pct": 0.5737,
+     "raw_t": 0.421,
+     "win_rate": 0.4444,
+     "liquid": true,
+     "median_quote_vol_usd": 6337795.0
+    },
+    "FOLKSUSDT": {
+     "n": 77,
+     "raw_edge_pct": -1.9917,
+     "raw_t": -1.183,
+     "win_rate": 0.3896,
+     "liquid": true,
+     "median_quote_vol_usd": 8707678.0
+    },
+    "FRAXUSDT": {
+     "n": 52,
+     "raw_edge_pct": 2.5639,
+     "raw_t": 1.46,
+     "win_rate": 0.6154,
+     "liquid": false,
+     "median_quote_vol_usd": 2170350.0
+    },
+    "FUSDT": {
+     "n": 134,
+     "raw_edge_pct": -0.4395,
+     "raw_t": -0.462,
+     "win_rate": 0.5299,
+     "liquid": false,
+     "median_quote_vol_usd": 3546920.0
+    },
+    "GIGGLEUSDT": {
+     "n": 88,
+     "raw_edge_pct": -3.6315,
+     "raw_t": -0.866,
+     "win_rate": 0.5,
+     "liquid": true,
+     "median_quote_vol_usd": 39154438.0
+    },
+    "GRAMUSDT": {
+     "n": 23,
+     "raw_edge_pct": -2.1349,
+     "raw_t": -3.398,
+     "win_rate": 0.2174,
+     "liquid": false,
+     "median_quote_vol_usd": 238588.0
+    },
+    "GUAUSDT": {
+     "n": 59,
+     "raw_edge_pct": 0.3766,
+     "raw_t": 0.227,
+     "win_rate": 0.4915,
+     "liquid": false,
+     "median_quote_vol_usd": 4350147.0
+    },
+    "GWEIUSDT": {
+     "n": 41,
+     "raw_edge_pct": 2.9129,
+     "raw_t": 1.065,
+     "win_rate": 0.5854,
+     "liquid": true,
+     "median_quote_vol_usd": 9708468.0
+    },
+    "HANAUSDT": {
+     "n": 92,
+     "raw_edge_pct": 3.1453,
+     "raw_t": 1.357,
+     "win_rate": 0.5109,
+     "liquid": false,
+     "median_quote_vol_usd": 4356011.0
+    },
+    "HBARUSDT": {
+     "n": 75,
+     "raw_edge_pct": 0.0843,
+     "raw_t": 0.234,
+     "win_rate": 0.4933,
+     "liquid": true,
+     "median_quote_vol_usd": 25640733.0
+    },
+    "HEMIUSDT": {
+     "n": 100,
+     "raw_edge_pct": 2.0813,
+     "raw_t": 1.41,
+     "win_rate": 0.57,
+     "liquid": true,
+     "median_quote_vol_usd": 7031611.0
+    },
+    "HOLOUSDT": {
+     "n": 93,
+     "raw_edge_pct": -0.3112,
+     "raw_t": -0.395,
+     "win_rate": 0.4731,
+     "liquid": true,
+     "median_quote_vol_usd": 5184614.0
+    },
+    "HOMEUSDT": {
+     "n": 134,
+     "raw_edge_pct": -0.4508,
+     "raw_t": -0.866,
+     "win_rate": 0.5149,
+     "liquid": false,
+     "median_quote_vol_usd": 4337795.0
+    },
+    "HUMAUSDT": {
+     "n": 138,
+     "raw_edge_pct": 0.5688,
+     "raw_t": 0.71,
+     "win_rate": 0.5435,
+     "liquid": true,
+     "median_quote_vol_usd": 12591738.0
+    },
+    "HUSDT": {
+     "n": 131,
+     "raw_edge_pct": 3.6794,
+     "raw_t": 2.205,
+     "win_rate": 0.626,
+     "liquid": true,
+     "median_quote_vol_usd": 27339816.0
+    },
+    "HYPEUSDT": {
+     "n": 137,
+     "raw_edge_pct": -0.9693,
+     "raw_t": -1.511,
+     "win_rate": 0.4453,
+     "liquid": true,
+     "median_quote_vol_usd": 348329221.0
+    },
+    "ICNTUSDT": {
+     "n": 126,
+     "raw_edge_pct": -2.0257,
+     "raw_t": -1.906,
+     "win_rate": 0.4524,
+     "liquid": false,
+     "median_quote_vol_usd": 4907944.0
+    },
+    "ICPUSDT": {
+     "n": 75,
+     "raw_edge_pct": -1.2142,
+     "raw_t": -1.745,
+     "win_rate": 0.3867,
+     "liquid": true,
+     "median_quote_vol_usd": 21985478.0
+    },
+    "IDOLUSDT": {
+     "n": 126,
+     "raw_edge_pct": 1.5538,
+     "raw_t": 1.21,
+     "win_rate": 0.5238,
+     "liquid": false,
+     "median_quote_vol_usd": 2100213.0
+    },
+    "INUSDT": {
+     "n": 111,
+     "raw_edge_pct": 0.6173,
+     "raw_t": 0.661,
+     "win_rate": 0.5315,
+     "liquid": false,
+     "median_quote_vol_usd": 4584471.0
+    },
+    "INXUSDT": {
+     "n": 40,
+     "raw_edge_pct": 1.4352,
+     "raw_t": 0.821,
+     "win_rate": 0.6,
+     "liquid": false,
+     "median_quote_vol_usd": 3593166.0
+    },
+    "IRYSUSDT": {
+     "n": 60,
+     "raw_edge_pct": 0.4707,
+     "raw_t": 0.359,
+     "win_rate": 0.55,
+     "liquid": false,
+     "median_quote_vol_usd": 4385624.0
+    },
+    "JCTUSDT": {
+     "n": 73,
+     "raw_edge_pct": -0.8315,
+     "raw_t": -0.436,
+     "win_rate": 0.6438,
+     "liquid": false,
+     "median_quote_vol_usd": 4234615.0
+    },
+    "JUPUSDT": {
+     "n": 75,
+     "raw_edge_pct": -0.7018,
+     "raw_t": -1.1,
+     "win_rate": 0.48,
+     "liquid": true,
+     "median_quote_vol_usd": 12580315.0
+    },
+    "KATUSDT": {
+     "n": 26,
+     "raw_edge_pct": 8.5451,
+     "raw_t": 1.233,
+     "win_rate": 0.5769,
+     "liquid": true,
+     "median_quote_vol_usd": 15117825.0
+    },
+    "KGENUSDT": {
+     "n": 90,
+     "raw_edge_pct": 0.6524,
+     "raw_t": 0.562,
+     "win_rate": 0.5333,
+     "liquid": false,
+     "median_quote_vol_usd": 4713764.0
+    },
+    "KITEUSDT": {
+     "n": 85,
+     "raw_edge_pct": -2.7085,
+     "raw_t": -0.911,
+     "win_rate": 0.4706,
+     "liquid": true,
+     "median_quote_vol_usd": 31289789.0
+    },
+    "LABUSDT": {
+     "n": 87,
+     "raw_edge_pct": -1.914,
+     "raw_t": -0.631,
+     "win_rate": 0.6092,
+     "liquid": true,
+     "median_quote_vol_usd": 8236423.0
+    },
+    "LAUSDT": {
+     "n": 134,
+     "raw_edge_pct": 0.9813,
+     "raw_t": 1.743,
+     "win_rate": 0.5746,
+     "liquid": true,
+     "median_quote_vol_usd": 12347915.0
+    },
+    "LDOUSDT": {
+     "n": 75,
+     "raw_edge_pct": 1.0704,
+     "raw_t": 1.494,
+     "win_rate": 0.5467,
+     "liquid": true,
+     "median_quote_vol_usd": 14748705.0
+    },
+    "LIGHTUSDT": {
+     "n": 92,
+     "raw_edge_pct": 3.2591,
+     "raw_t": 1.838,
+     "win_rate": 0.587,
+     "liquid": true,
+     "median_quote_vol_usd": 14877084.0
+    },
+    "LINEAUSDT": {
+     "n": 98,
+     "raw_edge_pct": -1.1152,
+     "raw_t": -0.946,
+     "win_rate": 0.5102,
+     "liquid": true,
+     "median_quote_vol_usd": 14140739.0
+    },
+    "LINKUSDT": {
+     "n": 377,
+     "raw_edge_pct": 0.431,
+     "raw_t": 1.354,
+     "win_rate": 0.5066,
+     "liquid": true,
+     "median_quote_vol_usd": 223128733.0
+    },
+    "LITUSDT": {
+     "n": 86,
+     "raw_edge_pct": -6.5969,
+     "raw_t": -1.099,
+     "win_rate": 0.314,
+     "liquid": true,
+     "median_quote_vol_usd": 17882952.0
+    },
+    "LTCUSDT": {
+     "n": 380,
+     "raw_edge_pct": 0.8046,
+     "raw_t": 2.83,
+     "win_rate": 0.5447,
+     "liquid": true,
+     "median_quote_vol_usd": 156554372.0
+    },
+    "LYNUSDT": {
+     "n": 91,
+     "raw_edge_pct": -0.2808,
+     "raw_t": -0.18,
+     "win_rate": 0.5165,
+     "liquid": true,
+     "median_quote_vol_usd": 10693604.0
+    },
+    "MAGMAUSDT": {
+     "n": 55,
+     "raw_edge_pct": 0.7413,
+     "raw_t": 0.429,
+     "win_rate": 0.4909,
+     "liquid": false,
+     "median_quote_vol_usd": 4145111.0
+    },
+    "MANTRAUSDT": {
+     "n": 25,
+     "raw_edge_pct": -1.6607,
+     "raw_t": -1.382,
+     "win_rate": 0.48,
+     "liquid": true,
+     "median_quote_vol_usd": 5743896.0
+    },
+    "MEGAUSDT": {
+     "n": 40,
+     "raw_edge_pct": 2.0916,
+     "raw_t": 1.396,
+     "win_rate": 0.575,
+     "liquid": false,
+     "median_quote_vol_usd": 1122019.0
+    },
+    "MERLUSDT": {
+     "n": 137,
+     "raw_edge_pct": 1.9192,
+     "raw_t": 1.903,
+     "win_rate": 0.5693,
+     "liquid": true,
+     "median_quote_vol_usd": 11738599.0
+    },
+    "METUSDT": {
+     "n": 87,
+     "raw_edge_pct": 0.814,
+     "raw_t": 0.857,
+     "win_rate": 0.5172,
+     "liquid": true,
+     "median_quote_vol_usd": 10016623.0
+    },
+    "MIRAUSDT": {
+     "n": 92,
+     "raw_edge_pct": -0.029,
+     "raw_t": -0.035,
+     "win_rate": 0.5326,
+     "liquid": false,
+     "median_quote_vol_usd": 3756652.0
+    },
+    "MITOUSDT": {
+     "n": 100,
+     "raw_edge_pct": -0.3682,
+     "raw_t": -0.367,
+     "win_rate": 0.46,
+     "liquid": false,
+     "median_quote_vol_usd": 2748015.0
+    },
+    "MMTUSDT": {
+     "n": 79,
+     "raw_edge_pct": 0.9756,
+     "raw_t": 0.459,
+     "win_rate": 0.557,
+     "liquid": true,
+     "median_quote_vol_usd": 6696718.0
+    },
+    "MONUSDT": {
+     "n": 87,
+     "raw_edge_pct": -1.0901,
+     "raw_t": -0.799,
+     "win_rate": 0.5057,
+     "liquid": true,
+     "median_quote_vol_usd": 25708501.0
+    },
+    "MUSDT": {
+     "n": 126,
+     "raw_edge_pct": 1.3085,
+     "raw_t": 1.14,
+     "win_rate": 0.5556,
+     "liquid": true,
+     "median_quote_vol_usd": 16501308.0
+    },
+    "MYXUSDT": {
+     "n": 134,
+     "raw_edge_pct": -10.0764,
+     "raw_t": -1.76,
+     "win_rate": 0.4254,
+     "liquid": true,
+     "median_quote_vol_usd": 30070252.0
+    },
+    "NAORISUSDT": {
+     "n": 115,
+     "raw_edge_pct": 3.8456,
+     "raw_t": 2.336,
+     "win_rate": 0.5826,
+     "liquid": true,
+     "median_quote_vol_usd": 6117549.0
+    },
+    "NEARUSDT": {
+     "n": 380,
+     "raw_edge_pct": 0.6272,
+     "raw_t": 1.432,
+     "win_rate": 0.5368,
+     "liquid": true,
+     "median_quote_vol_usd": 141031940.0
+    },
+    "NEWTUSDT": {
+     "n": 134,
+     "raw_edge_pct": 0.4902,
+     "raw_t": 0.521,
+     "win_rate": 0.5522,
+     "liquid": false,
+     "median_quote_vol_usd": 4824150.0
+    },
+    "NIGHTUSDT": {
+     "n": 60,
+     "raw_edge_pct": -1.2705,
+     "raw_t": -0.768,
+     "win_rate": 0.4667,
+     "liquid": true,
+     "median_quote_vol_usd": 11715240.0
+    },
+    "NOMUSDT": {
+     "n": 91,
+     "raw_edge_pct": -2.4369,
+     "raw_t": -1.238,
+     "win_rate": 0.5275,
+     "liquid": true,
+     "median_quote_vol_usd": 5535833.0
+    },
+    "NXPCUSDT": {
+     "n": 139,
+     "raw_edge_pct": -0.8102,
+     "raw_t": -1.589,
+     "win_rate": 0.4748,
+     "liquid": true,
+     "median_quote_vol_usd": 7009671.0
+    },
+    "ONUSDT": {
+     "n": 86,
+     "raw_edge_pct": 3.2819,
+     "raw_t": 2.324,
+     "win_rate": 0.6279,
+     "liquid": false,
+     "median_quote_vol_usd": 2246125.0
+    },
+    "OPENUSDT": {
+     "n": 93,
+     "raw_edge_pct": 0.1887,
+     "raw_t": 0.204,
+     "win_rate": 0.5161,
+     "liquid": true,
+     "median_quote_vol_usd": 6242659.0
+    },
+    "OPNUSDT": {
+     "n": 29,
+     "raw_edge_pct": -0.8305,
+     "raw_t": -0.42,
+     "win_rate": 0.4483,
+     "liquid": true,
+     "median_quote_vol_usd": 13345431.0
+    },
+    "ORDERUSDT": {
+     "n": 92,
+     "raw_edge_pct": 0.1391,
+     "raw_t": 0.148,
+     "win_rate": 0.4674,
+     "liquid": false,
+     "median_quote_vol_usd": 2203086.0
+    },
+    "OUSDT": {
+     "n": 27,
+     "raw_edge_pct": -1.8542,
+     "raw_t": -1.138,
+     "win_rate": 0.3704,
+     "liquid": false,
+     "median_quote_vol_usd": 367607.0
+    },
+    "PHAROSUSDT": {
+     "n": 38,
+     "raw_edge_pct": 0.7135,
+     "raw_t": 0.744,
+     "win_rate": 0.5789,
+     "liquid": false,
+     "median_quote_vol_usd": 31580.0
+    },
+    "PIEVERSEUSDT": {
+     "n": 70,
+     "raw_edge_pct": 1.5741,
+     "raw_t": 0.573,
+     "win_rate": 0.4714,
+     "liquid": true,
+     "median_quote_vol_usd": 14364262.0
+    },
+    "PLAYUSDT": {
+     "n": 115,
+     "raw_edge_pct": -2.0336,
+     "raw_t": -1.079,
+     "win_rate": 0.4957,
+     "liquid": true,
+     "median_quote_vol_usd": 5369508.0
+    },
+    "POWERUSDT": {
+     "n": 60,
+     "raw_edge_pct": 0.8892,
+     "raw_t": 0.322,
+     "win_rate": 0.5667,
+     "liquid": true,
+     "median_quote_vol_usd": 21021520.0
+    },
+    "PROVEUSDT": {
+     "n": 112,
+     "raw_edge_pct": 0.1846,
+     "raw_t": 0.256,
+     "win_rate": 0.5625,
+     "liquid": false,
+     "median_quote_vol_usd": 4108639.0
+    },
+    "PTBUSDT": {
+     "n": 96,
+     "raw_edge_pct": 1.5607,
+     "raw_t": 0.902,
+     "win_rate": 0.5729,
+     "liquid": true,
+     "median_quote_vol_usd": 7900731.0
+    },
+    "PUMPBTCUSDT": {
+     "n": 134,
+     "raw_edge_pct": 0.8125,
+     "raw_t": 1.133,
+     "win_rate": 0.5522,
+     "liquid": false,
+     "median_quote_vol_usd": 1883855.0
+    },
+    "PUMPUSDT": {
+     "n": 141,
+     "raw_edge_pct": -0.7648,
+     "raw_t": -0.922,
+     "win_rate": 0.4894,
+     "liquid": true,
+     "median_quote_vol_usd": 132308952.0
+    },
+    "PYTHUSDT": {
+     "n": 75,
+     "raw_edge_pct": -0.2419,
+     "raw_t": -0.354,
+     "win_rate": 0.4267,
+     "liquid": true,
+     "median_quote_vol_usd": 6374450.0
+    },
+    "QUSDT": {
+     "n": 97,
+     "raw_edge_pct": 1.1304,
+     "raw_t": 0.626,
+     "win_rate": 0.5773,
+     "liquid": true,
+     "median_quote_vol_usd": 5259026.0
+    },
+    "RAVEUSDT": {
+     "n": 60,
+     "raw_edge_pct": -1.943,
+     "raw_t": -0.48,
+     "win_rate": 0.4333,
+     "liquid": true,
+     "median_quote_vol_usd": 15667957.0
+    },
+    "RECALLUSDT": {
+     "n": 87,
+     "raw_edge_pct": 3.3229,
+     "raw_t": 3.344,
+     "win_rate": 0.6207,
+     "liquid": false,
+     "median_quote_vol_usd": 2275510.0
+    },
+    "RESOLVUSDT": {
+     "n": 134,
+     "raw_edge_pct": 0.3626,
+     "raw_t": 0.272,
+     "win_rate": 0.5149,
+     "liquid": true,
+     "median_quote_vol_usd": 14548118.0
+    },
+    "REUSDT": {
+     "n": 27,
+     "raw_edge_pct": -0.0988,
+     "raw_t": -0.039,
+     "win_rate": 0.4074,
+     "liquid": false,
+     "median_quote_vol_usd": 755576.0
+    },
+    "RIVERUSDT": {
+     "n": 87,
+     "raw_edge_pct": 6.1286,
+     "raw_t": 2.572,
+     "win_rate": 0.6207,
+     "liquid": true,
+     "median_quote_vol_usd": 145332582.0
+    },
+    "ROBOUSDT": {
+     "n": 28,
+     "raw_edge_pct": 5.186,
+     "raw_t": 2.133,
+     "win_rate": 0.6429,
+     "liquid": true,
+     "median_quote_vol_usd": 15493351.0
+    },
+    "SAHARAUSDT": {
+     "n": 130,
+     "raw_edge_pct": 1.5922,
+     "raw_t": 1.683,
+     "win_rate": 0.4923,
+     "liquid": true,
+     "median_quote_vol_usd": 13267101.0
+    },
+    "SAPIENUSDT": {
+     "n": 105,
+     "raw_edge_pct": 0.8779,
+     "raw_t": 0.37,
+     "win_rate": 0.5905,
+     "liquid": true,
+     "median_quote_vol_usd": 7761128.0
+    },
+    "SENTUSDT": {
+     "n": 70,
+     "raw_edge_pct": -0.393,
+     "raw_t": -0.209,
+     "win_rate": 0.4857,
+     "liquid": true,
+     "median_quote_vol_usd": 7637538.0
+    },
+    "SKRUSDT": {
+     "n": 47,
+     "raw_edge_pct": 2.2541,
+     "raw_t": 1.379,
+     "win_rate": 0.5745,
+     "liquid": true,
+     "median_quote_vol_usd": 5280474.0
+    },
+    "SKYAIUSDT": {
+     "n": 141,
+     "raw_edge_pct": -0.0558,
+     "raw_t": -0.042,
+     "win_rate": 0.4681,
+     "liquid": false,
+     "median_quote_vol_usd": 4109522.0
+    },
+    "SKYUSDT": {
+     "n": 93,
+     "raw_edge_pct": 0.5974,
+     "raw_t": 1.248,
+     "win_rate": 0.5806,
+     "liquid": true,
+     "median_quote_vol_usd": 5852887.0
+    },
+    "SLPUSDT": {
+     "n": 141,
+     "raw_edge_pct": 0.681,
+     "raw_t": 1.106,
+     "win_rate": 0.4823,
+     "liquid": false,
+     "median_quote_vol_usd": 1015958.0
+    },
+    "SLXUSDT": {
+     "n": 38,
+     "raw_edge_pct": 2.4048,
+     "raw_t": 0.929,
+     "win_rate": 0.5526,
+     "liquid": false,
+     "median_quote_vol_usd": 230525.0
+    },
+    "SOLUSDT": {
+     "n": 377,
+     "raw_edge_pct": 0.194,
+     "raw_t": 0.632,
+     "win_rate": 0.504,
+     "liquid": true,
+     "median_quote_vol_usd": 2789069835.0
+    },
+    "SOMIUSDT": {
+     "n": 102,
+     "raw_edge_pct": -0.5004,
+     "raw_t": -0.187,
+     "win_rate": 0.4608,
+     "liquid": true,
+     "median_quote_vol_usd": 9936690.0
+    },
+    "SOONUSDT": {
+     "n": 139,
+     "raw_edge_pct": 0.7508,
+     "raw_t": 0.433,
+     "win_rate": 0.4676,
+     "liquid": true,
+     "median_quote_vol_usd": 13430165.0
+    },
+    "SOPHUSDT": {
+     "n": 137,
+     "raw_edge_pct": 0.5372,
+     "raw_t": 0.958,
+     "win_rate": 0.5766,
+     "liquid": true,
+     "median_quote_vol_usd": 5572944.0
+    },
+    "SPACEUSDT": {
+     "n": 47,
+     "raw_edge_pct": 6.4757,
+     "raw_t": 2.956,
+     "win_rate": 0.5745,
+     "liquid": true,
+     "median_quote_vol_usd": 9568051.0
+    },
+    "SPKUSDT": {
+     "n": 134,
+     "raw_edge_pct": 3.4479,
+     "raw_t": 1.739,
+     "win_rate": 0.5075,
+     "liquid": true,
+     "median_quote_vol_usd": 10146570.0
+    },
+    "SPORTFUNUSDT": {
+     "n": 52,
+     "raw_edge_pct": 0.4762,
+     "raw_t": 0.264,
+     "win_rate": 0.5192,
+     "liquid": false,
+     "median_quote_vol_usd": 2801530.0
+    },
+    "SQDUSDT": {
+     "n": 134,
+     "raw_edge_pct": 0.5478,
+     "raw_t": 0.585,
+     "win_rate": 0.4776,
+     "liquid": false,
+     "median_quote_vol_usd": 3873493.0
+    },
+    "STABLEUSDT": {
+     "n": 77,
+     "raw_edge_pct": 1.703,
+     "raw_t": 1.18,
+     "win_rate": 0.6494,
+     "liquid": true,
+     "median_quote_vol_usd": 14102842.0
+    },
+    "STARUSDT": {
+     "n": 38,
+     "raw_edge_pct": -0.0429,
+     "raw_t": -0.021,
+     "win_rate": 0.5263,
+     "liquid": false,
+     "median_quote_vol_usd": 8527.0
+    },
+    "STBLUSDT": {
+     "n": 92,
+     "raw_edge_pct": -0.8424,
+     "raw_t": -0.645,
+     "win_rate": 0.4674,
+     "liquid": false,
+     "median_quote_vol_usd": 4781385.0
+    },
+    "TACUSDT": {
+     "n": 125,
+     "raw_edge_pct": -0.6604,
+     "raw_t": -0.648,
+     "win_rate": 0.456,
+     "liquid": false,
+     "median_quote_vol_usd": 1748200.0
+    },
+    "TAGUSDT": {
+     "n": 116,
+     "raw_edge_pct": -1.5861,
+     "raw_t": -1.179,
+     "win_rate": 0.4741,
+     "liquid": false,
+     "median_quote_vol_usd": 2520945.0
+    },
+    "TAIKOUSDT": {
+     "n": 134,
+     "raw_edge_pct": 0.5689,
+     "raw_t": 1.077,
+     "win_rate": 0.5373,
+     "liquid": false,
+     "median_quote_vol_usd": 969776.0
+    },
+    "TAKEUSDT": {
+     "n": 96,
+     "raw_edge_pct": 3.1345,
+     "raw_t": 1.345,
+     "win_rate": 0.5521,
+     "liquid": true,
+     "median_quote_vol_usd": 5506059.0
+    },
+    "TAUSDT": {
+     "n": 120,
+     "raw_edge_pct": 0.0929,
+     "raw_t": 0.099,
+     "win_rate": 0.5667,
+     "liquid": true,
+     "median_quote_vol_usd": 5157031.0
+    },
+    "TONUSDT": {
+     "n": 75,
+     "raw_edge_pct": -1.9569,
+     "raw_t": -1.924,
+     "win_rate": 0.2267,
+     "liquid": true,
+     "median_quote_vol_usd": 22595390.0
+    },
+    "TOSHIUSDT": {
+     "n": 92,
+     "raw_edge_pct": 2.2581,
+     "raw_t": 2.717,
+     "win_rate": 0.6304,
+     "liquid": false,
+     "median_quote_vol_usd": 2819636.0
+    },
+    "TOWNSUSDT": {
+     "n": 112,
+     "raw_edge_pct": 0.6213,
+     "raw_t": 0.694,
+     "win_rate": 0.5357,
+     "liquid": false,
+     "median_quote_vol_usd": 3189509.0
+    },
+    "TRADOORUSDT": {
+     "n": 92,
+     "raw_edge_pct": -0.9646,
+     "raw_t": -0.454,
+     "win_rate": 0.5,
+     "liquid": true,
+     "median_quote_vol_usd": 11713618.0
+    },
+    "TREEUSDT": {
+     "n": 115,
+     "raw_edge_pct": 0.6597,
+     "raw_t": 0.903,
+     "win_rate": 0.513,
+     "liquid": true,
+     "median_quote_vol_usd": 5333723.0
+    },
+    "TRIAUSDT": {
+     "n": 35,
+     "raw_edge_pct": 3.6502,
+     "raw_t": 1.506,
+     "win_rate": 0.5143,
+     "liquid": true,
+     "median_quote_vol_usd": 17608835.0
+    },
+    "TRUSTUSDT": {
+     "n": 78,
+     "raw_edge_pct": -1.4952,
+     "raw_t": -0.45,
+     "win_rate": 0.5256,
+     "liquid": false,
+     "median_quote_vol_usd": 2272165.0
+    },
+    "TRUTHUSDT": {
+     "n": 92,
+     "raw_edge_pct": -2.8127,
+     "raw_t": -1.239,
+     "win_rate": 0.4457,
+     "liquid": true,
+     "median_quote_vol_usd": 6884527.0
+    },
+    "TURTLEUSDT": {
+     "n": 86,
+     "raw_edge_pct": 0.7013,
+     "raw_t": 0.763,
+     "win_rate": 0.4884,
+     "liquid": false,
+     "median_quote_vol_usd": 2206715.0
+    },
+    "UAIUSDT": {
+     "n": 77,
+     "raw_edge_pct": -0.6978,
+     "raw_t": -0.219,
+     "win_rate": 0.4805,
+     "liquid": true,
+     "median_quote_vol_usd": 8119402.0
+    },
+    "UBUSDT": {
+     "n": 92,
+     "raw_edge_pct": 1.1847,
+     "raw_t": 0.863,
+     "win_rate": 0.5435,
+     "liquid": true,
+     "median_quote_vol_usd": 5146326.0
+    },
+    "UNIUSDT": {
+     "n": 75,
+     "raw_edge_pct": 0.5443,
+     "raw_t": 0.972,
+     "win_rate": 0.6,
+     "liquid": true,
+     "median_quote_vol_usd": 60177951.0
+    },
+    "USELESSUSDT": {
+     "n": 111,
+     "raw_edge_pct": 1.9274,
+     "raw_t": 1.383,
+     "win_rate": 0.5495,
+     "liquid": true,
+     "median_quote_vol_usd": 18413776.0
+    },
+    "USUSDT": {
+     "n": 60,
+     "raw_edge_pct": -1.4722,
+     "raw_t": -1.165,
+     "win_rate": 0.45,
+     "liquid": false,
+     "median_quote_vol_usd": 1919315.0
+    },
+    "VELVETUSDT": {
+     "n": 125,
+     "raw_edge_pct": -0.1033,
+     "raw_t": -0.115,
+     "win_rate": 0.6,
+     "liquid": false,
+     "median_quote_vol_usd": 2720484.0
+    },
+    "WETUSDT": {
+     "n": 60,
+     "raw_edge_pct": 1.5288,
+     "raw_t": 1.409,
+     "win_rate": 0.55,
+     "liquid": true,
+     "median_quote_vol_usd": 5754881.0
+    },
+    "WIFUSDT": {
+     "n": 370,
+     "raw_edge_pct": -0.6985,
+     "raw_t": -1.049,
+     "win_rate": 0.4865,
+     "liquid": true,
+     "median_quote_vol_usd": 297845058.0
+    },
+    "WLDUSDT": {
+     "n": 75,
+     "raw_edge_pct": -1.8931,
+     "raw_t": -2.134,
+     "win_rate": 0.44,
+     "liquid": true,
+     "median_quote_vol_usd": 93779516.0
+    },
+    "WLFIUSDT": {
+     "n": 104,
+     "raw_edge_pct": -1.5033,
+     "raw_t": -1.666,
+     "win_rate": 0.3942,
+     "liquid": true,
+     "median_quote_vol_usd": 84167677.0
+    },
+    "XANUSDT": {
+     "n": 92,
+     "raw_edge_pct": -1.1593,
+     "raw_t": -0.669,
+     "win_rate": 0.587,
+     "liquid": false,
+     "median_quote_vol_usd": 3366830.0
+    },
+    "XNYUSDT": {
+     "n": 111,
+     "raw_edge_pct": 2.789,
+     "raw_t": 1.894,
+     "win_rate": 0.6126,
+     "liquid": false,
+     "median_quote_vol_usd": 4989096.0
+    },
+    "XPINUSDT": {
+     "n": 93,
+     "raw_edge_pct": 2.2533,
+     "raw_t": 1.646,
+     "win_rate": 0.6129,
+     "liquid": false,
+     "median_quote_vol_usd": 3431999.0
+    },
+    "XPLUSDT": {
+     "n": 104,
+     "raw_edge_pct": -0.3194,
+     "raw_t": -0.284,
+     "win_rate": 0.5385,
+     "liquid": true,
+     "median_quote_vol_usd": 84470403.0
+    },
+    "XRPUSDT": {
+     "n": 380,
+     "raw_edge_pct": 0.8574,
+     "raw_t": 2.404,
+     "win_rate": 0.5316,
+     "liquid": true,
+     "median_quote_vol_usd": 948637633.0
+    },
+    "YBUSDT": {
+     "n": 87,
+     "raw_edge_pct": 0.425,
+     "raw_t": 0.391,
+     "win_rate": 0.4943,
+     "liquid": false,
+     "median_quote_vol_usd": 4428785.0
+    },
+    "ZAMAUSDT": {
+     "n": 54,
+     "raw_edge_pct": 1.1876,
+     "raw_t": 0.751,
+     "win_rate": 0.5556,
+     "liquid": true,
+     "median_quote_vol_usd": 12852062.0
+    },
+    "ZBTUSDT": {
+     "n": 87,
+     "raw_edge_pct": 3.0887,
+     "raw_t": 2.302,
+     "win_rate": 0.6092,
+     "liquid": true,
+     "median_quote_vol_usd": 8819659.0
+    },
+    "ZESTUSDT": {
+     "n": 35,
+     "raw_edge_pct": 1.0635,
+     "raw_t": 1.064,
+     "win_rate": 0.6286,
+     "liquid": false,
+     "median_quote_vol_usd": 21614.0
+    },
+    "ZKCUSDT": {
+     "n": 92,
+     "raw_edge_pct": -0.2567,
+     "raw_t": -0.257,
+     "win_rate": 0.5326,
+     "liquid": false,
+     "median_quote_vol_usd": 4458444.0
+    },
+    "ZKPUSDT": {
+     "n": 59,
+     "raw_edge_pct": 0.6626,
+     "raw_t": 0.594,
+     "win_rate": 0.5085,
+     "liquid": true,
+     "median_quote_vol_usd": 7715673.0
+    },
+    "ZORAUSDT": {
+     "n": 116,
+     "raw_edge_pct": 2.7073,
+     "raw_t": 2.307,
+     "win_rate": 0.5259,
+     "liquid": true,
+     "median_quote_vol_usd": 11149318.0
+    }
+   }
+  },
+  "h2d": {
+   "n_symbols": 206,
+   "n_symbols_liquid": 125,
+   "pct_symbols_positive_edge": 0.6408,
+   "pct_symbols_positive_edge_liquid": 0.624,
+   "median_symbol_edge_pct": 0.5538,
+   "median_symbol_edge_pct_liquid": 0.5031,
+   "portfolio_all": {
+    "n_events": 380,
+    "edge_pct": 0.737,
+    "t_stat": 2.011,
+    "win_rate_events": 0.5158,
+    "verdict": {
+     "G1": {
+      "n_trades": 380,
+      "raw_edge_pct": 0.737,
+      "raw_t": 2.011,
+      "wt_t": 0.317,
+      "t_used": 2.011,
+      "t_carried_by": "raw_t",
+      "recent_edge_pct": 0.6133,
+      "older_edge_pct": 1.0335,
+      "decay_ratio": 0.593,
+      "wt_edge_pct": 0.1516,
+      "ok": true,
+      "fail": []
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "지연 후 엣지 미측정",
+       "실행주기 정합 2.0x < 3.0x (보유 2880분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "cycle_margin": 2.0
+      },
+      "notes": []
+     },
+     "passed": false,
+     "raw_t_unweighted": 2.011,
+     "win_rate": 0.5158
+    },
+    "out_of_window": {
+     "n_events": 226,
+     "edge_pct": 0.8052,
+     "t_stat": 1.59,
+     "verdict": {
+      "G1": {
+       "n_trades": 226,
+       "raw_edge_pct": 0.8052,
+       "raw_t": 1.59,
+       "wt_t": 0.123,
+       "t_used": 1.59,
+       "t_carried_by": "raw_t",
+       "recent_edge_pct": -0.9209,
+       "older_edge_pct": 0.1288,
+       "decay_ratio": -7.151,
+       "wt_edge_pct": 0.0987,
+       "ok": false,
+       "fail": [
+        "최근 1/3 엣지 -0.921% <= 0",
+        "decay_ratio -7.15 < 0.3"
+       ]
+      },
+      "G2": {
+       "ok": false,
+       "blocked": [
+        "지연 후 엣지 미측정",
+        "실행주기 정합 2.0x < 3.0x (보유 2880분 / 사이클 1440분)"
+       ],
+       "metrics": {
+        "cycle_margin": 2.0
+       },
+       "notes": []
+      },
+      "passed": false,
+      "raw_t_unweighted": 1.59,
+      "win_rate": 0.5177
+     }
+    }
+   },
+   "portfolio_liquid": {
+    "n_events": 380,
+    "edge_pct": 0.8762,
+    "t_stat": 2.228,
+    "win_rate_events": 0.5316,
+    "verdict": {
+     "G1": {
+      "n_trades": 380,
+      "raw_edge_pct": 0.8762,
+      "raw_t": 2.228,
+      "wt_t": 0.589,
+      "t_used": 2.228,
+      "t_carried_by": "raw_t",
+      "recent_edge_pct": 0.6264,
+      "older_edge_pct": 1.0335,
+      "decay_ratio": 0.606,
+      "wt_edge_pct": 0.3261,
+      "ok": true,
+      "fail": []
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "실행주기 정합 2.0x < 3.0x (보유 2880분 / 사이클 1440분)"
+      ],
+      "metrics": {
+       "edge_after_1bar_pct": 0.9356,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 2.869,
+       "net_headroom": 11.7,
+       "cycle_margin": 2.0
+      },
+      "notes": []
+     },
+     "passed": false,
+     "raw_t_unweighted": 2.228,
+     "win_rate": 0.5316
+    },
+    "out_of_window": {
+     "n_events": 226,
+     "edge_pct": 0.8207,
+     "t_stat": 1.577,
+     "verdict": {
+      "G1": {
+       "n_trades": 226,
+       "raw_edge_pct": 0.8207,
+       "raw_t": 1.577,
+       "wt_t": 0.129,
+       "t_used": 1.577,
+       "t_carried_by": "raw_t",
+       "recent_edge_pct": -0.8742,
+       "older_edge_pct": 0.1288,
+       "decay_ratio": -6.789,
+       "wt_edge_pct": 0.1152,
+       "ok": false,
+       "fail": [
+        "최근 1/3 엣지 -0.874% <= 0",
+        "decay_ratio -6.79 < 0.3"
+       ]
+      },
+      "G2": {
+       "ok": false,
+       "blocked": [
+        "지연 후 엣지 미측정",
+        "실행주기 정합 2.0x < 3.0x (보유 2880분 / 사이클 1440분)"
+       ],
+       "metrics": {
+        "cycle_margin": 2.0
+       },
+       "notes": []
+      },
+      "passed": false,
+      "raw_t_unweighted": 1.577,
+      "win_rate": 0.5088
+     }
+    }
+   },
+   "per_symbol": {
+    "000660": {
+     "n": 81,
+     "raw_edge_pct": -1.1739,
+     "raw_t": -1.538,
+     "win_rate": 0.4444,
+     "liquid": true,
+     "median_quote_vol_usd": 1878169108375.0
+    },
+    "005930": {
+     "n": 76,
+     "raw_edge_pct": 0.7004,
+     "raw_t": 1.047,
+     "win_rate": 0.6184,
+     "liquid": true,
+     "median_quote_vol_usd": 3069704828150.0
+    },
+    "007210": {
+     "n": 83,
+     "raw_edge_pct": -0.6356,
+     "raw_t": -1.749,
+     "win_rate": 0.494,
+     "liquid": true,
+     "median_quote_vol_usd": 313240684.0
+    },
+    "055550": {
+     "n": 81,
+     "raw_edge_pct": -0.6459,
+     "raw_t": -1.673,
+     "win_rate": 0.4691,
+     "liquid": true,
+     "median_quote_vol_usd": 92665832800.0
+    },
+    "061090": {
+     "n": 41,
+     "raw_edge_pct": -2.2715,
+     "raw_t": -1.594,
+     "win_rate": 0.4146,
+     "liquid": true,
+     "median_quote_vol_usd": 1528586300.0
+    },
+    "0GUSDT": {
+     "n": 92,
+     "raw_edge_pct": 0.6556,
+     "raw_t": 0.433,
+     "win_rate": 0.5326,
+     "liquid": true,
+     "median_quote_vol_usd": 22777610.0
+    },
+    "1000000BOBUSDT": {
+     "n": 134,
+     "raw_edge_pct": -1.1785,
+     "raw_t": -1.023,
+     "win_rate": 0.5149,
+     "liquid": false,
+     "median_quote_vol_usd": 1341995.0
+    },
+    "1000LUNCUSDT": {
+     "n": 74,
+     "raw_edge_pct": -0.1533,
+     "raw_t": -0.125,
+     "win_rate": 0.4459,
+     "liquid": true,
+     "median_quote_vol_usd": 6588342.0
+    },
+    "122630": {
+     "n": 76,
+     "raw_edge_pct": -0.0158,
+     "raw_t": -0.017,
+     "win_rate": 0.4737,
+     "liquid": true,
+     "median_quote_vol_usd": 1210147875014.0
+    },
+    "196170": {
+     "n": 81,
+     "raw_edge_pct": -1.3096,
+     "raw_t": -1.651,
+     "win_rate": 0.4815,
+     "liquid": true,
+     "median_quote_vol_usd": 156263805500.0
+    },
+    "2ZUSDT": {
+     "n": 92,
+     "raw_edge_pct": 0.271,
+     "raw_t": 0.232,
+     "win_rate": 0.5435,
+     "liquid": true,
+     "median_quote_vol_usd": 6208686.0
+    },
+    "4USDT": {
+     "n": 89,
+     "raw_edge_pct": 0.3779,
+     "raw_t": 0.183,
+     "win_rate": 0.5281,
+     "liquid": true,
+     "median_quote_vol_usd": 13291794.0
+    },
+    "ACUUSDT": {
+     "n": 48,
+     "raw_edge_pct": 1.8941,
+     "raw_t": 0.68,
+     "win_rate": 0.4583,
+     "liquid": false,
+     "median_quote_vol_usd": 2557628.0
+    },
+    "ADAUSDT": {
+     "n": 380,
+     "raw_edge_pct": 1.0459,
+     "raw_t": 1.963,
+     "win_rate": 0.5553,
+     "liquid": true,
+     "median_quote_vol_usd": 273029483.0
+    },
+    "AGTUSDT": {
+     "n": 139,
+     "raw_edge_pct": 2.2086,
+     "raw_t": 1.477,
+     "win_rate": 0.554,
+     "liquid": false,
+     "median_quote_vol_usd": 4930991.0
+    },
+    "AIAUSDT": {
+     "n": 86,
+     "raw_edge_pct": -4.8425,
+     "raw_t": -0.662,
+     "win_rate": 0.5233,
+     "liquid": true,
+     "median_quote_vol_usd": 7417436.0
+    },
+    "AINUSDT": {
+     "n": 126,
+     "raw_edge_pct": 1.1914,
+     "raw_t": 0.863,
+     "win_rate": 0.5159,
+     "liquid": false,
+     "median_quote_vol_usd": 2743143.0
+    },
+    "AIOUSDT": {
+     "n": 111,
+     "raw_edge_pct": 1.7048,
+     "raw_t": 1.57,
+     "win_rate": 0.6847,
+     "liquid": false,
+     "median_quote_vol_usd": 2369334.0
+    },
+    "AKEUSDT": {
+     "n": 92,
+     "raw_edge_pct": 0.5639,
+     "raw_t": 0.323,
+     "win_rate": 0.4891,
+     "liquid": false,
+     "median_quote_vol_usd": 2426553.0
+    },
+    "ALLOUSDT": {
+     "n": 72,
+     "raw_edge_pct": 4.2717,
+     "raw_t": 2.732,
+     "win_rate": 0.625,
+     "liquid": true,
+     "median_quote_vol_usd": 6031025.0
+    },
+    "ALLUSDT": {
+     "n": 111,
+     "raw_edge_pct": 0.705,
+     "raw_t": 1.094,
+     "win_rate": 0.5676,
+     "liquid": false,
+     "median_quote_vol_usd": 1491593.0
+    },
+    "APRUSDT": {
+     "n": 86,
+     "raw_edge_pct": 2.846,
+     "raw_t": 1.812,
+     "win_rate": 0.5698,
+     "liquid": true,
+     "median_quote_vol_usd": 5455628.0
+    },
+    "ARIAUSDT": {
+     "n": 96,
+     "raw_edge_pct": 2.0033,
+     "raw_t": 1.008,
+     "win_rate": 0.5729,
+     "liquid": false,
+     "median_quote_vol_usd": 4423753.0
+    },
+    "ARXUSDT": {
+     "n": 27,
+     "raw_edge_pct": 2.3462,
+     "raw_t": 1.29,
+     "win_rate": 0.6667,
+     "liquid": false,
+     "median_quote_vol_usd": 79626.0
+    },
+    "ASTERUSDT": {
+     "n": 92,
+     "raw_edge_pct": -0.6062,
+     "raw_t": -0.589,
+     "win_rate": 0.5217,
+     "liquid": true,
+     "median_quote_vol_usd": 170537455.0
+    },
+    "ATUSDT": {
+     "n": 85,
+     "raw_edge_pct": 0.5031,
+     "raw_t": 0.367,
+     "win_rate": 0.4706,
+     "liquid": true,
+     "median_quote_vol_usd": 7503105.0
+    },
+    "AUSDT": {
+     "n": 137,
+     "raw_edge_pct": 0.4602,
+     "raw_t": 0.681,
+     "win_rate": 0.5474,
+     "liquid": true,
+     "median_quote_vol_usd": 5554376.0
+    },
+    "AVAXUSDT": {
+     "n": 376,
+     "raw_edge_pct": 1.0498,
+     "raw_t": 2.565,
+     "win_rate": 0.5452,
+     "liquid": true,
+     "median_quote_vol_usd": 237121611.0
+    },
+    "AVNTUSDT": {
+     "n": 93,
+     "raw_edge_pct": -1.9301,
+     "raw_t": -0.847,
+     "win_rate": 0.5699,
+     "liquid": true,
+     "median_quote_vol_usd": 21263493.0
+    },
+    "AWEUSDT": {
+     "n": 139,
+     "raw_edge_pct": 0.2014,
+     "raw_t": 0.349,
+     "win_rate": 0.5108,
+     "liquid": false,
+     "median_quote_vol_usd": 3165630.0
+    },
+    "AXSUSDT": {
+     "n": 74,
+     "raw_edge_pct": -0.2036,
+     "raw_t": -0.211,
+     "win_rate": 0.4054,
+     "liquid": true,
+     "median_quote_vol_usd": 13641537.0
+    },
+    "AZTECUSDT": {
+     "n": 34,
+     "raw_edge_pct": -0.6297,
+     "raw_t": -0.345,
+     "win_rate": 0.5,
+     "liquid": false,
+     "median_quote_vol_usd": 4361561.0
+    },
+    "BARDUSDT": {
+     "n": 92,
+     "raw_edge_pct": -0.662,
+     "raw_t": -0.745,
+     "win_rate": 0.5109,
+     "liquid": true,
+     "median_quote_vol_usd": 13456133.0
+    },
+    "BASUSDT": {
+     "n": 101,
+     "raw_edge_pct": 7.3575,
+     "raw_t": 3.216,
+     "win_rate": 0.6634,
+     "liquid": true,
+     "median_quote_vol_usd": 8980165.0
+    },
+    "BCHUSDT": {
+     "n": 380,
+     "raw_edge_pct": 0.397,
+     "raw_t": 1.112,
+     "win_rate": 0.5237,
+     "liquid": true,
+     "median_quote_vol_usd": 141680144.0
+    },
+    "BEATUSDT": {
+     "n": 71,
+     "raw_edge_pct": 0.3421,
+     "raw_t": 0.1,
+     "win_rate": 0.7042,
+     "liquid": true,
+     "median_quote_vol_usd": 39205808.0
+    },
+    "BIRBUSDT": {
+     "n": 41,
+     "raw_edge_pct": -0.3855,
+     "raw_t": -0.219,
+     "win_rate": 0.4878,
+     "liquid": false,
+     "median_quote_vol_usd": 2828327.0
+    },
+    "BLESSUSDT": {
+     "n": 92,
+     "raw_edge_pct": 2.3667,
+     "raw_t": 1.194,
+     "win_rate": 0.5326,
+     "liquid": true,
+     "median_quote_vol_usd": 5280779.0
+    },
+    "BLUAIUSDT": {
+     "n": 86,
+     "raw_edge_pct": 3.5592,
+     "raw_t": 2.058,
+     "win_rate": 0.5,
+     "liquid": true,
+     "median_quote_vol_usd": 5454741.0
+    },
+    "BNBUSDT": {
+     "n": 380,
+     "raw_edge_pct": 1.1338,
+     "raw_t": 4.349,
+     "win_rate": 0.5342,
+     "liquid": true,
+     "median_quote_vol_usd": 425882175.0
+    },
+    "BREVUSDT": {
+     "n": 55,
+     "raw_edge_pct": 1.0335,
+     "raw_t": 0.751,
+     "win_rate": 0.5455,
+     "liquid": true,
+     "median_quote_vol_usd": 5305636.0
+    },
+    "BTCUSDT": {
+     "n": 61,
+     "raw_edge_pct": 0.2734,
+     "raw_t": 0.558,
+     "win_rate": 0.459,
+     "liquid": true,
+     "median_quote_vol_usd": 11148944213.0
+    },
+    "BTRUSDT": {
+     "n": 100,
+     "raw_edge_pct": -1.2042,
+     "raw_t": -0.441,
+     "win_rate": 0.45,
+     "liquid": false,
+     "median_quote_vol_usd": 4160069.0
+    },
+    "BTWUSDT": {
+     "n": 35,
+     "raw_edge_pct": -15.7036,
+     "raw_t": -2.453,
+     "win_rate": 0.4286,
+     "liquid": false,
+     "median_quote_vol_usd": 181137.0
+    },
+    "BULLAUSDT": {
+     "n": 126,
+     "raw_edge_pct": -11.3707,
+     "raw_t": -1.632,
+     "win_rate": 0.4762,
+     "liquid": false,
+     "median_quote_vol_usd": 2980317.0
+    },
+    "BUSDT": {
+     "n": 139,
+     "raw_edge_pct": 0.5162,
+     "raw_t": 0.472,
+     "win_rate": 0.6043,
+     "liquid": true,
+     "median_quote_vol_usd": 5814741.0
+    },
+    "CAPUSDT": {
+     "n": 27,
+     "raw_edge_pct": 6.6279,
+     "raw_t": 1.847,
+     "win_rate": 0.6296,
+     "liquid": false,
+     "median_quote_vol_usd": 12549.0
+    },
+    "CARVUSDT": {
+     "n": 111,
+     "raw_edge_pct": 0.2957,
+     "raw_t": 0.345,
+     "win_rate": 0.5315,
+     "liquid": false,
+     "median_quote_vol_usd": 1363741.0
+    },
+    "CCUSDT": {
+     "n": 83,
+     "raw_edge_pct": 0.218,
+     "raw_t": 0.15,
+     "win_rate": 0.5422,
+     "liquid": true,
+     "median_quote_vol_usd": 9331745.0
+    },
+    "CLANKERUSDT": {
+     "n": 71,
+     "raw_edge_pct": -1.8926,
+     "raw_t": -1.07,
+     "win_rate": 0.493,
+     "liquid": false,
+     "median_quote_vol_usd": 2265190.0
+    },
+    "CLOUSDT": {
+     "n": 87,
+     "raw_edge_pct": 3.857,
+     "raw_t": 1.841,
+     "win_rate": 0.5287,
+     "liquid": true,
+     "median_quote_vol_usd": 12246218.0
+    },
+    "COAIUSDT": {
+     "n": 92,
+     "raw_edge_pct": 29.4935,
+     "raw_t": 1.883,
+     "win_rate": 0.587,
+     "liquid": true,
+     "median_quote_vol_usd": 8111764.0
+    },
+    "COLLECTUSDT": {
+     "n": 55,
+     "raw_edge_pct": 6.2628,
+     "raw_t": 2.455,
+     "win_rate": 0.5818,
+     "liquid": true,
+     "median_quote_vol_usd": 11325266.0
+    },
+    "COMPUSDT": {
+     "n": 74,
+     "raw_edge_pct": -0.4721,
+     "raw_t": -0.563,
+     "win_rate": 0.473,
+     "liquid": false,
+     "median_quote_vol_usd": 4082032.0
+    },
+    "CROSSUSDT": {
+     "n": 126,
+     "raw_edge_pct": 3.1447,
+     "raw_t": 2.01,
+     "win_rate": 0.6032,
+     "liquid": false,
+     "median_quote_vol_usd": 2005465.0
+    },
+    "CTRUSDT": {
+     "n": 40,
+     "raw_edge_pct": 0.6644,
+     "raw_t": 0.625,
+     "win_rate": 0.525,
+     "liquid": false,
+     "median_quote_vol_usd": 241.0
+    },
+    "CUSDT": {
+     "n": 125,
+     "raw_edge_pct": 3.0637,
+     "raw_t": 2.11,
+     "win_rate": 0.536,
+     "liquid": true,
+     "median_quote_vol_usd": 5793446.0
+    },
+    "CVCUSDT": {
+     "n": 141,
+     "raw_edge_pct": 0.2537,
+     "raw_t": 0.432,
+     "win_rate": 0.4894,
+     "liquid": false,
+     "median_quote_vol_usd": 1325221.0
+    },
+    "CVXUSDT": {
+     "n": 141,
+     "raw_edge_pct": 1.8185,
+     "raw_t": 1.456,
+     "win_rate": 0.4681,
+     "liquid": false,
+     "median_quote_vol_usd": 2067810.0
+    },
+    "CYSUSDT": {
+     "n": 60,
+     "raw_edge_pct": 2.1993,
+     "raw_t": 0.85,
+     "win_rate": 0.5833,
+     "liquid": true,
+     "median_quote_vol_usd": 12581387.0
+    },
+    "DATAIPUSDT": {
+     "n": 22,
+     "raw_edge_pct": -0.4564,
+     "raw_t": -0.382,
+     "win_rate": 0.5455,
+     "liquid": false,
+     "median_quote_vol_usd": 6687.0
+    },
+    "DOGEUSDT": {
+     "n": 376,
+     "raw_edge_pct": 0.7911,
+     "raw_t": 1.485,
+     "win_rate": 0.5479,
+     "liquid": true,
+     "median_quote_vol_usd": 789395032.0
+    },
+    "EDENUSDT": {
+     "n": 92,
+     "raw_edge_pct": 1.256,
+     "raw_t": 0.933,
+     "win_rate": 0.5652,
+     "liquid": false,
+     "median_quote_vol_usd": 4013463.0
+    },
+    "ELSAUSDT": {
+     "n": 47,
+     "raw_edge_pct": 2.7036,
+     "raw_t": 1.553,
+     "win_rate": 0.5319,
+     "liquid": false,
+     "median_quote_vol_usd": 2037935.0
+    },
+    "ENSOUSDT": {
+     "n": 87,
+     "raw_edge_pct": 0.037,
+     "raw_t": 0.017,
+     "win_rate": 0.5402,
+     "liquid": true,
+     "median_quote_vol_usd": 15739696.0
+    },
+    "ERAUSDT": {
+     "n": 123,
+     "raw_edge_pct": 0.1612,
+     "raw_t": 0.216,
+     "win_rate": 0.5285,
+     "liquid": false,
+     "median_quote_vol_usd": 4119514.0
+    },
+    "ESPORTSUSDT": {
+     "n": 115,
+     "raw_edge_pct": -3.2642,
+     "raw_t": -2.679,
+     "win_rate": 0.4261,
+     "liquid": false,
+     "median_quote_vol_usd": 3745310.0
+    },
+    "ESPUSDT": {
+     "n": 35,
+     "raw_edge_pct": -2.5828,
+     "raw_t": -1.014,
+     "win_rate": 0.2857,
+     "liquid": true,
+     "median_quote_vol_usd": 7078169.0
+    },
+    "ETCUSDT": {
+     "n": 74,
+     "raw_edge_pct": -0.5686,
+     "raw_t": -1.261,
+     "win_rate": 0.5,
+     "liquid": true,
+     "median_quote_vol_usd": 22232776.0
+    },
+    "ETHUSDT": {
+     "n": 57,
+     "raw_edge_pct": -0.3845,
+     "raw_t": -0.685,
+     "win_rate": 0.4386,
+     "liquid": true,
+     "median_quote_vol_usd": 8308209261.0
+    },
+    "EULUSDT": {
+     "n": 87,
+     "raw_edge_pct": 3.929,
+     "raw_t": 3.191,
+     "win_rate": 0.6322,
+     "liquid": false,
+     "median_quote_vol_usd": 4076555.0
+    },
+    "EVAAUSDT": {
+     "n": 92,
+     "raw_edge_pct": 3.9967,
+     "raw_t": 2.013,
+     "win_rate": 0.5978,
+     "liquid": false,
+     "median_quote_vol_usd": 4334191.0
+    },
+    "FFUSDT": {
+     "n": 92,
+     "raw_edge_pct": -0.9792,
+     "raw_t": -1.031,
+     "win_rate": 0.5217,
+     "liquid": true,
+     "median_quote_vol_usd": 9014689.0
+    },
+    "FIGHTUSDT": {
+     "n": 47,
+     "raw_edge_pct": 1.7717,
+     "raw_t": 0.565,
+     "win_rate": 0.4043,
+     "liquid": false,
+     "median_quote_vol_usd": 4652667.0
+    },
+    "FILUSDT": {
+     "n": 380,
+     "raw_edge_pct": 0.1328,
+     "raw_t": 0.199,
+     "win_rate": 0.5289,
+     "liquid": true,
+     "median_quote_vol_usd": 132027516.0
+    },
+    "FLOCKUSDT": {
+     "n": 93,
+     "raw_edge_pct": 0.4007,
+     "raw_t": 0.374,
+     "win_rate": 0.5054,
+     "liquid": false,
+     "median_quote_vol_usd": 2497964.0
+    },
+    "FLUIDUSDT": {
+     "n": 92,
+     "raw_edge_pct": -0.3281,
+     "raw_t": -0.332,
+     "win_rate": 0.5652,
+     "liquid": false,
+     "median_quote_vol_usd": 1581117.0
+    },
+    "FOGOUSDT": {
+     "n": 54,
+     "raw_edge_pct": 1.6793,
+     "raw_t": 1.027,
+     "win_rate": 0.5185,
+     "liquid": true,
+     "median_quote_vol_usd": 6337795.0
+    },
+    "FOLKSUSDT": {
+     "n": 77,
+     "raw_edge_pct": -2.1887,
+     "raw_t": -1.092,
+     "win_rate": 0.4416,
+     "liquid": true,
+     "median_quote_vol_usd": 8707678.0
+    },
+    "FRAXUSDT": {
+     "n": 52,
+     "raw_edge_pct": 2.8029,
+     "raw_t": 1.653,
+     "win_rate": 0.6154,
+     "liquid": false,
+     "median_quote_vol_usd": 2170350.0
+    },
+    "FUSDT": {
+     "n": 134,
+     "raw_edge_pct": 0.0169,
+     "raw_t": 0.022,
+     "win_rate": 0.4776,
+     "liquid": false,
+     "median_quote_vol_usd": 3546920.0
+    },
+    "GIGGLEUSDT": {
+     "n": 88,
+     "raw_edge_pct": -2.945,
+     "raw_t": -0.726,
+     "win_rate": 0.5682,
+     "liquid": true,
+     "median_quote_vol_usd": 39154438.0
+    },
+    "GRAMUSDT": {
+     "n": 23,
+     "raw_edge_pct": -2.6943,
+     "raw_t": -2.971,
+     "win_rate": 0.3043,
+     "liquid": false,
+     "median_quote_vol_usd": 238588.0
+    },
+    "GUAUSDT": {
+     "n": 59,
+     "raw_edge_pct": 1.2193,
+     "raw_t": 0.634,
+     "win_rate": 0.5254,
+     "liquid": false,
+     "median_quote_vol_usd": 4350147.0
+    },
+    "GWEIUSDT": {
+     "n": 41,
+     "raw_edge_pct": 3.3015,
+     "raw_t": 1.075,
+     "win_rate": 0.5122,
+     "liquid": true,
+     "median_quote_vol_usd": 9708468.0
+    },
+    "HANAUSDT": {
+     "n": 92,
+     "raw_edge_pct": 4.2201,
+     "raw_t": 1.553,
+     "win_rate": 0.5,
+     "liquid": false,
+     "median_quote_vol_usd": 4356011.0
+    },
+    "HBARUSDT": {
+     "n": 74,
+     "raw_edge_pct": 0.412,
+     "raw_t": 0.863,
+     "win_rate": 0.4865,
+     "liquid": true,
+     "median_quote_vol_usd": 25640733.0
+    },
+    "HEMIUSDT": {
+     "n": 100,
+     "raw_edge_pct": 2.6064,
+     "raw_t": 1.316,
+     "win_rate": 0.53,
+     "liquid": true,
+     "median_quote_vol_usd": 7031611.0
+    },
+    "HOLOUSDT": {
+     "n": 93,
+     "raw_edge_pct": -0.3857,
+     "raw_t": -0.384,
+     "win_rate": 0.4624,
+     "liquid": true,
+     "median_quote_vol_usd": 5184614.0
+    },
+    "HOMEUSDT": {
+     "n": 134,
+     "raw_edge_pct": -0.4182,
+     "raw_t": -0.675,
+     "win_rate": 0.5149,
+     "liquid": false,
+     "median_quote_vol_usd": 4337795.0
+    },
+    "HUMAUSDT": {
+     "n": 138,
+     "raw_edge_pct": 1.0951,
+     "raw_t": 1.101,
+     "win_rate": 0.529,
+     "liquid": true,
+     "median_quote_vol_usd": 12591738.0
+    },
+    "HUSDT": {
+     "n": 131,
+     "raw_edge_pct": 5.9335,
+     "raw_t": 2.493,
+     "win_rate": 0.5954,
+     "liquid": true,
+     "median_quote_vol_usd": 27339816.0
+    },
+    "HYPEUSDT": {
+     "n": 137,
+     "raw_edge_pct": -0.8998,
+     "raw_t": -1.132,
+     "win_rate": 0.5109,
+     "liquid": true,
+     "median_quote_vol_usd": 348329221.0
+    },
+    "ICNTUSDT": {
+     "n": 126,
+     "raw_edge_pct": -3.4054,
+     "raw_t": -2.624,
+     "win_rate": 0.4206,
+     "liquid": false,
+     "median_quote_vol_usd": 4907944.0
+    },
+    "ICPUSDT": {
+     "n": 74,
+     "raw_edge_pct": -1.8365,
+     "raw_t": -2.105,
+     "win_rate": 0.3514,
+     "liquid": true,
+     "median_quote_vol_usd": 21985478.0
+    },
+    "IDOLUSDT": {
+     "n": 126,
+     "raw_edge_pct": 2.3592,
+     "raw_t": 1.329,
+     "win_rate": 0.5,
+     "liquid": false,
+     "median_quote_vol_usd": 2100213.0
+    },
+    "INUSDT": {
+     "n": 111,
+     "raw_edge_pct": 1.6042,
+     "raw_t": 1.533,
+     "win_rate": 0.6126,
+     "liquid": false,
+     "median_quote_vol_usd": 4584471.0
+    },
+    "INXUSDT": {
+     "n": 40,
+     "raw_edge_pct": 3.0041,
+     "raw_t": 1.424,
+     "win_rate": 0.625,
+     "liquid": false,
+     "median_quote_vol_usd": 3593166.0
+    },
+    "IRYSUSDT": {
+     "n": 60,
+     "raw_edge_pct": -0.2643,
+     "raw_t": -0.141,
+     "win_rate": 0.5,
+     "liquid": false,
+     "median_quote_vol_usd": 4385624.0
+    },
+    "JCTUSDT": {
+     "n": 73,
+     "raw_edge_pct": -0.2407,
+     "raw_t": -0.115,
+     "win_rate": 0.6438,
+     "liquid": false,
+     "median_quote_vol_usd": 4234615.0
+    },
+    "JUPUSDT": {
+     "n": 74,
+     "raw_edge_pct": -0.6377,
+     "raw_t": -0.76,
+     "win_rate": 0.5,
+     "liquid": true,
+     "median_quote_vol_usd": 12580315.0
+    },
+    "KATUSDT": {
+     "n": 26,
+     "raw_edge_pct": 11.5892,
+     "raw_t": 1.6,
+     "win_rate": 0.6923,
+     "liquid": true,
+     "median_quote_vol_usd": 15117825.0
+    },
+    "KGENUSDT": {
+     "n": 90,
+     "raw_edge_pct": 1.0156,
+     "raw_t": 0.668,
+     "win_rate": 0.5222,
+     "liquid": false,
+     "median_quote_vol_usd": 4713764.0
+    },
+    "KITEUSDT": {
+     "n": 85,
+     "raw_edge_pct": -1.7813,
+     "raw_t": -0.646,
+     "win_rate": 0.4235,
+     "liquid": true,
+     "median_quote_vol_usd": 31289789.0
+    },
+    "LABUSDT": {
+     "n": 87,
+     "raw_edge_pct": -0.0965,
+     "raw_t": -0.031,
+     "win_rate": 0.6552,
+     "liquid": true,
+     "median_quote_vol_usd": 8236423.0
+    },
+    "LAUSDT": {
+     "n": 134,
+     "raw_edge_pct": 1.3431,
+     "raw_t": 1.88,
+     "win_rate": 0.5373,
+     "liquid": true,
+     "median_quote_vol_usd": 12347915.0
+    },
+    "LDOUSDT": {
+     "n": 74,
+     "raw_edge_pct": 1.4612,
+     "raw_t": 1.85,
+     "win_rate": 0.4865,
+     "liquid": true,
+     "median_quote_vol_usd": 14748705.0
+    },
+    "LIGHTUSDT": {
+     "n": 92,
+     "raw_edge_pct": 4.9844,
+     "raw_t": 2.644,
+     "win_rate": 0.5978,
+     "liquid": true,
+     "median_quote_vol_usd": 14877084.0
+    },
+    "LINEAUSDT": {
+     "n": 98,
+     "raw_edge_pct": -1.1118,
+     "raw_t": -0.839,
+     "win_rate": 0.4592,
+     "liquid": true,
+     "median_quote_vol_usd": 14140739.0
+    },
+    "LINKUSDT": {
+     "n": 376,
+     "raw_edge_pct": 0.755,
+     "raw_t": 1.87,
+     "win_rate": 0.5213,
+     "liquid": true,
+     "median_quote_vol_usd": 223128733.0
+    },
+    "LITUSDT": {
+     "n": 86,
+     "raw_edge_pct": -12.2804,
+     "raw_t": -1.513,
+     "win_rate": 0.2791,
+     "liquid": true,
+     "median_quote_vol_usd": 17882952.0
+    },
+    "LTCUSDT": {
+     "n": 380,
+     "raw_edge_pct": 1.1822,
+     "raw_t": 3.236,
+     "win_rate": 0.5711,
+     "liquid": true,
+     "median_quote_vol_usd": 156554372.0
+    },
+    "LYNUSDT": {
+     "n": 91,
+     "raw_edge_pct": -1.6258,
+     "raw_t": -0.876,
+     "win_rate": 0.5275,
+     "liquid": true,
+     "median_quote_vol_usd": 10693604.0
+    },
+    "MAGMAUSDT": {
+     "n": 55,
+     "raw_edge_pct": 1.3574,
+     "raw_t": 0.629,
+     "win_rate": 0.4545,
+     "liquid": false,
+     "median_quote_vol_usd": 4145111.0
+    },
+    "MANTRAUSDT": {
+     "n": 25,
+     "raw_edge_pct": -1.893,
+     "raw_t": -1.471,
+     "win_rate": 0.48,
+     "liquid": true,
+     "median_quote_vol_usd": 5743896.0
+    },
+    "MEGAUSDT": {
+     "n": 40,
+     "raw_edge_pct": 3.0918,
+     "raw_t": 2.111,
+     "win_rate": 0.575,
+     "liquid": false,
+     "median_quote_vol_usd": 1122019.0
+    },
+    "MERLUSDT": {
+     "n": 137,
+     "raw_edge_pct": 2.787,
+     "raw_t": 2.317,
+     "win_rate": 0.562,
+     "liquid": true,
+     "median_quote_vol_usd": 11738599.0
+    },
+    "METUSDT": {
+     "n": 87,
+     "raw_edge_pct": 0.9938,
+     "raw_t": 0.851,
+     "win_rate": 0.4943,
+     "liquid": true,
+     "median_quote_vol_usd": 10016623.0
+    },
+    "MIRAUSDT": {
+     "n": 92,
+     "raw_edge_pct": 0.1503,
+     "raw_t": 0.145,
+     "win_rate": 0.5109,
+     "liquid": false,
+     "median_quote_vol_usd": 3756652.0
+    },
+    "MITOUSDT": {
+     "n": 100,
+     "raw_edge_pct": -0.1867,
+     "raw_t": -0.183,
+     "win_rate": 0.53,
+     "liquid": false,
+     "median_quote_vol_usd": 2748015.0
+    },
+    "MMTUSDT": {
+     "n": 79,
+     "raw_edge_pct": 2.7852,
+     "raw_t": 1.567,
+     "win_rate": 0.557,
+     "liquid": true,
+     "median_quote_vol_usd": 6696718.0
+    },
+    "MONUSDT": {
+     "n": 87,
+     "raw_edge_pct": -1.1989,
+     "raw_t": -0.743,
+     "win_rate": 0.4828,
+     "liquid": true,
+     "median_quote_vol_usd": 25708501.0
+    },
+    "MUSDT": {
+     "n": 126,
+     "raw_edge_pct": 2.4281,
+     "raw_t": 1.456,
+     "win_rate": 0.5317,
+     "liquid": true,
+     "median_quote_vol_usd": 16501308.0
+    },
+    "MYXUSDT": {
+     "n": 134,
+     "raw_edge_pct": -6.4763,
+     "raw_t": -0.58,
+     "win_rate": 0.4552,
+     "liquid": true,
+     "median_quote_vol_usd": 30070252.0
+    },
+    "NAORISUSDT": {
+     "n": 115,
+     "raw_edge_pct": 6.8701,
+     "raw_t": 3.39,
+     "win_rate": 0.6957,
+     "liquid": true,
+     "median_quote_vol_usd": 6117549.0
+    },
+    "NEARUSDT": {
+     "n": 380,
+     "raw_edge_pct": 0.8825,
+     "raw_t": 1.604,
+     "win_rate": 0.5342,
+     "liquid": true,
+     "median_quote_vol_usd": 141031940.0
+    },
+    "NEWTUSDT": {
+     "n": 134,
+     "raw_edge_pct": 0.4786,
+     "raw_t": 0.411,
+     "win_rate": 0.5149,
+     "liquid": false,
+     "median_quote_vol_usd": 4824150.0
+    },
+    "NIGHTUSDT": {
+     "n": 60,
+     "raw_edge_pct": 0.4756,
+     "raw_t": 0.306,
+     "win_rate": 0.5,
+     "liquid": true,
+     "median_quote_vol_usd": 11715240.0
+    },
+    "NOMUSDT": {
+     "n": 91,
+     "raw_edge_pct": -2.8495,
+     "raw_t": -1.145,
+     "win_rate": 0.4835,
+     "liquid": true,
+     "median_quote_vol_usd": 5535833.0
+    },
+    "NXPCUSDT": {
+     "n": 139,
+     "raw_edge_pct": -1.1946,
+     "raw_t": -1.819,
+     "win_rate": 0.4748,
+     "liquid": true,
+     "median_quote_vol_usd": 7009671.0
+    },
+    "ONUSDT": {
+     "n": 86,
+     "raw_edge_pct": 4.9318,
+     "raw_t": 2.916,
+     "win_rate": 0.6395,
+     "liquid": false,
+     "median_quote_vol_usd": 2246125.0
+    },
+    "OPENUSDT": {
+     "n": 93,
+     "raw_edge_pct": 0.4635,
+     "raw_t": 0.449,
+     "win_rate": 0.5161,
+     "liquid": true,
+     "median_quote_vol_usd": 6242659.0
+    },
+    "OPNUSDT": {
+     "n": 29,
+     "raw_edge_pct": -1.956,
+     "raw_t": -0.896,
+     "win_rate": 0.3793,
+     "liquid": true,
+     "median_quote_vol_usd": 13345431.0
+    },
+    "ORDERUSDT": {
+     "n": 92,
+     "raw_edge_pct": 0.4979,
+     "raw_t": 0.434,
+     "win_rate": 0.5109,
+     "liquid": false,
+     "median_quote_vol_usd": 2203086.0
+    },
+    "OUSDT": {
+     "n": 27,
+     "raw_edge_pct": -1.9995,
+     "raw_t": -1.301,
+     "win_rate": 0.5185,
+     "liquid": false,
+     "median_quote_vol_usd": 367607.0
+    },
+    "PHAROSUSDT": {
+     "n": 37,
+     "raw_edge_pct": 1.9599,
+     "raw_t": 1.766,
+     "win_rate": 0.5405,
+     "liquid": false,
+     "median_quote_vol_usd": 31580.0
+    },
+    "PIEVERSEUSDT": {
+     "n": 70,
+     "raw_edge_pct": 0.8499,
+     "raw_t": 0.347,
+     "win_rate": 0.4857,
+     "liquid": true,
+     "median_quote_vol_usd": 14364262.0
+    },
+    "PLAYUSDT": {
+     "n": 115,
+     "raw_edge_pct": -4.3352,
+     "raw_t": -1.757,
+     "win_rate": 0.4783,
+     "liquid": true,
+     "median_quote_vol_usd": 5369508.0
+    },
+    "POWERUSDT": {
+     "n": 60,
+     "raw_edge_pct": 0.9124,
+     "raw_t": 0.242,
+     "win_rate": 0.5667,
+     "liquid": true,
+     "median_quote_vol_usd": 21021520.0
+    },
+    "PROVEUSDT": {
+     "n": 112,
+     "raw_edge_pct": 0.3158,
+     "raw_t": 0.426,
+     "win_rate": 0.5357,
+     "liquid": false,
+     "median_quote_vol_usd": 4108639.0
+    },
+    "PTBUSDT": {
+     "n": 96,
+     "raw_edge_pct": 3.0328,
+     "raw_t": 1.456,
+     "win_rate": 0.5625,
+     "liquid": true,
+     "median_quote_vol_usd": 7900731.0
+    },
+    "PUMPBTCUSDT": {
+     "n": 134,
+     "raw_edge_pct": 1.0149,
+     "raw_t": 1.171,
+     "win_rate": 0.5075,
+     "liquid": false,
+     "median_quote_vol_usd": 1883855.0
+    },
+    "PUMPUSDT": {
+     "n": 141,
+     "raw_edge_pct": -1.3744,
+     "raw_t": -1.269,
+     "win_rate": 0.4113,
+     "liquid": true,
+     "median_quote_vol_usd": 132308952.0
+    },
+    "PYTHUSDT": {
+     "n": 74,
+     "raw_edge_pct": -0.6916,
+     "raw_t": -0.719,
+     "win_rate": 0.4054,
+     "liquid": true,
+     "median_quote_vol_usd": 6374450.0
+    },
+    "QUSDT": {
+     "n": 97,
+     "raw_edge_pct": 1.5384,
+     "raw_t": 0.599,
+     "win_rate": 0.6082,
+     "liquid": true,
+     "median_quote_vol_usd": 5259026.0
+    },
+    "RAVEUSDT": {
+     "n": 60,
+     "raw_edge_pct": -5.4347,
+     "raw_t": -1.851,
+     "win_rate": 0.4167,
+     "liquid": true,
+     "median_quote_vol_usd": 15667957.0
+    },
+    "RECALLUSDT": {
+     "n": 87,
+     "raw_edge_pct": 5.1001,
+     "raw_t": 4.465,
+     "win_rate": 0.6552,
+     "liquid": false,
+     "median_quote_vol_usd": 2275510.0
+    },
+    "RESOLVUSDT": {
+     "n": 134,
+     "raw_edge_pct": 0.2589,
+     "raw_t": 0.148,
+     "win_rate": 0.5149,
+     "liquid": true,
+     "median_quote_vol_usd": 14548118.0
+    },
+    "REUSDT": {
+     "n": 27,
+     "raw_edge_pct": 0.8839,
+     "raw_t": 0.25,
+     "win_rate": 0.5556,
+     "liquid": false,
+     "median_quote_vol_usd": 755576.0
+    },
+    "RIVERUSDT": {
+     "n": 87,
+     "raw_edge_pct": 8.9922,
+     "raw_t": 2.744,
+     "win_rate": 0.6667,
+     "liquid": true,
+     "median_quote_vol_usd": 145332582.0
+    },
+    "ROBOUSDT": {
+     "n": 28,
+     "raw_edge_pct": 3.8975,
+     "raw_t": 1.787,
+     "win_rate": 0.6071,
+     "liquid": true,
+     "median_quote_vol_usd": 15493351.0
+    },
+    "SAHARAUSDT": {
+     "n": 130,
+     "raw_edge_pct": 2.2891,
+     "raw_t": 2.116,
+     "win_rate": 0.5385,
+     "liquid": true,
+     "median_quote_vol_usd": 13267101.0
+    },
+    "SAPIENUSDT": {
+     "n": 105,
+     "raw_edge_pct": 1.2764,
+     "raw_t": 0.511,
+     "win_rate": 0.5905,
+     "liquid": true,
+     "median_quote_vol_usd": 7761128.0
+    },
+    "SENTUSDT": {
+     "n": 70,
+     "raw_edge_pct": -0.0348,
+     "raw_t": -0.015,
+     "win_rate": 0.5,
+     "liquid": true,
+     "median_quote_vol_usd": 7637538.0
+    },
+    "SKRUSDT": {
+     "n": 47,
+     "raw_edge_pct": 2.1629,
+     "raw_t": 1.131,
+     "win_rate": 0.4894,
+     "liquid": true,
+     "median_quote_vol_usd": 5280474.0
+    },
+    "SKYAIUSDT": {
+     "n": 141,
+     "raw_edge_pct": -1.3066,
+     "raw_t": -0.84,
+     "win_rate": 0.4539,
+     "liquid": false,
+     "median_quote_vol_usd": 4109522.0
+    },
+    "SKYUSDT": {
+     "n": 93,
+     "raw_edge_pct": 0.9516,
+     "raw_t": 1.55,
+     "win_rate": 0.5591,
+     "liquid": true,
+     "median_quote_vol_usd": 5852887.0
+    },
+    "SLPUSDT": {
+     "n": 141,
+     "raw_edge_pct": 0.9124,
+     "raw_t": 1.154,
+     "win_rate": 0.4894,
+     "liquid": false,
+     "median_quote_vol_usd": 1015958.0
+    },
+    "SLXUSDT": {
+     "n": 38,
+     "raw_edge_pct": 4.1905,
+     "raw_t": 1.235,
+     "win_rate": 0.6053,
+     "liquid": false,
+     "median_quote_vol_usd": 230525.0
+    },
+    "SOLUSDT": {
+     "n": 376,
+     "raw_edge_pct": 0.31,
+     "raw_t": 0.806,
+     "win_rate": 0.5,
+     "liquid": true,
+     "median_quote_vol_usd": 2789069835.0
+    },
+    "SOMIUSDT": {
+     "n": 102,
+     "raw_edge_pct": 0.2575,
+     "raw_t": 0.081,
+     "win_rate": 0.4804,
+     "liquid": true,
+     "median_quote_vol_usd": 9936690.0
+    },
+    "SOONUSDT": {
+     "n": 139,
+     "raw_edge_pct": -0.1517,
+     "raw_t": -0.067,
+     "win_rate": 0.518,
+     "liquid": true,
+     "median_quote_vol_usd": 13430165.0
+    },
+    "SOPHUSDT": {
+     "n": 137,
+     "raw_edge_pct": 1.0962,
+     "raw_t": 1.614,
+     "win_rate": 0.5693,
+     "liquid": true,
+     "median_quote_vol_usd": 5572944.0
+    },
+    "SPACEUSDT": {
+     "n": 47,
+     "raw_edge_pct": 12.4498,
+     "raw_t": 2.968,
+     "win_rate": 0.617,
+     "liquid": true,
+     "median_quote_vol_usd": 9568051.0
+    },
+    "SPKUSDT": {
+     "n": 134,
+     "raw_edge_pct": 5.8271,
+     "raw_t": 1.833,
+     "win_rate": 0.5896,
+     "liquid": true,
+     "median_quote_vol_usd": 10146570.0
+    },
+    "SPORTFUNUSDT": {
+     "n": 52,
+     "raw_edge_pct": 1.5826,
+     "raw_t": 0.71,
+     "win_rate": 0.5962,
+     "liquid": false,
+     "median_quote_vol_usd": 2801530.0
+    },
+    "SQDUSDT": {
+     "n": 134,
+     "raw_edge_pct": 0.7453,
+     "raw_t": 0.612,
+     "win_rate": 0.4925,
+     "liquid": false,
+     "median_quote_vol_usd": 3873493.0
+    },
+    "STABLEUSDT": {
+     "n": 77,
+     "raw_edge_pct": 2.8594,
+     "raw_t": 1.674,
+     "win_rate": 0.6234,
+     "liquid": true,
+     "median_quote_vol_usd": 14102842.0
+    },
+    "STARUSDT": {
+     "n": 37,
+     "raw_edge_pct": -1.2877,
+     "raw_t": -0.477,
+     "win_rate": 0.5135,
+     "liquid": false,
+     "median_quote_vol_usd": 8527.0
+    },
+    "STBLUSDT": {
+     "n": 92,
+     "raw_edge_pct": -1.7704,
+     "raw_t": -1.079,
+     "win_rate": 0.5,
+     "liquid": false,
+     "median_quote_vol_usd": 4781385.0
+    },
+    "TACUSDT": {
+     "n": 125,
+     "raw_edge_pct": -0.972,
+     "raw_t": -0.789,
+     "win_rate": 0.464,
+     "liquid": false,
+     "median_quote_vol_usd": 1748200.0
+    },
+    "TAGUSDT": {
+     "n": 116,
+     "raw_edge_pct": -1.7749,
+     "raw_t": -1.222,
+     "win_rate": 0.4569,
+     "liquid": false,
+     "median_quote_vol_usd": 2520945.0
+    },
+    "TAIKOUSDT": {
+     "n": 134,
+     "raw_edge_pct": 0.96,
+     "raw_t": 1.444,
+     "win_rate": 0.5597,
+     "liquid": false,
+     "median_quote_vol_usd": 969776.0
+    },
+    "TAKEUSDT": {
+     "n": 96,
+     "raw_edge_pct": 3.9223,
+     "raw_t": 1.328,
+     "win_rate": 0.6354,
+     "liquid": true,
+     "median_quote_vol_usd": 5506059.0
+    },
+    "TAUSDT": {
+     "n": 120,
+     "raw_edge_pct": -0.0862,
+     "raw_t": -0.08,
+     "win_rate": 0.475,
+     "liquid": true,
+     "median_quote_vol_usd": 5157031.0
+    },
+    "TONUSDT": {
+     "n": 74,
+     "raw_edge_pct": -3.5276,
+     "raw_t": -2.181,
+     "win_rate": 0.1622,
+     "liquid": true,
+     "median_quote_vol_usd": 22595390.0
+    },
+    "TOSHIUSDT": {
+     "n": 92,
+     "raw_edge_pct": 3.3764,
+     "raw_t": 3.312,
+     "win_rate": 0.6739,
+     "liquid": false,
+     "median_quote_vol_usd": 2819636.0
+    },
+    "TOWNSUSDT": {
+     "n": 112,
+     "raw_edge_pct": 0.8943,
+     "raw_t": 0.853,
+     "win_rate": 0.5446,
+     "liquid": false,
+     "median_quote_vol_usd": 3189509.0
+    },
+    "TRADOORUSDT": {
+     "n": 92,
+     "raw_edge_pct": -1.6877,
+     "raw_t": -0.64,
+     "win_rate": 0.4783,
+     "liquid": true,
+     "median_quote_vol_usd": 11713618.0
+    },
+    "TREEUSDT": {
+     "n": 115,
+     "raw_edge_pct": 0.786,
+     "raw_t": 0.859,
+     "win_rate": 0.5391,
+     "liquid": true,
+     "median_quote_vol_usd": 5333723.0
+    },
+    "TRIAUSDT": {
+     "n": 35,
+     "raw_edge_pct": 5.8497,
+     "raw_t": 1.907,
+     "win_rate": 0.5429,
+     "liquid": true,
+     "median_quote_vol_usd": 17608835.0
+    },
+    "TRUSTUSDT": {
+     "n": 78,
+     "raw_edge_pct": -0.9106,
+     "raw_t": -0.281,
+     "win_rate": 0.5385,
+     "liquid": false,
+     "median_quote_vol_usd": 2272165.0
+    },
+    "TRUTHUSDT": {
+     "n": 92,
+     "raw_edge_pct": -3.7507,
+     "raw_t": -1.327,
+     "win_rate": 0.413,
+     "liquid": true,
+     "median_quote_vol_usd": 6884527.0
+    },
+    "TURTLEUSDT": {
+     "n": 86,
+     "raw_edge_pct": 1.8112,
+     "raw_t": 1.644,
+     "win_rate": 0.5698,
+     "liquid": false,
+     "median_quote_vol_usd": 2206715.0
+    },
+    "UAIUSDT": {
+     "n": 77,
+     "raw_edge_pct": 0.8352,
+     "raw_t": 0.264,
+     "win_rate": 0.4675,
+     "liquid": true,
+     "median_quote_vol_usd": 8119402.0
+    },
+    "UBUSDT": {
+     "n": 92,
+     "raw_edge_pct": 2.2682,
+     "raw_t": 1.443,
+     "win_rate": 0.5543,
+     "liquid": true,
+     "median_quote_vol_usd": 5146326.0
+    },
+    "UNIUSDT": {
+     "n": 74,
+     "raw_edge_pct": 0.7684,
+     "raw_t": 1.229,
+     "win_rate": 0.5946,
+     "liquid": true,
+     "median_quote_vol_usd": 60177951.0
+    },
+    "USELESSUSDT": {
+     "n": 111,
+     "raw_edge_pct": 2.8667,
+     "raw_t": 1.614,
+     "win_rate": 0.5676,
+     "liquid": true,
+     "median_quote_vol_usd": 18413776.0
+    },
+    "USUSDT": {
+     "n": 60,
+     "raw_edge_pct": -1.704,
+     "raw_t": -1.074,
+     "win_rate": 0.4,
+     "liquid": false,
+     "median_quote_vol_usd": 1919315.0
+    },
+    "VELVETUSDT": {
+     "n": 125,
+     "raw_edge_pct": 0.0314,
+     "raw_t": 0.026,
+     "win_rate": 0.576,
+     "liquid": false,
+     "median_quote_vol_usd": 2720484.0
+    },
+    "WETUSDT": {
+     "n": 60,
+     "raw_edge_pct": 2.701,
+     "raw_t": 2.256,
+     "win_rate": 0.5667,
+     "liquid": true,
+     "median_quote_vol_usd": 5754881.0
+    },
+    "WIFUSDT": {
+     "n": 370,
+     "raw_edge_pct": -0.8031,
+     "raw_t": -0.925,
+     "win_rate": 0.473,
+     "liquid": true,
+     "median_quote_vol_usd": 297845058.0
+    },
+    "WLDUSDT": {
+     "n": 74,
+     "raw_edge_pct": -2.8855,
+     "raw_t": -2.241,
+     "win_rate": 0.3784,
+     "liquid": true,
+     "median_quote_vol_usd": 93779516.0
+    },
+    "WLFIUSDT": {
+     "n": 104,
+     "raw_edge_pct": -2.6236,
+     "raw_t": -2.483,
+     "win_rate": 0.4615,
+     "liquid": true,
+     "median_quote_vol_usd": 84167677.0
+    },
+    "XANUSDT": {
+     "n": 92,
+     "raw_edge_pct": -0.9421,
+     "raw_t": -0.466,
+     "win_rate": 0.6087,
+     "liquid": false,
+     "median_quote_vol_usd": 3366830.0
+    },
+    "XNYUSDT": {
+     "n": 111,
+     "raw_edge_pct": 3.8252,
+     "raw_t": 1.934,
+     "win_rate": 0.6036,
+     "liquid": false,
+     "median_quote_vol_usd": 4989096.0
+    },
+    "XPINUSDT": {
+     "n": 93,
+     "raw_edge_pct": 3.2756,
+     "raw_t": 2.191,
+     "win_rate": 0.6022,
+     "liquid": false,
+     "median_quote_vol_usd": 3431999.0
+    },
+    "XPLUSDT": {
+     "n": 104,
+     "raw_edge_pct": -0.9011,
+     "raw_t": -0.588,
+     "win_rate": 0.5,
+     "liquid": true,
+     "median_quote_vol_usd": 84470403.0
+    },
+    "XRPUSDT": {
+     "n": 380,
+     "raw_edge_pct": 1.5173,
+     "raw_t": 3.171,
+     "win_rate": 0.5447,
+     "liquid": true,
+     "median_quote_vol_usd": 948637633.0
+    },
+    "YBUSDT": {
+     "n": 87,
+     "raw_edge_pct": 0.5438,
+     "raw_t": 0.459,
+     "win_rate": 0.5977,
+     "liquid": false,
+     "median_quote_vol_usd": 4428785.0
+    },
+    "ZAMAUSDT": {
+     "n": 54,
+     "raw_edge_pct": 2.163,
+     "raw_t": 1.142,
+     "win_rate": 0.5,
+     "liquid": true,
+     "median_quote_vol_usd": 12852062.0
+    },
+    "ZBTUSDT": {
+     "n": 87,
+     "raw_edge_pct": 3.7949,
+     "raw_t": 1.691,
+     "win_rate": 0.6092,
+     "liquid": true,
+     "median_quote_vol_usd": 8819659.0
+    },
+    "ZESTUSDT": {
+     "n": 35,
+     "raw_edge_pct": 1.4106,
+     "raw_t": 1.254,
+     "win_rate": 0.6571,
+     "liquid": false,
+     "median_quote_vol_usd": 21614.0
+    },
+    "ZKCUSDT": {
+     "n": 92,
+     "raw_edge_pct": -0.6339,
+     "raw_t": -0.489,
+     "win_rate": 0.5326,
+     "liquid": false,
+     "median_quote_vol_usd": 4458444.0
+    },
+    "ZKPUSDT": {
+     "n": 59,
+     "raw_edge_pct": 1.9974,
+     "raw_t": 1.605,
+     "win_rate": 0.5085,
+     "liquid": true,
+     "median_quote_vol_usd": 7715673.0
+    },
+    "ZORAUSDT": {
+     "n": 116,
+     "raw_edge_pct": 3.1849,
+     "raw_t": 2.568,
+     "win_rate": 0.5345,
+     "liquid": true,
+     "median_quote_vol_usd": 11149318.0
+    }
+   }
+  },
+  "h3d": {
+   "n_symbols": 206,
+   "n_symbols_liquid": 125,
+   "pct_symbols_positive_edge": 0.6359,
+   "pct_symbols_positive_edge_liquid": 0.624,
+   "median_symbol_edge_pct": 0.8491,
+   "median_symbol_edge_pct_liquid": 0.8495,
+   "portfolio_all": {
+    "n_events": 380,
+    "edge_pct": 1.0564,
+    "t_stat": 2.461,
+    "win_rate_events": 0.5289,
+    "verdict": {
+     "G1": {
+      "n_trades": 380,
+      "raw_edge_pct": 1.0564,
+      "raw_t": 2.461,
+      "wt_t": 0.112,
+      "t_used": 2.461,
+      "t_carried_by": "raw_t",
+      "recent_edge_pct": 0.7789,
+      "older_edge_pct": 1.1594,
+      "decay_ratio": 0.672,
+      "wt_edge_pct": 0.064,
+      "ok": true,
+      "fail": []
+     },
+     "G2": {
+      "ok": false,
+      "blocked": [
+       "지연 후 엣지 미측정"
+      ],
+      "metrics": {
+       "cycle_margin": 3.0
+      },
+      "notes": []
+     },
+     "passed": false,
+     "raw_t_unweighted": 2.461,
+     "win_rate": 0.5289
+    },
+    "out_of_window": {
+     "n_events": 226,
+     "edge_pct": 1.2381,
+     "t_stat": 2.085,
+     "verdict": {
+      "G1": {
+       "n_trades": 226,
+       "raw_edge_pct": 1.2381,
+       "raw_t": 2.085,
+       "wt_t": 0.431,
+       "t_used": 2.085,
+       "t_carried_by": "raw_t",
+       "recent_edge_pct": -0.6098,
+       "older_edge_pct": -0.0077,
+       "decay_ratio": 0.0,
+       "wt_edge_pct": 0.3927,
+       "ok": false,
+       "fail": [
+        "최근 1/3 엣지 -0.610% <= 0",
+        "decay_ratio 0.00 < 0.3"
+       ]
+      },
+      "G2": {
+       "ok": false,
+       "blocked": [
+        "지연 후 엣지 미측정"
+       ],
+       "metrics": {
+        "cycle_margin": 3.0
+       },
+       "notes": []
+      },
+      "passed": false,
+      "raw_t_unweighted": 2.085,
+      "win_rate": 0.5664
+     }
+    }
+   },
+   "portfolio_liquid": {
+    "n_events": 379,
+    "edge_pct": 1.2277,
+    "t_stat": 2.645,
+    "win_rate_events": 0.5435,
+    "verdict": {
+     "G1": {
+      "n_trades": 379,
+      "raw_edge_pct": 1.2277,
+      "raw_t": 2.645,
+      "wt_t": 0.567,
+      "t_used": 2.645,
+      "t_carried_by": "raw_t",
+      "recent_edge_pct": 0.8732,
+      "older_edge_pct": 1.1594,
+      "decay_ratio": 0.753,
+      "wt_edge_pct": 0.3628,
+      "ok": true,
+      "fail": []
+     },
+     "G2": {
+      "ok": true,
+      "blocked": [],
+      "metrics": {
+       "edge_after_1bar_pct": 0.9239,
+       "roundtrip_friction_pct": 0.08,
+       "delay_retention": 2.547,
+       "net_headroom": 11.55,
+       "cycle_margin": 3.0
+      },
+      "notes": []
+     },
+     "passed": true,
+     "raw_t_unweighted": 2.645,
+     "win_rate": 0.5435
+    },
+    "out_of_window": {
+     "n_events": 226,
+     "edge_pct": 1.2249,
+     "t_stat": 1.979,
+     "verdict": {
+      "G1": {
+       "n_trades": 226,
+       "raw_edge_pct": 1.2249,
+       "raw_t": 1.979,
+       "wt_t": 0.252,
+       "t_used": 1.979,
+       "t_carried_by": "raw_t",
+       "recent_edge_pct": -0.6496,
+       "older_edge_pct": -0.0077,
+       "decay_ratio": 0.0,
+       "wt_edge_pct": 0.2723,
+       "ok": false,
+       "fail": [
+        "최근 1/3 엣지 -0.650% <= 0",
+        "decay_ratio 0.00 < 0.3"
+       ]
+      },
+      "G2": {
+       "ok": false,
+       "blocked": [
+        "지연 후 엣지 미측정"
+       ],
+       "metrics": {
+        "cycle_margin": 3.0
+       },
+       "notes": []
+      },
+      "passed": false,
+      "raw_t_unweighted": 1.979,
+      "win_rate": 0.5531
+     }
+    }
+   },
+   "per_symbol": {
+    "000660": {
+     "n": 76,
+     "raw_edge_pct": -1.5324,
+     "raw_t": -1.607,
+     "win_rate": 0.4211,
+     "liquid": true,
+     "median_quote_vol_usd": 1878169108375.0
+    },
+    "005930": {
+     "n": 71,
+     "raw_edge_pct": -0.046,
+     "raw_t": -0.059,
+     "win_rate": 0.493,
+     "liquid": true,
+     "median_quote_vol_usd": 3069704828150.0
+    },
+    "007210": {
+     "n": 79,
+     "raw_edge_pct": -0.4796,
+     "raw_t": -1.07,
+     "win_rate": 0.481,
+     "liquid": true,
+     "median_quote_vol_usd": 313240684.0
+    },
+    "055550": {
+     "n": 76,
+     "raw_edge_pct": -0.9216,
+     "raw_t": -1.862,
+     "win_rate": 0.3947,
+     "liquid": true,
+     "median_quote_vol_usd": 92665832800.0
+    },
+    "061090": {
+     "n": 42,
+     "raw_edge_pct": -1.2337,
+     "raw_t": -0.785,
+     "win_rate": 0.4524,
+     "liquid": true,
+     "median_quote_vol_usd": 1528586300.0
+    },
+    "0GUSDT": {
+     "n": 92,
+     "raw_edge_pct": 0.8495,
+     "raw_t": 0.499,
+     "win_rate": 0.4674,
+     "liquid": true,
+     "median_quote_vol_usd": 22777610.0
+    },
+    "1000000BOBUSDT": {
+     "n": 134,
+     "raw_edge_pct": -1.6385,
+     "raw_t": -1.33,
+     "win_rate": 0.4851,
+     "liquid": false,
+     "median_quote_vol_usd": 1341995.0
+    },
+    "1000LUNCUSDT": {
+     "n": 73,
+     "raw_edge_pct": 0.564,
+     "raw_t": 0.396,
+     "win_rate": 0.3836,
+     "liquid": true,
+     "median_quote_vol_usd": 6588342.0
+    },
+    "122630": {
+     "n": 71,
+     "raw_edge_pct": -0.4861,
+     "raw_t": -0.427,
+     "win_rate": 0.4648,
+     "liquid": true,
+     "median_quote_vol_usd": 1210147875014.0
+    },
+    "196170": {
+     "n": 76,
+     "raw_edge_pct": -0.6538,
+     "raw_t": -0.74,
+     "win_rate": 0.5132,
+     "liquid": true,
+     "median_quote_vol_usd": 156263805500.0
+    },
+    "2ZUSDT": {
+     "n": 92,
+     "raw_edge_pct": 0.4201,
+     "raw_t": 0.304,
+     "win_rate": 0.587,
+     "liquid": true,
+     "median_quote_vol_usd": 6208686.0
+    },
+    "4USDT": {
+     "n": 89,
+     "raw_edge_pct": 1.6998,
+     "raw_t": 0.826,
+     "win_rate": 0.5281,
+     "liquid": true,
+     "median_quote_vol_usd": 13291794.0
+    },
+    "ACUUSDT": {
+     "n": 48,
+     "raw_edge_pct": -0.1973,
+     "raw_t": -0.069,
+     "win_rate": 0.4792,
+     "liquid": false,
+     "median_quote_vol_usd": 2557628.0
+    },
+    "ADAUSDT": {
+     "n": 379,
+     "raw_edge_pct": 1.5834,
+     "raw_t": 2.679,
+     "win_rate": 0.5541,
+     "liquid": true,
+     "median_quote_vol_usd": 273029483.0
+    },
+    "AGTUSDT": {
+     "n": 139,
+     "raw_edge_pct": 2.0714,
+     "raw_t": 1.345,
+     "win_rate": 0.5396,
+     "liquid": false,
+     "median_quote_vol_usd": 4930991.0
+    },
+    "AIAUSDT": {
+     "n": 86,
+     "raw_edge_pct": -8.7269,
+     "raw_t": -0.902,
+     "win_rate": 0.4535,
+     "liquid": true,
+     "median_quote_vol_usd": 7417436.0
+    },
+    "AINUSDT": {
+     "n": 126,
+     "raw_edge_pct": 1.5681,
+     "raw_t": 0.985,
+     "win_rate": 0.5317,
+     "liquid": false,
+     "median_quote_vol_usd": 2743143.0
+    },
+    "AIOUSDT": {
+     "n": 111,
+     "raw_edge_pct": 3.4006,
+     "raw_t": 2.435,
+     "win_rate": 0.6216,
+     "liquid": false,
+     "median_quote_vol_usd": 2369334.0
+    },
+    "AKEUSDT": {
+     "n": 92,
+     "raw_edge_pct": 1.2062,
+     "raw_t": 0.583,
+     "win_rate": 0.5109,
+     "liquid": false,
+     "median_quote_vol_usd": 2426553.0
+    },
+    "ALLOUSDT": {
+     "n": 72,
+     "raw_edge_pct": 5.8297,
+     "raw_t": 3.372,
+     "win_rate": 0.6389,
+     "liquid": true,
+     "median_quote_vol_usd": 6031025.0
+    },
+    "ALLUSDT": {
+     "n": 111,
+     "raw_edge_pct": 0.7635,
+     "raw_t": 1.048,
+     "win_rate": 0.5946,
+     "liquid": false,
+     "median_quote_vol_usd": 1491593.0
+    },
+    "APRUSDT": {
+     "n": 86,
+     "raw_edge_pct": 4.0909,
+     "raw_t": 2.248,
+     "win_rate": 0.5698,
+     "liquid": true,
+     "median_quote_vol_usd": 5455628.0
+    },
+    "ARIAUSDT": {
+     "n": 96,
+     "raw_edge_pct": 2.445,
+     "raw_t": 1.05,
+     "win_rate": 0.5833,
+     "liquid": false,
+     "median_quote_vol_usd": 4423753.0
+    },
+    "ARXUSDT": {
+     "n": 27,
+     "raw_edge_pct": 2.8257,
+     "raw_t": 1.463,
+     "win_rate": 0.5926,
+     "liquid": false,
+     "median_quote_vol_usd": 79626.0
+    },
+    "ASTERUSDT": {
+     "n": 92,
+     "raw_edge_pct": -0.7783,
+     "raw_t": -0.711,
+     "win_rate": 0.4891,
+     "liquid": true,
+     "median_quote_vol_usd": 170537455.0
+    },
+    "ATUSDT": {
+     "n": 85,
+     "raw_edge_pct": 0.4535,
+     "raw_t": 0.292,
+     "win_rate": 0.5176,
+     "liquid": true,
+     "median_quote_vol_usd": 7503105.0
+    },
+    "AUSDT": {
+     "n": 137,
+     "raw_edge_pct": 0.7008,
+     "raw_t": 0.908,
+     "win_rate": 0.5547,
+     "liquid": true,
+     "median_quote_vol_usd": 5554376.0
+    },
+    "AVAXUSDT": {
+     "n": 375,
+     "raw_edge_pct": 1.4241,
+     "raw_t": 3.029,
+     "win_rate": 0.5493,
+     "liquid": true,
+     "median_quote_vol_usd": 237121611.0
+    },
+    "AVNTUSDT": {
+     "n": 93,
+     "raw_edge_pct": -1.7891,
+     "raw_t": -0.873,
+     "win_rate": 0.5484,
+     "liquid": true,
+     "median_quote_vol_usd": 21263493.0
+    },
+    "AWEUSDT": {
+     "n": 139,
+     "raw_edge_pct": -0.1439,
+     "raw_t": -0.192,
+     "win_rate": 0.518,
+     "liquid": false,
+     "median_quote_vol_usd": 3165630.0
+    },
+    "AXSUSDT": {
+     "n": 73,
+     "raw_edge_pct": -0.0274,
+     "raw_t": -0.024,
+     "win_rate": 0.3836,
+     "liquid": true,
+     "median_quote_vol_usd": 13641537.0
+    },
+    "AZTECUSDT": {
+     "n": 34,
+     "raw_edge_pct": -2.663,
+     "raw_t": -1.298,
+     "win_rate": 0.3529,
+     "liquid": false,
+     "median_quote_vol_usd": 4361561.0
+    },
+    "BARDUSDT": {
+     "n": 92,
+     "raw_edge_pct": -0.7504,
+     "raw_t": -0.633,
+     "win_rate": 0.413,
+     "liquid": true,
+     "median_quote_vol_usd": 13456133.0
+    },
+    "BASUSDT": {
+     "n": 101,
+     "raw_edge_pct": 9.532,
+     "raw_t": 3.584,
+     "win_rate": 0.6931,
+     "liquid": true,
+     "median_quote_vol_usd": 8980165.0
+    },
+    "BCHUSDT": {
+     "n": 379,
+     "raw_edge_pct": 0.6,
+     "raw_t": 1.449,
+     "win_rate": 0.533,
+     "liquid": true,
+     "median_quote_vol_usd": 141680144.0
+    },
+    "BEATUSDT": {
+     "n": 71,
+     "raw_edge_pct": 1.4625,
+     "raw_t": 0.396,
+     "win_rate": 0.6761,
+     "liquid": true,
+     "median_quote_vol_usd": 39205808.0
+    },
+    "BIRBUSDT": {
+     "n": 41,
+     "raw_edge_pct": -1.1981,
+     "raw_t": -0.673,
+     "win_rate": 0.4146,
+     "liquid": false,
+     "median_quote_vol_usd": 2828327.0
+    },
+    "BLESSUSDT": {
+     "n": 92,
+     "raw_edge_pct": 3.1094,
+     "raw_t": 1.531,
+     "win_rate": 0.5978,
+     "liquid": true,
+     "median_quote_vol_usd": 5280779.0
+    },
+    "BLUAIUSDT": {
+     "n": 86,
+     "raw_edge_pct": 4.506,
+     "raw_t": 2.289,
+     "win_rate": 0.5116,
+     "liquid": true,
+     "median_quote_vol_usd": 5454741.0
+    },
+    "BNBUSDT": {
+     "n": 379,
+     "raw_edge_pct": 1.4925,
+     "raw_t": 4.935,
+     "win_rate": 0.5356,
+     "liquid": true,
+     "median_quote_vol_usd": 425882175.0
+    },
+    "BREVUSDT": {
+     "n": 55,
+     "raw_edge_pct": 1.0782,
+     "raw_t": 0.673,
+     "win_rate": 0.4909,
+     "liquid": true,
+     "median_quote_vol_usd": 5305636.0
+    },
+    "BTCUSDT": {
+     "n": 60,
+     "raw_edge_pct": 0.1999,
+     "raw_t": 0.341,
+     "win_rate": 0.3833,
+     "liquid": true,
+     "median_quote_vol_usd": 11148944213.0
+    },
+    "BTRUSDT": {
+     "n": 100,
+     "raw_edge_pct": -1.8659,
+     "raw_t": -0.553,
+     "win_rate": 0.38,
+     "liquid": false,
+     "median_quote_vol_usd": 4160069.0
+    },
+    "BTWUSDT": {
+     "n": 35,
+     "raw_edge_pct": -17.6917,
+     "raw_t": -2.109,
+     "win_rate": 0.4,
+     "liquid": false,
+     "median_quote_vol_usd": 181137.0
+    },
+    "BULLAUSDT": {
+     "n": 126,
+     "raw_edge_pct": -14.4132,
+     "raw_t": -1.861,
+     "win_rate": 0.4683,
+     "liquid": false,
+     "median_quote_vol_usd": 2980317.0
+    },
+    "BUSDT": {
+     "n": 139,
+     "raw_edge_pct": 0.7355,
+     "raw_t": 0.584,
+     "win_rate": 0.5468,
+     "liquid": true,
+     "median_quote_vol_usd": 5814741.0
+    },
+    "CAPUSDT": {
+     "n": 27,
+     "raw_edge_pct": 6.4798,
+     "raw_t": 1.821,
+     "win_rate": 0.7407,
+     "liquid": false,
+     "median_quote_vol_usd": 12549.0
+    },
+    "CARVUSDT": {
+     "n": 111,
+     "raw_edge_pct": 0.5233,
+     "raw_t": 0.534,
+     "win_rate": 0.5315,
+     "liquid": false,
+     "median_quote_vol_usd": 1363741.0
+    },
+    "CCUSDT": {
+     "n": 83,
+     "raw_edge_pct": 0.932,
+     "raw_t": 0.642,
+     "win_rate": 0.4578,
+     "liquid": true,
+     "median_quote_vol_usd": 9331745.0
+    },
+    "CLANKERUSDT": {
+     "n": 71,
+     "raw_edge_pct": -3.1939,
+     "raw_t": -1.544,
+     "win_rate": 0.4648,
+     "liquid": false,
+     "median_quote_vol_usd": 2265190.0
+    },
+    "CLOUSDT": {
+     "n": 87,
+     "raw_edge_pct": 3.9008,
+     "raw_t": 1.516,
+     "win_rate": 0.5517,
+     "liquid": true,
+     "median_quote_vol_usd": 12246218.0
+    },
+    "COAIUSDT": {
+     "n": 92,
+     "raw_edge_pct": 38.7725,
+     "raw_t": 2.0,
+     "win_rate": 0.5761,
+     "liquid": true,
+     "median_quote_vol_usd": 8111764.0
+    },
+    "COLLECTUSDT": {
+     "n": 55,
+     "raw_edge_pct": 6.4514,
+     "raw_t": 1.966,
+     "win_rate": 0.5273,
+     "liquid": true,
+     "median_quote_vol_usd": 11325266.0
+    },
+    "COMPUSDT": {
+     "n": 73,
+     "raw_edge_pct": -0.3397,
+     "raw_t": -0.352,
+     "win_rate": 0.4521,
+     "liquid": false,
+     "median_quote_vol_usd": 4082032.0
+    },
+    "CROSSUSDT": {
+     "n": 126,
+     "raw_edge_pct": 2.8612,
+     "raw_t": 1.418,
+     "win_rate": 0.5873,
+     "liquid": false,
+     "median_quote_vol_usd": 2005465.0
+    },
+    "CTRUSDT": {
+     "n": 40,
+     "raw_edge_pct": 1.0419,
+     "raw_t": 0.761,
+     "win_rate": 0.45,
+     "liquid": false,
+     "median_quote_vol_usd": 241.0
+    },
+    "CUSDT": {
+     "n": 125,
+     "raw_edge_pct": 4.0361,
+     "raw_t": 2.406,
+     "win_rate": 0.576,
+     "liquid": true,
+     "median_quote_vol_usd": 5793446.0
+    },
+    "CVCUSDT": {
+     "n": 141,
+     "raw_edge_pct": 0.2654,
+     "raw_t": 0.409,
+     "win_rate": 0.5319,
+     "liquid": false,
+     "median_quote_vol_usd": 1325221.0
+    },
+    "CVXUSDT": {
+     "n": 141,
+     "raw_edge_pct": 2.5869,
+     "raw_t": 1.673,
+     "win_rate": 0.4397,
+     "liquid": false,
+     "median_quote_vol_usd": 2067810.0
+    },
+    "CYSUSDT": {
+     "n": 60,
+     "raw_edge_pct": 2.9978,
+     "raw_t": 1.133,
+     "win_rate": 0.6,
+     "liquid": true,
+     "median_quote_vol_usd": 12581387.0
+    },
+    "DATAIPUSDT": {
+     "n": 22,
+     "raw_edge_pct": -1.1833,
+     "raw_t": -0.905,
+     "win_rate": 0.5,
+     "liquid": false,
+     "median_quote_vol_usd": 6687.0
+    },
+    "DOGEUSDT": {
+     "n": 375,
+     "raw_edge_pct": 1.115,
+     "raw_t": 1.749,
+     "win_rate": 0.5707,
+     "liquid": true,
+     "median_quote_vol_usd": 789395032.0
+    },
+    "EDENUSDT": {
+     "n": 92,
+     "raw_edge_pct": 1.9046,
+     "raw_t": 1.186,
+     "win_rate": 0.587,
+     "liquid": false,
+     "median_quote_vol_usd": 4013463.0
+    },
+    "ELSAUSDT": {
+     "n": 47,
+     "raw_edge_pct": 3.0285,
+     "raw_t": 1.576,
+     "win_rate": 0.4894,
+     "liquid": false,
+     "median_quote_vol_usd": 2037935.0
+    },
+    "ENSOUSDT": {
+     "n": 87,
+     "raw_edge_pct": 3.4904,
+     "raw_t": 1.0,
+     "win_rate": 0.5632,
+     "liquid": true,
+     "median_quote_vol_usd": 15739696.0
+    },
+    "ERAUSDT": {
+     "n": 123,
+     "raw_edge_pct": 0.1135,
+     "raw_t": 0.138,
+     "win_rate": 0.4715,
+     "liquid": false,
+     "median_quote_vol_usd": 4119514.0
+    },
+    "ESPORTSUSDT": {
+     "n": 115,
+     "raw_edge_pct": -4.3274,
+     "raw_t": -3.269,
+     "win_rate": 0.4,
+     "liquid": false,
+     "median_quote_vol_usd": 3745310.0
+    },
+    "ESPUSDT": {
+     "n": 35,
+     "raw_edge_pct": -3.8019,
+     "raw_t": -1.448,
+     "win_rate": 0.2571,
+     "liquid": true,
+     "median_quote_vol_usd": 7078169.0
+    },
+    "ETCUSDT": {
+     "n": 73,
+     "raw_edge_pct": -0.7664,
+     "raw_t": -1.491,
+     "win_rate": 0.4247,
+     "liquid": true,
+     "median_quote_vol_usd": 22232776.0
+    },
+    "ETHUSDT": {
+     "n": 56,
+     "raw_edge_pct": -0.4838,
+     "raw_t": -0.697,
+     "win_rate": 0.4821,
+     "liquid": true,
+     "median_quote_vol_usd": 8308209261.0
+    },
+    "EULUSDT": {
+     "n": 87,
+     "raw_edge_pct": 5.5535,
+     "raw_t": 3.764,
+     "win_rate": 0.6552,
+     "liquid": false,
+     "median_quote_vol_usd": 4076555.0
+    },
+    "EVAAUSDT": {
+     "n": 92,
+     "raw_edge_pct": 5.7261,
+     "raw_t": 2.452,
+     "win_rate": 0.587,
+     "liquid": false,
+     "median_quote_vol_usd": 4334191.0
+    },
+    "FFUSDT": {
+     "n": 92,
+     "raw_edge_pct": -0.7542,
+     "raw_t": -0.661,
+     "win_rate": 0.4674,
+     "liquid": true,
+     "median_quote_vol_usd": 9014689.0
+    },
+    "FIGHTUSDT": {
+     "n": 47,
+     "raw_edge_pct": 2.1566,
+     "raw_t": 0.595,
+     "win_rate": 0.4043,
+     "liquid": false,
+     "median_quote_vol_usd": 4652667.0
+    },
+    "FILUSDT": {
+     "n": 379,
+     "raw_edge_pct": 0.1269,
+     "raw_t": 0.171,
+     "win_rate": 0.5303,
+     "liquid": true,
+     "median_quote_vol_usd": 132027516.0
+    },
+    "FLOCKUSDT": {
+     "n": 93,
+     "raw_edge_pct": 0.0994,
+     "raw_t": 0.077,
+     "win_rate": 0.5591,
+     "liquid": false,
+     "median_quote_vol_usd": 2497964.0
+    },
+    "FLUIDUSDT": {
+     "n": 92,
+     "raw_edge_pct": -0.3401,
+     "raw_t": -0.309,
+     "win_rate": 0.5217,
+     "liquid": false,
+     "median_quote_vol_usd": 1581117.0
+    },
+    "FOGOUSDT": {
+     "n": 54,
+     "raw_edge_pct": 2.2889,
+     "raw_t": 1.196,
+     "win_rate": 0.5,
+     "liquid": true,
+     "median_quote_vol_usd": 6337795.0
+    },
+    "FOLKSUSDT": {
+     "n": 77,
+     "raw_edge_pct": -1.8647,
+     "raw_t": -0.898,
+     "win_rate": 0.4935,
+     "liquid": true,
+     "median_quote_vol_usd": 8707678.0
+    },
+    "FRAXUSDT": {
+     "n": 52,
+     "raw_edge_pct": 2.6562,
+     "raw_t": 1.636,
+     "win_rate": 0.5769,
+     "liquid": false,
+     "median_quote_vol_usd": 2170350.0
+    },
+    "FUSDT": {
+     "n": 134,
+     "raw_edge_pct": -0.0766,
+     "raw_t": -0.073,
+     "win_rate": 0.5149,
+     "liquid": false,
+     "median_quote_vol_usd": 3546920.0
+    },
+    "GIGGLEUSDT": {
+     "n": 88,
+     "raw_edge_pct": -2.6934,
+     "raw_t": -0.743,
+     "win_rate": 0.5682,
+     "liquid": true,
+     "median_quote_vol_usd": 39154438.0
+    },
+    "GRAMUSDT": {
+     "n": 23,
+     "raw_edge_pct": -2.8772,
+     "raw_t": -3.009,
+     "win_rate": 0.3043,
+     "liquid": false,
+     "median_quote_vol_usd": 238588.0
+    },
+    "GUAUSDT": {
+     "n": 59,
+     "raw_edge_pct": 1.937,
+     "raw_t": 0.909,
+     "win_rate": 0.4746,
+     "liquid": false,
+     "median_quote_vol_usd": 4350147.0
+    },
+    "GWEIUSDT": {
+     "n": 41,
+     "raw_edge_pct": 2.871,
+     "raw_t": 0.87,
+     "win_rate": 0.4634,
+     "liquid": true,
+     "median_quote_vol_usd": 9708468.0
+    },
+    "HANAUSDT": {
+     "n": 92,
+     "raw_edge_pct": 6.0535,
+     "raw_t": 2.057,
+     "win_rate": 0.5109,
+     "liquid": false,
+     "median_quote_vol_usd": 4356011.0
+    },
+    "HBARUSDT": {
+     "n": 73,
+     "raw_edge_pct": 0.3613,
+     "raw_t": 0.658,
+     "win_rate": 0.5068,
+     "liquid": true,
+     "median_quote_vol_usd": 25640733.0
+    },
+    "HEMIUSDT": {
+     "n": 100,
+     "raw_edge_pct": 2.7253,
+     "raw_t": 1.239,
+     "win_rate": 0.52,
+     "liquid": true,
+     "median_quote_vol_usd": 7031611.0
+    },
+    "HOLOUSDT": {
+     "n": 93,
+     "raw_edge_pct": -0.3468,
+     "raw_t": -0.296,
+     "win_rate": 0.5161,
+     "liquid": true,
+     "median_quote_vol_usd": 5184614.0
+    },
+    "HOMEUSDT": {
+     "n": 134,
+     "raw_edge_pct": -0.8718,
+     "raw_t": -1.217,
+     "win_rate": 0.4627,
+     "liquid": false,
+     "median_quote_vol_usd": 4337795.0
+    },
+    "HUMAUSDT": {
+     "n": 138,
+     "raw_edge_pct": 1.0758,
+     "raw_t": 0.902,
+     "win_rate": 0.4928,
+     "liquid": true,
+     "median_quote_vol_usd": 12591738.0
+    },
+    "HUSDT": {
+     "n": 131,
+     "raw_edge_pct": 8.3009,
+     "raw_t": 3.408,
+     "win_rate": 0.6565,
+     "liquid": true,
+     "median_quote_vol_usd": 27339816.0
+    },
+    "HYPEUSDT": {
+     "n": 137,
+     "raw_edge_pct": -1.3044,
+     "raw_t": -1.438,
+     "win_rate": 0.4672,
+     "liquid": true,
+     "median_quote_vol_usd": 348329221.0
+    },
+    "ICNTUSDT": {
+     "n": 126,
+     "raw_edge_pct": -4.6172,
+     "raw_t": -3.137,
+     "win_rate": 0.4444,
+     "liquid": false,
+     "median_quote_vol_usd": 4907944.0
+    },
+    "ICPUSDT": {
+     "n": 73,
+     "raw_edge_pct": -2.4041,
+     "raw_t": -1.999,
+     "win_rate": 0.3288,
+     "liquid": true,
+     "median_quote_vol_usd": 21985478.0
+    },
+    "IDOLUSDT": {
+     "n": 126,
+     "raw_edge_pct": 3.5289,
+     "raw_t": 1.678,
+     "win_rate": 0.5317,
+     "liquid": false,
+     "median_quote_vol_usd": 2100213.0
+    },
+    "INUSDT": {
+     "n": 111,
+     "raw_edge_pct": 2.2228,
+     "raw_t": 1.935,
+     "win_rate": 0.5405,
+     "liquid": false,
+     "median_quote_vol_usd": 4584471.0
+    },
+    "INXUSDT": {
+     "n": 40,
+     "raw_edge_pct": 3.2984,
+     "raw_t": 1.43,
+     "win_rate": 0.6,
+     "liquid": false,
+     "median_quote_vol_usd": 3593166.0
+    },
+    "IRYSUSDT": {
+     "n": 60,
+     "raw_edge_pct": 0.1143,
+     "raw_t": 0.058,
+     "win_rate": 0.5833,
+     "liquid": false,
+     "median_quote_vol_usd": 4385624.0
+    },
+    "JCTUSDT": {
+     "n": 73,
+     "raw_edge_pct": 1.1066,
+     "raw_t": 0.458,
+     "win_rate": 0.6164,
+     "liquid": false,
+     "median_quote_vol_usd": 4234615.0
+    },
+    "JUPUSDT": {
+     "n": 73,
+     "raw_edge_pct": -1.0848,
+     "raw_t": -0.964,
+     "win_rate": 0.4521,
+     "liquid": true,
+     "median_quote_vol_usd": 12580315.0
+    },
+    "KATUSDT": {
+     "n": 26,
+     "raw_edge_pct": 13.4419,
+     "raw_t": 1.836,
+     "win_rate": 0.6923,
+     "liquid": true,
+     "median_quote_vol_usd": 15117825.0
+    },
+    "KGENUSDT": {
+     "n": 90,
+     "raw_edge_pct": 2.1878,
+     "raw_t": 1.296,
+     "win_rate": 0.6,
+     "liquid": false,
+     "median_quote_vol_usd": 4713764.0
+    },
+    "KITEUSDT": {
+     "n": 85,
+     "raw_edge_pct": -2.0983,
+     "raw_t": -0.724,
+     "win_rate": 0.4,
+     "liquid": true,
+     "median_quote_vol_usd": 31289789.0
+    },
+    "LABUSDT": {
+     "n": 87,
+     "raw_edge_pct": -2.3641,
+     "raw_t": -0.619,
+     "win_rate": 0.6207,
+     "liquid": true,
+     "median_quote_vol_usd": 8236423.0
+    },
+    "LAUSDT": {
+     "n": 134,
+     "raw_edge_pct": 1.4446,
+     "raw_t": 1.749,
+     "win_rate": 0.5522,
+     "liquid": true,
+     "median_quote_vol_usd": 12347915.0
+    },
+    "LDOUSDT": {
+     "n": 73,
+     "raw_edge_pct": 1.4165,
+     "raw_t": 1.532,
+     "win_rate": 0.5479,
+     "liquid": true,
+     "median_quote_vol_usd": 14748705.0
+    },
+    "LIGHTUSDT": {
+     "n": 92,
+     "raw_edge_pct": 6.8494,
+     "raw_t": 3.276,
+     "win_rate": 0.6087,
+     "liquid": true,
+     "median_quote_vol_usd": 14877084.0
+    },
+    "LINEAUSDT": {
+     "n": 98,
+     "raw_edge_pct": -1.0251,
+     "raw_t": -0.671,
+     "win_rate": 0.5204,
+     "liquid": true,
+     "median_quote_vol_usd": 14140739.0
+    },
+    "LINKUSDT": {
+     "n": 375,
+     "raw_edge_pct": 1.1114,
+     "raw_t": 2.463,
+     "win_rate": 0.544,
+     "liquid": true,
+     "median_quote_vol_usd": 223128733.0
+    },
+    "LITUSDT": {
+     "n": 86,
+     "raw_edge_pct": -18.0121,
+     "raw_t": -1.87,
+     "win_rate": 0.2674,
+     "liquid": true,
+     "median_quote_vol_usd": 17882952.0
+    },
+    "LTCUSDT": {
+     "n": 379,
+     "raw_edge_pct": 1.5843,
+     "raw_t": 3.838,
+     "win_rate": 0.5778,
+     "liquid": true,
+     "median_quote_vol_usd": 156554372.0
+    },
+    "LYNUSDT": {
+     "n": 91,
+     "raw_edge_pct": -1.7658,
+     "raw_t": -0.77,
+     "win_rate": 0.4725,
+     "liquid": true,
+     "median_quote_vol_usd": 10693604.0
+    },
+    "MAGMAUSDT": {
+     "n": 55,
+     "raw_edge_pct": 1.2143,
+     "raw_t": 0.568,
+     "win_rate": 0.5091,
+     "liquid": false,
+     "median_quote_vol_usd": 4145111.0
+    },
+    "MANTRAUSDT": {
+     "n": 25,
+     "raw_edge_pct": -3.0904,
+     "raw_t": -2.41,
+     "win_rate": 0.4,
+     "liquid": true,
+     "median_quote_vol_usd": 5743896.0
+    },
+    "MEGAUSDT": {
+     "n": 40,
+     "raw_edge_pct": 3.3594,
+     "raw_t": 2.853,
+     "win_rate": 0.625,
+     "liquid": false,
+     "median_quote_vol_usd": 1122019.0
+    },
+    "MERLUSDT": {
+     "n": 137,
+     "raw_edge_pct": 3.341,
+     "raw_t": 2.403,
+     "win_rate": 0.5839,
+     "liquid": true,
+     "median_quote_vol_usd": 11738599.0
+    },
+    "METUSDT": {
+     "n": 87,
+     "raw_edge_pct": 1.1466,
+     "raw_t": 0.911,
+     "win_rate": 0.4828,
+     "liquid": true,
+     "median_quote_vol_usd": 10016623.0
+    },
+    "MIRAUSDT": {
+     "n": 92,
+     "raw_edge_pct": 0.4961,
+     "raw_t": 0.397,
+     "win_rate": 0.5543,
+     "liquid": false,
+     "median_quote_vol_usd": 3756652.0
+    },
+    "MITOUSDT": {
+     "n": 100,
+     "raw_edge_pct": -0.1687,
+     "raw_t": -0.142,
+     "win_rate": 0.58,
+     "liquid": false,
+     "median_quote_vol_usd": 2748015.0
+    },
+    "MMTUSDT": {
+     "n": 79,
+     "raw_edge_pct": 3.5277,
+     "raw_t": 1.823,
+     "win_rate": 0.557,
+     "liquid": true,
+     "median_quote_vol_usd": 6696718.0
+    },
+    "MONUSDT": {
+     "n": 87,
+     "raw_edge_pct": -1.9243,
+     "raw_t": -1.04,
+     "win_rate": 0.4368,
+     "liquid": true,
+     "median_quote_vol_usd": 25708501.0
+    },
+    "MUSDT": {
+     "n": 126,
+     "raw_edge_pct": 3.4033,
+     "raw_t": 1.643,
+     "win_rate": 0.5635,
+     "liquid": true,
+     "median_quote_vol_usd": 16501308.0
+    },
+    "MYXUSDT": {
+     "n": 134,
+     "raw_edge_pct": -6.5478,
+     "raw_t": -0.409,
+     "win_rate": 0.4104,
+     "liquid": true,
+     "median_quote_vol_usd": 30070252.0
+    },
+    "NAORISUSDT": {
+     "n": 115,
+     "raw_edge_pct": 9.7141,
+     "raw_t": 4.672,
+     "win_rate": 0.687,
+     "liquid": true,
+     "median_quote_vol_usd": 6117549.0
+    },
+    "NEARUSDT": {
+     "n": 379,
+     "raw_edge_pct": 1.2781,
+     "raw_t": 2.029,
+     "win_rate": 0.5594,
+     "liquid": true,
+     "median_quote_vol_usd": 141031940.0
+    },
+    "NEWTUSDT": {
+     "n": 134,
+     "raw_edge_pct": 1.0073,
+     "raw_t": 0.884,
+     "win_rate": 0.5299,
+     "liquid": false,
+     "median_quote_vol_usd": 4824150.0
+    },
+    "NIGHTUSDT": {
+     "n": 60,
+     "raw_edge_pct": 0.9632,
+     "raw_t": 0.682,
+     "win_rate": 0.45,
+     "liquid": true,
+     "median_quote_vol_usd": 11715240.0
+    },
+    "NOMUSDT": {
+     "n": 91,
+     "raw_edge_pct": -1.4491,
+     "raw_t": -0.688,
+     "win_rate": 0.4725,
+     "liquid": true,
+     "median_quote_vol_usd": 5535833.0
+    },
+    "NXPCUSDT": {
+     "n": 139,
+     "raw_edge_pct": -1.4818,
+     "raw_t": -1.969,
+     "win_rate": 0.4892,
+     "liquid": true,
+     "median_quote_vol_usd": 7009671.0
+    },
+    "ONUSDT": {
+     "n": 86,
+     "raw_edge_pct": 6.1622,
+     "raw_t": 3.041,
+     "win_rate": 0.6395,
+     "liquid": false,
+     "median_quote_vol_usd": 2246125.0
+    },
+    "OPENUSDT": {
+     "n": 93,
+     "raw_edge_pct": 0.4748,
+     "raw_t": 0.398,
+     "win_rate": 0.5914,
+     "liquid": true,
+     "median_quote_vol_usd": 6242659.0
+    },
+    "OPNUSDT": {
+     "n": 29,
+     "raw_edge_pct": -2.5654,
+     "raw_t": -1.069,
+     "win_rate": 0.4138,
+     "liquid": true,
+     "median_quote_vol_usd": 13345431.0
+    },
+    "ORDERUSDT": {
+     "n": 92,
+     "raw_edge_pct": 0.8486,
+     "raw_t": 0.61,
+     "win_rate": 0.5109,
+     "liquid": false,
+     "median_quote_vol_usd": 2203086.0
+    },
+    "OUSDT": {
+     "n": 27,
+     "raw_edge_pct": -1.9073,
+     "raw_t": -1.008,
+     "win_rate": 0.4815,
+     "liquid": false,
+     "median_quote_vol_usd": 367607.0
+    },
+    "PHAROSUSDT": {
+     "n": 37,
+     "raw_edge_pct": 2.5179,
+     "raw_t": 1.932,
+     "win_rate": 0.5946,
+     "liquid": false,
+     "median_quote_vol_usd": 31580.0
+    },
+    "PIEVERSEUSDT": {
+     "n": 70,
+     "raw_edge_pct": 1.8177,
+     "raw_t": 0.526,
+     "win_rate": 0.5143,
+     "liquid": true,
+     "median_quote_vol_usd": 14364262.0
+    },
+    "PLAYUSDT": {
+     "n": 115,
+     "raw_edge_pct": -6.3283,
+     "raw_t": -2.248,
+     "win_rate": 0.4522,
+     "liquid": true,
+     "median_quote_vol_usd": 5369508.0
+    },
+    "POWERUSDT": {
+     "n": 60,
+     "raw_edge_pct": 0.037,
+     "raw_t": 0.01,
+     "win_rate": 0.5667,
+     "liquid": true,
+     "median_quote_vol_usd": 21021520.0
+    },
+    "PROVEUSDT": {
+     "n": 112,
+     "raw_edge_pct": 0.0904,
+     "raw_t": 0.109,
+     "win_rate": 0.5089,
+     "liquid": false,
+     "median_quote_vol_usd": 4108639.0
+    },
+    "PTBUSDT": {
+     "n": 96,
+     "raw_edge_pct": 4.1018,
+     "raw_t": 1.813,
+     "win_rate": 0.6146,
+     "liquid": true,
+     "median_quote_vol_usd": 7900731.0
+    },
+    "PUMPBTCUSDT": {
+     "n": 134,
+     "raw_edge_pct": 1.3501,
+     "raw_t": 1.399,
+     "win_rate": 0.5224,
+     "liquid": false,
+     "median_quote_vol_usd": 1883855.0
+    },
+    "PUMPUSDT": {
+     "n": 141,
+     "raw_edge_pct": -1.6467,
+     "raw_t": -1.315,
+     "win_rate": 0.4539,
+     "liquid": true,
+     "median_quote_vol_usd": 132308952.0
+    },
+    "PYTHUSDT": {
+     "n": 73,
+     "raw_edge_pct": -0.8633,
+     "raw_t": -0.701,
+     "win_rate": 0.4521,
+     "liquid": true,
+     "median_quote_vol_usd": 6374450.0
+    },
+    "QUSDT": {
+     "n": 97,
+     "raw_edge_pct": 1.2046,
+     "raw_t": 0.455,
+     "win_rate": 0.6186,
+     "liquid": true,
+     "median_quote_vol_usd": 5259026.0
+    },
+    "RAVEUSDT": {
+     "n": 60,
+     "raw_edge_pct": -6.4479,
+     "raw_t": -2.01,
+     "win_rate": 0.4,
+     "liquid": true,
+     "median_quote_vol_usd": 15667957.0
+    },
+    "RECALLUSDT": {
+     "n": 87,
+     "raw_edge_pct": 6.4793,
+     "raw_t": 5.141,
+     "win_rate": 0.6667,
+     "liquid": false,
+     "median_quote_vol_usd": 2275510.0
+    },
+    "RESOLVUSDT": {
+     "n": 134,
+     "raw_edge_pct": -0.5293,
+     "raw_t": -0.251,
+     "win_rate": 0.5,
+     "liquid": true,
+     "median_quote_vol_usd": 14548118.0
+    },
+    "REUSDT": {
+     "n": 27,
+     "raw_edge_pct": -1.0435,
+     "raw_t": -0.31,
+     "win_rate": 0.4444,
+     "liquid": false,
+     "median_quote_vol_usd": 755576.0
+    },
+    "RIVERUSDT": {
+     "n": 87,
+     "raw_edge_pct": 12.8196,
+     "raw_t": 3.517,
+     "win_rate": 0.6782,
+     "liquid": true,
+     "median_quote_vol_usd": 145332582.0
+    },
+    "ROBOUSDT": {
+     "n": 28,
+     "raw_edge_pct": 4.3252,
+     "raw_t": 1.492,
+     "win_rate": 0.6071,
+     "liquid": true,
+     "median_quote_vol_usd": 15493351.0
+    },
+    "SAHARAUSDT": {
+     "n": 130,
+     "raw_edge_pct": 2.6925,
+     "raw_t": 2.126,
+     "win_rate": 0.5538,
+     "liquid": true,
+     "median_quote_vol_usd": 13267101.0
+    },
+    "SAPIENUSDT": {
+     "n": 105,
+     "raw_edge_pct": 1.2853,
+     "raw_t": 0.503,
+     "win_rate": 0.5524,
+     "liquid": true,
+     "median_quote_vol_usd": 7761128.0
+    },
+    "SENTUSDT": {
+     "n": 70,
+     "raw_edge_pct": 0.0634,
+     "raw_t": 0.025,
+     "win_rate": 0.4714,
+     "liquid": true,
+     "median_quote_vol_usd": 7637538.0
+    },
+    "SKRUSDT": {
+     "n": 47,
+     "raw_edge_pct": 1.1466,
+     "raw_t": 0.492,
+     "win_rate": 0.4681,
+     "liquid": true,
+     "median_quote_vol_usd": 5280474.0
+    },
+    "SKYAIUSDT": {
+     "n": 141,
+     "raw_edge_pct": -0.9099,
+     "raw_t": -0.561,
+     "win_rate": 0.4539,
+     "liquid": false,
+     "median_quote_vol_usd": 4109522.0
+    },
+    "SKYUSDT": {
+     "n": 93,
+     "raw_edge_pct": 1.1884,
+     "raw_t": 1.627,
+     "win_rate": 0.5914,
+     "liquid": true,
+     "median_quote_vol_usd": 5852887.0
+    },
+    "SLPUSDT": {
+     "n": 141,
+     "raw_edge_pct": 0.7238,
+     "raw_t": 0.814,
+     "win_rate": 0.5035,
+     "liquid": false,
+     "median_quote_vol_usd": 1015958.0
+    },
+    "SLXUSDT": {
+     "n": 38,
+     "raw_edge_pct": 4.9473,
+     "raw_t": 1.222,
+     "win_rate": 0.5,
+     "liquid": false,
+     "median_quote_vol_usd": 230525.0
+    },
+    "SOLUSDT": {
+     "n": 375,
+     "raw_edge_pct": 0.4335,
+     "raw_t": 0.976,
+     "win_rate": 0.512,
+     "liquid": true,
+     "median_quote_vol_usd": 2789069835.0
+    },
+    "SOMIUSDT": {
+     "n": 102,
+     "raw_edge_pct": 0.9484,
+     "raw_t": 0.304,
+     "win_rate": 0.5,
+     "liquid": true,
+     "median_quote_vol_usd": 9936690.0
+    },
+    "SOONUSDT": {
+     "n": 139,
+     "raw_edge_pct": -1.6965,
+     "raw_t": -0.587,
+     "win_rate": 0.4892,
+     "liquid": true,
+     "median_quote_vol_usd": 13430165.0
+    },
+    "SOPHUSDT": {
+     "n": 137,
+     "raw_edge_pct": 1.7244,
+     "raw_t": 2.289,
+     "win_rate": 0.5547,
+     "liquid": true,
+     "median_quote_vol_usd": 5572944.0
+    },
+    "SPACEUSDT": {
+     "n": 47,
+     "raw_edge_pct": 15.1922,
+     "raw_t": 3.104,
+     "win_rate": 0.5745,
+     "liquid": true,
+     "median_quote_vol_usd": 9568051.0
+    },
+    "SPKUSDT": {
+     "n": 134,
+     "raw_edge_pct": 7.8158,
+     "raw_t": 2.116,
+     "win_rate": 0.5672,
+     "liquid": true,
+     "median_quote_vol_usd": 10146570.0
+    },
+    "SPORTFUNUSDT": {
+     "n": 52,
+     "raw_edge_pct": 1.1116,
+     "raw_t": 0.412,
+     "win_rate": 0.5192,
+     "liquid": false,
+     "median_quote_vol_usd": 2801530.0
+    },
+    "SQDUSDT": {
+     "n": 134,
+     "raw_edge_pct": 0.2678,
+     "raw_t": 0.194,
+     "win_rate": 0.5149,
+     "liquid": false,
+     "median_quote_vol_usd": 3873493.0
+    },
+    "STABLEUSDT": {
+     "n": 77,
+     "raw_edge_pct": 3.8319,
+     "raw_t": 2.052,
+     "win_rate": 0.6234,
+     "liquid": true,
+     "median_quote_vol_usd": 14102842.0
+    },
+    "STARUSDT": {
+     "n": 37,
+     "raw_edge_pct": -3.3978,
+     "raw_t": -1.112,
+     "win_rate": 0.4595,
+     "liquid": false,
+     "median_quote_vol_usd": 8527.0
+    },
+    "STBLUSDT": {
+     "n": 92,
+     "raw_edge_pct": -2.9054,
+     "raw_t": -1.555,
+     "win_rate": 0.4674,
+     "liquid": false,
+     "median_quote_vol_usd": 4781385.0
+    },
+    "TACUSDT": {
+     "n": 125,
+     "raw_edge_pct": -0.9474,
+     "raw_t": -0.635,
+     "win_rate": 0.456,
+     "liquid": false,
+     "median_quote_vol_usd": 1748200.0
+    },
+    "TAGUSDT": {
+     "n": 116,
+     "raw_edge_pct": -1.7431,
+     "raw_t": -1.097,
+     "win_rate": 0.4224,
+     "liquid": false,
+     "median_quote_vol_usd": 2520945.0
+    },
+    "TAIKOUSDT": {
+     "n": 134,
+     "raw_edge_pct": 1.1176,
+     "raw_t": 1.526,
+     "win_rate": 0.5672,
+     "liquid": false,
+     "median_quote_vol_usd": 969776.0
+    },
+    "TAKEUSDT": {
+     "n": 96,
+     "raw_edge_pct": 4.6303,
+     "raw_t": 1.51,
+     "win_rate": 0.5938,
+     "liquid": true,
+     "median_quote_vol_usd": 5506059.0
+    },
+    "TAUSDT": {
+     "n": 120,
+     "raw_edge_pct": -1.9114,
+     "raw_t": -0.97,
+     "win_rate": 0.525,
+     "liquid": true,
+     "median_quote_vol_usd": 5157031.0
+    },
+    "TONUSDT": {
+     "n": 73,
+     "raw_edge_pct": -4.1619,
+     "raw_t": -2.015,
+     "win_rate": 0.1781,
+     "liquid": true,
+     "median_quote_vol_usd": 22595390.0
+    },
+    "TOSHIUSDT": {
+     "n": 92,
+     "raw_edge_pct": 3.8757,
+     "raw_t": 3.386,
+     "win_rate": 0.6522,
+     "liquid": false,
+     "median_quote_vol_usd": 2819636.0
+    },
+    "TOWNSUSDT": {
+     "n": 112,
+     "raw_edge_pct": 0.7202,
+     "raw_t": 0.612,
+     "win_rate": 0.5089,
+     "liquid": false,
+     "median_quote_vol_usd": 3189509.0
+    },
+    "TRADOORUSDT": {
+     "n": 92,
+     "raw_edge_pct": -4.5393,
+     "raw_t": -1.384,
+     "win_rate": 0.4565,
+     "liquid": true,
+     "median_quote_vol_usd": 11713618.0
+    },
+    "TREEUSDT": {
+     "n": 115,
+     "raw_edge_pct": 0.4484,
+     "raw_t": 0.436,
+     "win_rate": 0.5043,
+     "liquid": true,
+     "median_quote_vol_usd": 5333723.0
+    },
+    "TRIAUSDT": {
+     "n": 35,
+     "raw_edge_pct": 6.7511,
+     "raw_t": 2.15,
+     "win_rate": 0.5714,
+     "liquid": true,
+     "median_quote_vol_usd": 17608835.0
+    },
+    "TRUSTUSDT": {
+     "n": 78,
+     "raw_edge_pct": -1.1738,
+     "raw_t": -0.331,
+     "win_rate": 0.5641,
+     "liquid": false,
+     "median_quote_vol_usd": 2272165.0
+    },
+    "TRUTHUSDT": {
+     "n": 92,
+     "raw_edge_pct": -4.445,
+     "raw_t": -1.393,
+     "win_rate": 0.4348,
+     "liquid": true,
+     "median_quote_vol_usd": 6884527.0
+    },
+    "TURTLEUSDT": {
+     "n": 86,
+     "raw_edge_pct": 3.2276,
+     "raw_t": 2.599,
+     "win_rate": 0.6047,
+     "liquid": false,
+     "median_quote_vol_usd": 2206715.0
+    },
+    "UAIUSDT": {
+     "n": 77,
+     "raw_edge_pct": 2.028,
+     "raw_t": 0.695,
+     "win_rate": 0.5325,
+     "liquid": true,
+     "median_quote_vol_usd": 8119402.0
+    },
+    "UBUSDT": {
+     "n": 92,
+     "raw_edge_pct": 4.1393,
+     "raw_t": 2.623,
+     "win_rate": 0.5761,
+     "liquid": true,
+     "median_quote_vol_usd": 5146326.0
+    },
+    "UNIUSDT": {
+     "n": 73,
+     "raw_edge_pct": 0.7372,
+     "raw_t": 1.0,
+     "win_rate": 0.5753,
+     "liquid": true,
+     "median_quote_vol_usd": 60177951.0
+    },
+    "USELESSUSDT": {
+     "n": 111,
+     "raw_edge_pct": 3.0858,
+     "raw_t": 1.591,
+     "win_rate": 0.5225,
+     "liquid": true,
+     "median_quote_vol_usd": 18413776.0
+    },
+    "USUSDT": {
+     "n": 60,
+     "raw_edge_pct": -0.3397,
+     "raw_t": -0.183,
+     "win_rate": 0.45,
+     "liquid": false,
+     "median_quote_vol_usd": 1919315.0
+    },
+    "VELVETUSDT": {
+     "n": 125,
+     "raw_edge_pct": 0.9158,
+     "raw_t": 0.736,
+     "win_rate": 0.56,
+     "liquid": false,
+     "median_quote_vol_usd": 2720484.0
+    },
+    "WETUSDT": {
+     "n": 60,
+     "raw_edge_pct": 3.0784,
+     "raw_t": 2.297,
+     "win_rate": 0.5833,
+     "liquid": true,
+     "median_quote_vol_usd": 5754881.0
+    },
+    "WIFUSDT": {
+     "n": 369,
+     "raw_edge_pct": -0.7736,
+     "raw_t": -0.734,
+     "win_rate": 0.4959,
+     "liquid": true,
+     "median_quote_vol_usd": 297845058.0
+    },
+    "WLDUSDT": {
+     "n": 73,
+     "raw_edge_pct": -3.0727,
+     "raw_t": -2.426,
+     "win_rate": 0.3836,
+     "liquid": true,
+     "median_quote_vol_usd": 93779516.0
+    },
+    "WLFIUSDT": {
+     "n": 104,
+     "raw_edge_pct": -3.2769,
+     "raw_t": -2.602,
+     "win_rate": 0.4231,
+     "liquid": true,
+     "median_quote_vol_usd": 84167677.0
+    },
+    "XANUSDT": {
+     "n": 92,
+     "raw_edge_pct": 0.5059,
+     "raw_t": 0.239,
+     "win_rate": 0.5652,
+     "liquid": false,
+     "median_quote_vol_usd": 3366830.0
+    },
+    "XNYUSDT": {
+     "n": 111,
+     "raw_edge_pct": 4.7274,
+     "raw_t": 2.104,
+     "win_rate": 0.6216,
+     "liquid": false,
+     "median_quote_vol_usd": 4989096.0
+    },
+    "XPINUSDT": {
+     "n": 93,
+     "raw_edge_pct": 4.1394,
+     "raw_t": 2.475,
+     "win_rate": 0.6344,
+     "liquid": false,
+     "median_quote_vol_usd": 3431999.0
+    },
+    "XPLUSDT": {
+     "n": 104,
+     "raw_edge_pct": -1.3743,
+     "raw_t": -0.801,
+     "win_rate": 0.4423,
+     "liquid": true,
+     "median_quote_vol_usd": 84470403.0
+    },
+    "XRPUSDT": {
+     "n": 379,
+     "raw_edge_pct": 2.3227,
+     "raw_t": 4.108,
+     "win_rate": 0.5594,
+     "liquid": true,
+     "median_quote_vol_usd": 948637633.0
+    },
+    "YBUSDT": {
+     "n": 87,
+     "raw_edge_pct": 1.0911,
+     "raw_t": 0.818,
+     "win_rate": 0.4828,
+     "liquid": false,
+     "median_quote_vol_usd": 4428785.0
+    },
+    "ZAMAUSDT": {
+     "n": 54,
+     "raw_edge_pct": 3.0135,
+     "raw_t": 1.479,
+     "win_rate": 0.5,
+     "liquid": true,
+     "median_quote_vol_usd": 12852062.0
+    },
+    "ZBTUSDT": {
+     "n": 87,
+     "raw_edge_pct": 4.4619,
+     "raw_t": 1.731,
+     "win_rate": 0.6207,
+     "liquid": true,
+     "median_quote_vol_usd": 8819659.0
+    },
+    "ZESTUSDT": {
+     "n": 35,
+     "raw_edge_pct": 2.4568,
+     "raw_t": 1.807,
+     "win_rate": 0.6286,
+     "liquid": false,
+     "median_quote_vol_usd": 21614.0
+    },
+    "ZKCUSDT": {
+     "n": 92,
+     "raw_edge_pct": -0.4213,
+     "raw_t": -0.302,
+     "win_rate": 0.5217,
+     "liquid": false,
+     "median_quote_vol_usd": 4458444.0
+    },
+    "ZKPUSDT": {
+     "n": 59,
+     "raw_edge_pct": 3.2693,
+     "raw_t": 2.338,
+     "win_rate": 0.5763,
+     "liquid": true,
+     "median_quote_vol_usd": 7715673.0
+    },
+    "ZORAUSDT": {
+     "n": 116,
+     "raw_edge_pct": 4.0792,
+     "raw_t": 2.517,
+     "win_rate": 0.5086,
+     "liquid": true,
+     "median_quote_vol_usd": 11149318.0
+    }
+   }
+  }
+ }
+}

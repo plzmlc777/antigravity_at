@@ -1,0 +1,85 @@
+{
+  "paradigm_number": 234,
+  "paradigm_slug": "alt_taker_flow_burst_extreme_quantile_reversal_5m_bilateral_h4_to_d1",
+  "phase": "R-0",
+  "verdict": "R0_HALT",
+  "halt_kst": "2026-07-23 12:53 KST",
+  "halt_reason_composite": "LESSON_56_FAMILY_PROXY_FAIL + LESSON_55_CANDIDATE_PRESCRIPTION_OUT_OF_SCOPE + LESSON_57_FEE_FLOOR_SATURATION",
+  "checks": {
+    "item1_lesson61_slug_grep": {
+      "verdict": "FAIL",
+      "detail": "_graveyard/taker_flow_zscore/ (paradigm 23, 2026-05-06) directly tested taker_buy_sell_ratio 5m 288-bar rolling normalization with fade mode = exhaustion reversal (SHORT on extreme buy, LONG on extreme sell). Holds tested: 12, 24, 48 bars — paradigm 234 proposes 12, 48, 96 (2 of 3 identical). Also graveyard__alt_taker_buy_quote_vol_percentile_rank_directional_8h.md (paradigm 143, 2026-05-21) tested percentile-rank prescription and BROAD_FALSIFIED, dogfooding Lesson #55 candidate as PRESCRIPTION-OUT-OF-SCOPE.",
+      "matching_graveyards": [
+        "backend/runs/research_track/_graveyard/taker_flow_zscore/GRAVEYARD_NOTE.md",
+        "backend/runs/research_track/graveyard__alt_taker_buy_quote_vol_percentile_rank_directional_8h.md",
+        "backend/runs/research_track/graveyard__alt_taker_buy_quote_vol_imbalance_z_directional_4h.md"
+      ]
+    },
+    "item2_lesson56_family_proxy": {
+      "verdict": "FAIL",
+      "detail": "Brief claim 'TBS graveyard tested momentum direction (not exhaustion reversal)' is factually INCORRECT. The taker_flow_zscore graveyard note (paradigm 23) explicitly documents BOTH fade (exhaustion reversal — SHORT on TBS_z>+entry, LONG on TBS_z<-entry) AND follow (momentum) modes. Fade tested at holds 12/24/48 bars = SAME direction and SAME hold family as paradigm 234's 12/48/96. Only fade z=2.5 h=24 SOL was marginal PASS (alpha +35, sharpe +0.20); R-2 10-symbol expansion collapsed (3/10 alpha, 1/10 sharpe, alpha mean -7.0). Paradigm 234 direction is a direct re-test of graveyard 23 fade mode with only normalization changed."
+    },
+    "item3_lesson62_dna_5dim": {
+      "verdict": "FAIL_1_of_5_novel",
+      "detail": "Re-scored honestly vs graveyard 23 (taker_flow_zscore fade mode) + graveyard 143 (percentile-rank prescription): Substrate 5m TBS SAME (0/1), Statistic percentile-rank vs z-score novel BUT paradigm 143 already dogfooded prescription as PRESCRIPTION-OUT-OF-SCOPE (1/1 nominal), Mechanism exhaustion-reversal = fade mode in graveyard 23 SAME (0/1), Universe multi-sym 5m SAME (0/1), Direction counter-flow SHORT on buy burst = fade in graveyard 23 SAME (0/1). Score 1/5 < 3/5 threshold. Brief's 3/5 claim overlooked graveyard 23 fade mode.",
+      "brief_score_claim": "3/5",
+      "corrected_score": "1/5"
+    },
+    "item4_lesson28_substrate_audit": {
+      "verdict": "PASS",
+      "detail": "runs/microstructure/SOLUSDT_full_metrics.joblib columns include taker_buy_sell_ratio, shape (253722, 6), range 2024-02-21 to 2026-07-20, 5m. Substrate available."
+    },
+    "item5_lesson40_structural_threshold": {
+      "verdict": "PASS",
+      "detail": "Percentile p95/p5 bounded [0,1] — always feasible."
+    },
+    "item6_lesson11_sample_density": {
+      "verdict": "PASS",
+      "detail": "5m × 800d × 14 syms with p95/p5 triggers ≈ 5% per sym >> 30."
+    },
+    "item7_lesson77_non_ohlcv_axis": {
+      "verdict": "PASS_but_insufficient",
+      "detail": "Both trigger axes are non-OHLCV (TBS ratio + exhaustion reversal derived from ratio). Lesson #77 corollary compliance. However paradigm 233 dogfood confirmed Lesson #77 compliance NECESSARY but NOT SUFFICIENT — Lesson #79 must ALSO pass."
+    },
+    "item8_lesson79_predictive_content_pretest": {
+      "verdict": "MIXED_partial_pass_but_fee_floor_saturation",
+      "detail": "SOL OOS half (2025-04-05 to 2026-05-12, 115867 bars, ~6144 p95 SHORT + 6121 p05 LONG triggers). corr(signal, forward_return): h1h=+0.0304 PASS, h4h=+0.0227 PASS, h8h=+0.0083 FAIL, h24h=+0.0067 FAIL. Threshold 0.02 gated. Primary target 4h-to-24h fails at upper horizon. Even where corr passes threshold, mean_signed_gross_bp=+2.23 (h1h), +3.30 (h4h), +1.75 (h8h), +2.58 (h24h) — all << 16bp round-trip fee. Net after fee -13.0 to -14.8 bp per trade across all horizons. Direct Lesson #57 fee-floor saturation signature.",
+      "corr_h1h_bars12": 0.03037,
+      "corr_h4h_bars48": 0.02273,
+      "corr_h8h_bars96": 0.00828,
+      "corr_h24h_bars288": 0.00670,
+      "mean_gross_bp_h4h": 3.296,
+      "mean_gross_bp_h8h": 1.754,
+      "mean_gross_bp_h24h": 2.576,
+      "fee_bp_round_trip": 16.0,
+      "net_bp_h4h_after_fee": -12.704,
+      "net_bp_h8h_after_fee": -14.246,
+      "net_bp_h24h_after_fee": -13.424
+    },
+    "item9_lesson57_family_fee_saturation": {
+      "verdict": "FAIL",
+      "detail": "taker_buy_sell_ratio family with Lesson #57 CONFIRMED-elevation (2 dogfoods on paradigm 142 z-score + paradigm 143 percentile-rank). Combined with graveyard 23 fade-mode R-2 collapse, family is exhaustively documented as fee-floor saturated at 4h+ horizons. Empirical h4h/h8h/h24h gross returns 1.7-3.3 bp << 16 bp fee reproduce the pattern exactly."
+    }
+  },
+  "empirical_pretest_details": {
+    "symbol": "SOLUSDT",
+    "oos_start": "2025-04-05 08:10:00",
+    "oos_end": "2026-05-12 23:55:00",
+    "n_oos_bars": 115867,
+    "n_p95_short_triggers": 6144,
+    "n_p05_long_triggers": 6121,
+    "trigger_rate_pct": 10.6,
+    "target_hold_range_bars": "48-288 (h4h-h24h)"
+  },
+  "lesson_dogfood_updates": {
+    "lesson_56_family_proxy_dogfood": "positive_dogfood_correctly_detected_direct_prior_art",
+    "lesson_57_fee_floor_saturation_dogfood": "3rd_dogfood_via_pretest_confirming_taker_axis_family_saturated_at_4h_plus_horizons",
+    "lesson_61_slug_grep_dogfood": "positive_functional_dogfood_R_0_halt_saved_R_1_compute",
+    "lesson_79_predictive_content_dogfood": "2nd_dogfood_now_at_R_0_stage_before_R_1_dispatch_partial_pass_h4h_but_fail_h8h_h24h_confirms_signal_quality_diagnostic_at_R_0"
+  },
+  "next_paradigm_recommendation": "235",
+  "artifacts_written": [
+    "backend/runs/research_track/paradigm_234_alt_taker_flow_burst_extreme_quantile_reversal_5m_bilateral_h4_to_d1/r0_prescreen.json",
+    "backend/runs/research_track/graveyard__paradigm_234_alt_taker_flow_burst_extreme_quantile_reversal_5m_bilateral_h4_to_d1.md"
+  ]
+}

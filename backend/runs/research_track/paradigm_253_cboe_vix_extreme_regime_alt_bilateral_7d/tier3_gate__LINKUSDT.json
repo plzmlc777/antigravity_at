@@ -1,0 +1,39 @@
+{
+  "passed": false,
+  "blocked_by": [
+    "t 1.17 < 1.5 (전구간 1.17 / 최근가중 -0.96 둘 다 미달)",
+    "최근 1/3 엣지 -2.417% <= 0",
+    "decay_ratio -0.95 < 0.3"
+  ],
+  "label": "paradigm_253_LINK_B_mirror_T1.0",
+  "G1": {
+    "n_trades": 23,
+    "raw_edge_pct": 3.4831,
+    "raw_t": 1.166,
+    "wt_t": -0.961,
+    "t_used": 1.166,
+    "t_carried_by": "raw_t",
+    "recent_edge_pct": -2.4167,
+    "older_edge_pct": 2.541,
+    "decay_ratio": -0.951,
+    "wt_edge_pct": -3.2828,
+    "ok": false,
+    "fail": [
+      "t 1.17 < 1.5 (전구간 1.17 / 최근가중 -0.96 둘 다 미달)",
+      "최근 1/3 엣지 -2.417% <= 0",
+      "decay_ratio -0.95 < 0.3"
+    ]
+  },
+  "G2": {
+    "ok": true,
+    "blocked": [],
+    "metrics": {
+      "edge_after_1bar_pct": 3.245,
+      "roundtrip_friction_pct": 0.08,
+      "delay_retention": -0.988,
+      "net_headroom": 40.56,
+      "cycle_margin": 7.0
+    },
+    "notes": []
+  }
+}

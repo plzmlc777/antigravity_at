@@ -1,0 +1,290 @@
+{
+  "paradigm_slug": "paradigm_237_alt_taker_buy_sell_ratio_5m_z_momentum_fast_frame_15m_bilateral",
+  "paradigm_number": 237,
+  "date_utc": "2026-07-25T19:02:25.011378+00:00",
+  "phase": "R-0",
+  "verdict": "R0_HALT_LESSON_79_PREDICTIVE_CONTENT_FAIL",
+  "hypothesis_short": "per-symbol 5m taker_buy_sell_ratio rolling z-score extreme predicts 15m directional continuation (bilateral)",
+  "item_1_lesson_61_slug_grep": {
+    "searched_patterns": [
+      "taker_buy_sell_ratio_5m",
+      "tbs_5m_momentum_fast_frame",
+      "fast_frame_15m",
+      "tbs.*15m"
+    ],
+    "graveyards_found_related": [
+      "graveyard__alt_taker_buy_quote_vol_imbalance_z_directional_4h.md",
+      "graveyard__alt_taker_buy_quote_vol_percentile_rank_directional_8h.md",
+      "graveyard__paradigm_234_alt_taker_flow_burst_extreme_quantile_reversal_5m_bilateral_h4_to_d1.md"
+    ],
+    "dna_overlap_max": "3/5 vs paradigm 234 (both TBS 5m); hold dim different (15m vs 4h-24h)",
+    "verdict": "PASS (< 5/5 required for halt)"
+  },
+  "item_2_lesson_79_predictive_content_pretest": {
+    "threshold_min_abs_corr": 0.02,
+    "per_sym_per_N_corr": {
+      "SOL": {
+        "N=48": {
+          "corr_15m_oos": -0.006529475833490207,
+          "corr_30m_oos": -0.006245500711253663,
+          "n_oos_15m": 115842
+        },
+        "N=96": {
+          "corr_15m_oos": -0.007610068601462642,
+          "corr_30m_oos": -0.007165096802620067,
+          "n_oos_15m": 115818
+        },
+        "N=288": {
+          "corr_15m_oos": -0.008162051274495333,
+          "corr_30m_oos": -0.00767809994697778,
+          "n_oos_15m": 115722
+        }
+      },
+      "BTC": {
+        "N=48": {
+          "corr_15m_oos": -0.007160227441605714,
+          "corr_30m_oos": -0.008906019047088331,
+          "n_oos_15m": 77650
+        },
+        "N=96": {
+          "corr_15m_oos": -0.0074291946320953995,
+          "corr_30m_oos": -0.0086434706921597,
+          "n_oos_15m": 77626
+        },
+        "N=288": {
+          "corr_15m_oos": -0.006497129269724703,
+          "corr_30m_oos": -0.007912358665581118,
+          "n_oos_15m": 77531
+        }
+      },
+      "ETH": {
+        "N=48": {
+          "corr_15m_oos": -0.007833247506697982,
+          "corr_30m_oos": -0.00841893876799121,
+          "n_oos_15m": 114340
+        },
+        "N=96": {
+          "corr_15m_oos": -0.00752502876111123,
+          "corr_30m_oos": -0.00791928661454512,
+          "n_oos_15m": 114316
+        },
+        "N=288": {
+          "corr_15m_oos": -0.007892253740403627,
+          "corr_30m_oos": -0.007206952986635407,
+          "n_oos_15m": 114220
+        }
+      },
+      "BNB": {
+        "N=48": {
+          "corr_15m_oos": 0.0008700568733907447,
+          "corr_30m_oos": -0.00026860924924169055,
+          "n_oos_15m": 113264
+        },
+        "N=96": {
+          "corr_15m_oos": -0.0005711216620143094,
+          "corr_30m_oos": -0.0018690295520275933,
+          "n_oos_15m": 113240
+        },
+        "N=288": {
+          "corr_15m_oos": -0.0006139440644439099,
+          "corr_30m_oos": -0.0010097179656623323,
+          "n_oos_15m": 113144
+        }
+      },
+      "DOGE": {
+        "N=48": {
+          "corr_15m_oos": -0.0025423940789165134,
+          "corr_30m_oos": -0.004489902558058978,
+          "n_oos_15m": 114807
+        },
+        "N=96": {
+          "corr_15m_oos": -0.0035643015358930176,
+          "corr_30m_oos": -0.00634810929152817,
+          "n_oos_15m": 114783
+        },
+        "N=288": {
+          "corr_15m_oos": -0.003792537955530526,
+          "corr_30m_oos": -0.006151436418837102,
+          "n_oos_15m": 114687
+        }
+      },
+      "LINK": {
+        "N=48": {
+          "corr_15m_oos": -0.003687901244455602,
+          "corr_30m_oos": -0.004321751472071075,
+          "n_oos_15m": 114243
+        },
+        "N=96": {
+          "corr_15m_oos": -0.004706373485493751,
+          "corr_30m_oos": -0.005869903216009284,
+          "n_oos_15m": 114219
+        },
+        "N=288": {
+          "corr_15m_oos": -0.004846455230729494,
+          "corr_30m_oos": -0.006550515484000889,
+          "n_oos_15m": 114123
+        }
+      },
+      "AVAX": {
+        "N=48": {
+          "corr_15m_oos": 3.8986484725283345e-05,
+          "corr_30m_oos": -0.003354195556468767,
+          "n_oos_15m": 113827
+        },
+        "N=96": {
+          "corr_15m_oos": -0.0013035640114555272,
+          "corr_30m_oos": -0.0042651459094508876,
+          "n_oos_15m": 113803
+        },
+        "N=288": {
+          "corr_15m_oos": -0.0014767434934743042,
+          "corr_30m_oos": -0.00432048394889534,
+          "n_oos_15m": 113707
+        }
+      },
+      "LTC": {
+        "N=48": {
+          "corr_15m_oos": 0.0002827661001748176,
+          "corr_30m_oos": -0.002733282451412541,
+          "n_oos_15m": 113586
+        },
+        "N=96": {
+          "corr_15m_oos": 0.00014261577278545416,
+          "corr_30m_oos": -0.0021642169031709253,
+          "n_oos_15m": 113562
+        },
+        "N=288": {
+          "corr_15m_oos": -0.0014077583589214783,
+          "corr_30m_oos": -0.0030655065817108587,
+          "n_oos_15m": 113466
+        }
+      },
+      "XRP": {
+        "N=48": {
+          "corr_15m_oos": -0.004773456210557258,
+          "corr_30m_oos": -0.006438116132269055,
+          "n_oos_15m": 113506
+        },
+        "N=96": {
+          "corr_15m_oos": -0.0043178790533198955,
+          "corr_30m_oos": -0.005508371887337552,
+          "n_oos_15m": 113482
+        },
+        "N=288": {
+          "corr_15m_oos": -0.004707628512662495,
+          "corr_30m_oos": -0.005602132883646341,
+          "n_oos_15m": 113386
+        }
+      }
+    },
+    "best_abs_corr_across_all": {
+      "value": 0.008906019047088331,
+      "where": "BTC N=48 corr_30m_oos"
+    },
+    "sign_uniformity_negative_of_total": {
+      "neg": 23,
+      "total": 27
+    },
+    "verdict": "FAIL \u2014 best |corr| = 0.008 < 0.02 threshold; sign uniformly NEGATIVE across 8 syms \u00d7 3 windows (momentum hypothesis has WRONG-DIRECTION or ZERO signal)"
+  },
+  "item_3_lesson_62_dna_table": {
+    "vs_paradigm_23_taker_flow_zscore": {
+      "statistic_class": "SAME (rolling z of tbs_ratio)",
+      "direction": "PARTIAL (23 tested FOLLOW+FADE; 237 FOLLOW only)",
+      "hold": "DIFFERENT (23: 1h/2h/4h; 237: 15m/30m)",
+      "universe": "PARTIAL (~16 vs 14 syms)",
+      "mechanism": "SIMILAR (microstructure orderflow)",
+      "overlap_score": "2.5/5"
+    },
+    "verdict": "PASS (< 5/5)"
+  },
+  "item_4_lesson_56_family_proxy": {
+    "family": "TBS (paradigm 23, 142, 143, 234)",
+    "reasoning": "15m/30m hold falls under Lesson #57 fast-frame exception (\u226460m); family ban applies only to \u22654h holds",
+    "verdict": "PASS (fast-frame exempt)"
+  },
+  "item_5_lesson_28_substrate_audit": {
+    "ms_syms_with_tbs_column": [
+      "ADA",
+      "AVAX",
+      "BCH",
+      "BNB",
+      "BTC",
+      "DOGE",
+      "ETH",
+      "FIL",
+      "LINK",
+      "LTC",
+      "NEAR",
+      "SOL",
+      "WIF",
+      "XRP"
+    ],
+    "ms_syms_with_ohlcv_1m": [
+      "ADA",
+      "AVAX",
+      "BCH",
+      "BNB",
+      "BTC",
+      "DOGE",
+      "ETH",
+      "FIL",
+      "LINK",
+      "LTC",
+      "NEAR",
+      "SOL",
+      "WIF",
+      "XRP"
+    ],
+    "n_syms_usable": 14,
+    "verdict": "PASS (14 syms usable)"
+  },
+  "item_6_lesson_11_sample_density": {
+    "oos_days_approx": 420,
+    "bars_per_day_5m": 288,
+    "expected_pct_z_gt_1_5_from_dist": 0.09101097526926964,
+    "expected_events_per_sym_bilateral": 11008,
+    "verdict": "PASS (~10k events per sym at z=1.5)"
+  },
+  "item_7_lesson_40_structural_feasibility": {
+    "tbs_range": "(0, 1) bounded by construction",
+    "z_extreme_achievable": "observed z288 range [-2.91, 12.17] on SOL \u2014 z=1.5 easily reachable",
+    "verdict": "PASS"
+  },
+  "item_8_lesson_39_precheck": {
+    "direction_axis": "sign(tbs_z)",
+    "axis_is_non_ohlcv": true,
+    "gate": "Lesson #79 predictive content is the key gate \u2014 FAILED above"
+  },
+  "item_9_lesson_57_compliance": {
+    "family_ban_scope": "TBS family + hold \u2265 4h",
+    "this_paradigm_hold": "15m/30m (3/6 bars at 5m) \u2014 well under 60m fast-frame threshold",
+    "exemption": "CONFIRMED \u2014 fast-frame exception applies",
+    "verdict": "PASS (exempt)"
+  },
+  "tbs_z_distribution_SOL_N288": {
+    "count": 254299,
+    "min": -2.9123437435550508,
+    "max": 12.170765010905454,
+    "mean": 0.0014195541826945658,
+    "pct_abs_gt_1_0": 0.2650030082697927,
+    "pct_abs_gt_1_5": 0.09101097526926964,
+    "pct_abs_gt_2_0": 0.0439679275183937
+  },
+  "halt_reason": "Lesson #79 predictive content pretest FAILED universally across 8 tested symbols (SOL, BTC, ETH, BNB, DOGE, LINK, AVAX, LTC, XRP) and all 3 windows (N=48, 96, 288). Best |corr(tbs_z, fwd_ret_15m)|_OOS = 0.008 (SOL, N=288), threshold is 0.02. Sign is uniformly NEGATIVE \u2014 momentum-follow hypothesis is falsified; TBS z has weak anti-momentum bias at 15m/30m frames, not continuation. Even if we flipped to FADE direction, |corr|=0.008 is below noise floor and would be eaten by 8bp round-trip fees. No R-1 dispatch justified.",
+  "lesson_79_dogfood_note": "This is a positive dogfood of Lesson #79 (2nd application post-paradigm 233). Pretest saved computation for 72-cell R-1 sweep \u00d7 4 quadrants \u00d7 14 syms.",
+  "new_lesson_candidates": [
+    {
+      "candidate_id": "L83",
+      "name": "TBS_z fast-frame (5m\u219215m/30m) anti-momentum micro-drift",
+      "description": "Per-sym rolling z of taker_buy_sell_ratio at 5m frame shows tiny NEGATIVE correlation (~-0.007) with 15m and 30m forward returns across all 8 tested majors. Sign is opposite of the momentum-follow intuition. Absolute value is below noise/fee floor. Fast-frame TBS momentum is NOT a viable direction; if TBS fast-frame is attempted again, only very rare extreme quantiles (|z|>3) with mean-reversion (FADE) direction should be tested, AND at hold \u2264 5m (single bar) where fee drag is minimized.",
+      "status": "CANDIDATE_1_DOGFOOD (paradigm 237 R-0)",
+      "promote_after": "2 concordant dogfoods"
+    }
+  ],
+  "next_paradigm_recommendation": "AVOID TBS-family fast-frame momentum going forward. Suggested next explorations: (a) OI-share rotation with tight z-thresholds at 1h frame, (b) global_account_ls_ratio anomaly at 4h hold (untested substrate, avoids Lesson #57 fast-frame constraint if we shift up to 4h), (c) BTC dominance regime change 24h/72h alt rotation (macro substrate, non-microstructure). Ensure Lesson #79 pretest is run at R-0 for every future signal-strategy paradigm.",
+  "artifacts": [
+    "backend/runs/research_track/paradigm_237_alt_taker_buy_sell_ratio_5m_z_momentum_fast_frame_15m_bilateral/r0_prescreen.json",
+    "backend/runs/research_track/graveyard__paradigm_237_alt_taker_buy_sell_ratio_5m_z_momentum_fast_frame_15m_bilateral.md"
+  ]
+}

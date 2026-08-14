@@ -1,0 +1,31 @@
+{
+  "passed": true,
+  "blocked_by": [],
+  "label": "p251 stablecoin_supply_flow XRPUSDT h3d",
+  "G1": {
+    "n_trades": 379,
+    "raw_edge_pct": 2.3227,
+    "raw_t": 4.108,
+    "wt_t": 0.878,
+    "t_used": 4.108,
+    "t_carried_by": "raw_t",
+    "recent_edge_pct": 1.0571,
+    "older_edge_pct": 1.8973,
+    "decay_ratio": 0.557,
+    "wt_edge_pct": 0.5249,
+    "ok": true,
+    "fail": []
+  },
+  "G2": {
+    "ok": true,
+    "blocked": [],
+    "metrics": {
+      "edge_after_1bar_pct": 2.284,
+      "roundtrip_friction_pct": 0.08,
+      "delay_retention": 4.351,
+      "net_headroom": 28.55,
+      "cycle_margin": 3.0
+    },
+    "notes": []
+  }
+}

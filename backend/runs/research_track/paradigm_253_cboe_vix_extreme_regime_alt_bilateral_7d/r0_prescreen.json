@@ -1,0 +1,148 @@
+{
+  "paradigm": "paradigm_253_cboe_vix_extreme_regime_alt_bilateral_7d",
+  "paradigm_number": 253,
+  "started_at": "2026-08-10T19:29:54",
+  "checks": {
+    "lesson61_slug_grep": {
+      "status": "PASS",
+      "note": "no VIX / CBOE paradigm in INDEX.json (verified pre-dispatch)"
+    },
+    "lesson28_substrate": {
+      "status": "PASS",
+      "rows": 9247,
+      "span": [
+        "1990-01-02",
+        "2026-08-07"
+      ],
+      "coverage_years": 36.59
+    },
+    "lesson40_structural": {
+      "status": "PASS",
+      "vix_z_dist": {
+        "n": 9203,
+        "mean": -0.057931,
+        "std": 1.254181,
+        "min": -2.8449,
+        "p05": -1.5874,
+        "p50": -0.3389,
+        "p95": 2.2898,
+        "max": 8.5011
+      },
+      "thresholds_tested": [
+        1.0,
+        1.5,
+        2.0
+      ],
+      "note": "|vix_z| >= 2.0 must be achievable in BOTH signs"
+    },
+    "lesson11_density": {
+      "status": "PASS",
+      "detail": {
+        "T=1.0": {
+          "n_events_2024_present": 213,
+          "years": 2.6,
+          "events_per_year": 82.1,
+          "trigger_rate_pct": 31.7
+        },
+        "T=1.5": {
+          "n_events_2024_present": 81,
+          "years": 2.6,
+          "events_per_year": 31.2,
+          "trigger_rate_pct": 12.05
+        },
+        "T=2.0": {
+          "n_events_2024_present": 56,
+          "years": 2.6,
+          "events_per_year": 21.6,
+          "trigger_rate_pct": 8.33
+        }
+      },
+      "note": "target: >= 30 events per cell across 2.7y backtest"
+    },
+    "lesson39_direction_axis": {
+      "status": "PASS",
+      "note": "vix_z sign = macro fear/complacency regime axis (not bar_direction)"
+    },
+    "lesson79_pretest": {
+      "status": "PASS_IDEAL",
+      "hold_days": 7,
+      "threshold_hard": 0.02,
+      "threshold_soft": 0.05,
+      "max_abs_corr_oos": 0.0873,
+      "per_sym": {
+        "SOLUSDT": {
+          "n_full": 699,
+          "n_oos": 350,
+          "corr_oos": 0.0761,
+          "corr_full": 0.0034,
+          "span_full": [
+            "2023-11-15",
+            "2026-07-31"
+          ]
+        },
+        "BTCUSDT": {
+          "n_full": 699,
+          "n_oos": 350,
+          "corr_oos": 0.0873,
+          "corr_full": 0.0116,
+          "span_full": [
+            "2023-11-15",
+            "2026-07-31"
+          ]
+        },
+        "DOGEUSDT": {
+          "n_full": 699,
+          "n_oos": 350,
+          "corr_oos": 0.0283,
+          "corr_full": 0.0052,
+          "span_full": [
+            "2023-11-15",
+            "2026-07-31"
+          ]
+        },
+        "ETHUSDT": {
+          "n_full": 699,
+          "n_oos": 350,
+          "corr_oos": -0.0075,
+          "corr_full": -0.0562,
+          "span_full": [
+            "2023-11-15",
+            "2026-07-31"
+          ]
+        },
+        "AVAXUSDT": {
+          "n_full": 699,
+          "n_oos": 350,
+          "corr_oos": 0.0497,
+          "corr_full": -0.0255,
+          "span_full": [
+            "2023-11-15",
+            "2026-07-31"
+          ]
+        }
+      }
+    },
+    "lesson62_dna": {
+      "status": "PASS",
+      "closest_predecessors": {
+        "paradigm_239_btc_dominance": "2/6 (substrate+universe)",
+        "paradigm_248_btc_onchain": "2/6 (external substrate+universe)",
+        "btc_spot_etf_netflow_regime_weekly_bilateral": "3/6 (external substrate+universe+bilateral+weekly hold)"
+      },
+      "max_overlap": "3/6",
+      "hard_fail_threshold": "5/6"
+    },
+    "lesson56_family_proxy": {
+      "status": "PASS",
+      "note": "paradigm 239 graveyard prescribed extend hold >= 7d; this paradigm implements that at 7d with |corr|>=0.05 soft threshold (fee/hold=1.14bp/day vs 8bp/day at 1d)"
+    },
+    "lesson82_timestamp": {
+      "status": "PASS",
+      "note": "entry at day T+1 UTC 00:00 open; VIX close is 21:15 UTC same day so trigger→entry is chronologically clean"
+    }
+  },
+  "overall": "R0_PROCEED",
+  "halts": [],
+  "marginals": [],
+  "finished_at": "2026-08-10T19:29:57"
+}

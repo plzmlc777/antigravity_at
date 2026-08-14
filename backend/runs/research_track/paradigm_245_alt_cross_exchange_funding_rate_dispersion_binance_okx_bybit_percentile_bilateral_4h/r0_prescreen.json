@@ -1,0 +1,157 @@
+{
+  "paradigm_id": 245,
+  "paradigm_name": "alt_cross_exchange_funding_rate_dispersion_binance_okx_bybit_percentile_bilateral_4h",
+  "phase": "R-0",
+  "verdict": "R0_HALT_COMPOUND_LESSON_61_SLUG_GREP_LESSON_62_DNA_5_OF_6_DUPLICATE_LESSON_56_OUTCOME_FAMILY_PROXY_LESSON_28_OKX_90D_HARD_CAP_LESSON_30_WINDOW_RATIO_LESSON_11_SAMPLE_DENSITY_INSUFFICIENT_UNDER_OKX_ANCHORED_WINDOW",
+  "date_kst": "2026-08-05",
+  "mode": "user-provided-hypothesis-via-runbook-recommendation",
+  "dispatch_source": "graveyard__paradigm_242 §Next-paradigm recommendations item 1 (PREFERRED)",
+  "hypothesis_summary": "Binance vs mean(OKX, Bybit) funding rate dispersion_z at |z|>=T triggers bilateral SHORT/LONG on Binance perp for next 4h (bilateral). Positive z = Binance overpremium -> arb SHORT-Binance/LONG-peer forces Binance down. Negative z = mirror.",
+  "prescreen_items": {
+    "item_01_lesson_61_slug_grep": {
+      "status": "DIRECT_HIT",
+      "matches": [
+        {
+          "slug": "cross_exchange_funding_spread_binance_bybit_alt_directional_8h",
+          "paradigm_id": 103,
+          "date": "2026-05-19",
+          "verdict": "BROAD_FALSIFIED_FEE_FLOOR",
+          "location": "backend/runs/research_track/cross_exchange_funding_spread_binance_bybit_alt_directional_8h/r1/r1__verdict.md",
+          "note": "Tested Binance vs Bybit 2-venue spread; gross 10-30bp per event fee-annihilated by 16bp round-trip"
+        },
+        {
+          "slug": "cross_exchange_funding_spread_binance_bitget_alt_directional_8h_illiquid_venue",
+          "paradigm_id": 105,
+          "date": "2026-05-19",
+          "verdict": "DISPATCH_IMPOSSIBLE",
+          "location": "backend/runs/research_track/cross_exchange_funding_spread_binance_bitget_alt/substrate_audit__bitget_v2.json",
+          "note": "OKX documented as 90d hard cap; Bitget 33d; Gate.io auth-required"
+        }
+      ]
+    },
+    "item_02_lesson_79_predictive_content_pretest": {
+      "status": "MIXED_PASS_BUT_FEE_FLOOR_ZONE",
+      "method": "corr(dispersion_z, fwd_4h_return) on OOS half using existing Bybit funding cache (7 syms 2.5yr) + Binance funding SQL",
+      "sample": {
+        "sym_universe_tested": ["SOLUSDT", "AVAXUSDT", "BCHUSDT", "BNBUSDT", "DOGEUSDT", "LINKUSDT", "XRPUSDT"],
+        "n_oos_per_sym": "~920 funding cycles each"
+      },
+      "results": {
+        "SOLUSDT":  {"corr_z": 0.0426, "corr_spread": 0.0229, "L79_pass": true},
+        "AVAXUSDT": {"corr_z": -0.0001, "corr_spread": 0.0871, "L79_pass": false},
+        "BCHUSDT":  {"corr_z": 0.1149, "corr_spread": 0.0873, "L79_pass": true},
+        "BNBUSDT":  {"corr_z": 0.0748, "corr_spread": 0.0785, "L79_pass": true},
+        "DOGEUSDT": {"corr_z": 0.0275, "corr_spread": 0.0054, "L79_pass": true},
+        "LINKUSDT": {"corr_z": 0.0196, "corr_spread": 0.0191, "L79_pass": false},
+        "XRPUSDT":  {"corr_z": 0.0008, "corr_spread": 0.0277, "L79_pass": false}
+      },
+      "aggregate_pass_count": "4/7 syms clear 0.02 threshold",
+      "sign_direction_note": "6/7 syms POSITIVE corr sign = FOLLOW/continuation, OPPOSITE to hypothesized mean-reversion mechanism",
+      "paradigm_239_zone_note": "Best |corr|=0.115 (BCH) sits inside dogfooded [0.05, 0.15] fee-bound zone at 1-3d holds with 8-16bp fees. 4h hold with 16bp fee needs |corr| >= ~0.15 to break even.",
+      "verdict_on_this_item": "PASS_LETTER_FAIL_SPIRIT (item passes gate but reveals fee-floor structural issue)"
+    },
+    "item_03_lesson_62_dna_5dim_overlap": {
+      "status": "HARD_FAIL_5_OF_6_OVERLAP_vs_paradigm_103",
+      "dimension_matrix": {
+        "data_columns":      {"p103": "Binance funding_rate + Bybit funding_rate", "p245": "Binance + OKX + Bybit funding_rate", "match": "PARTIAL_YES (2/3 columns identical; OKX added as 3rd)"},
+        "substrate":         {"p103": "funding_rate 8h + OHLCV 1m", "p245": "same", "match": "YES"},
+        "universe":          {"p103": "7-sym alt cohort (AVAX/BCH/BNB/DOGE/LINK/SOL/XRP)", "p245": "10-sym paper-pool (superset)", "match": "YES (5-sym overlap: AVAX/DOGE/LINK/SOL and superset relationship)"},
+        "direction_axis":    {"p103": "signed spread bp / signed z", "p245": "signed dispersion_z", "match": "YES"},
+        "hold_horizon":      {"p103": "60m/240m/480m/1440m", "p245": "4h(240m)/8h(480m)/1d(1440m)", "match": "YES (identical 240/480/1440)"},
+        "statistic_transform": {"p103": "spread bp + rolling 90d z", "p245": "dispersion_z = (bin - mean(peers))/std_30d", "match": "NO (only variation: 3-venue mean-of-peers vs 2-venue direct spread)"}
+      },
+      "overlap_count": "5/6 dimensions match",
+      "duplicate_ceiling_rule": "5/6 dimensions overlap triggers paradigm-architect DNA duplicate halt (paradigm 242 same rule triggered same halt at 5/6)"
+    },
+    "item_04_lesson_56_outcome_family_proxy": {
+      "status": "FAIL",
+      "reasoning": "Paradigm 103 R-1 empirical result on the identical Binance-vs-Bybit substrate: gross 10-30bp per event, ci_lower negative in ALL 4 quadrants, temporal instability (2024+ / 2025-), 0/7 syms clearing ci_pos. Adding OKX as a 3rd venue only affects the peer-mean calculation; the underlying microstructure equilibration mechanism (paradigm 103 lesson candidate #34: 'cross-exchange arbitrage on liquid USDT perps is too efficient - spread->price-continuation alpha is competed away') is unchanged. The 3-venue mean-of-peers is a monotone-equivalent noise-reduction transform vs the 2-venue direct spread - same information ceiling per Lesson #83 (paradigm 242 candidate: joint multi-source rescue of family-saturated substrate does NOT restore predictive content).",
+      "family_proxy_prior_confidence": "very_high (paradigm 103 direct-substrate empirical falsification)"
+    },
+    "item_05_lesson_28_substrate_okx_availability": {
+      "status": "PARTIAL_FAIL",
+      "endpoint": "ccxt.okx().fetch_funding_rate_history",
+      "ccxt_version": "4.5.71",
+      "probed_date_kst": "2026-08-05",
+      "probe_results": {
+        "since_60d_back":  {"n": 100, "oldest": "2026-06-06T00:00:00Z", "newest": "2026-07-09T00:00:00Z"},
+        "since_90d_back":  {"n": 100, "oldest": "2026-05-07T00:00:00Z", "newest": "2026-06-09T00:00:00Z"},
+        "since_120d_back": {"n": 100, "oldest": "2026-05-04T16:00:00Z", "newest": "2026-06-06T16:00:00Z"},
+        "since_180d_back": {"n": 100, "oldest": "2026-05-04T16:00:00Z", "newest": "2026-06-06T16:00:00Z"},
+        "since_270d_back": {"n": 100, "oldest": "2026-05-04T16:00:00Z", "newest": "2026-06-06T16:00:00Z"},
+        "since_365d_back": {"n": 100, "oldest": "2026-05-03T16:00:00Z", "newest": "2026-06-05T16:00:00Z"}
+      },
+      "hard_floor_days": 92,
+      "conclusion": "OKX ccxt funding history is capped at ~92 days regardless of `since` param. Identical to paradigm 105 (2026-05-19) audit finding. No pagination-based walk-back available.",
+      "workaround_evaluation": "Mandate allows 'if only Bybit available, use single-peer dispersion' - but this reduces the paradigm to paradigm 103 exactly (Binance vs Bybit only) which is already BROAD_FALSIFIED_FEE_FLOOR."
+    },
+    "item_06_lesson_30_data_window_ratio_okx_anchored": {
+      "status": "FAIL",
+      "okx_days": 92,
+      "binance_full_days": 912,
+      "ratio_pct": 10.1,
+      "advisory_cutoff_pct": 30.0,
+      "note": "If we anchor to the OKX-available window (only 92d), we discard 90% of Binance+Bybit history. Advisory-only lesson but failure at 3x below cutoff."
+    },
+    "item_07_lesson_11_sample_density_okx_anchored": {
+      "status": "FAIL",
+      "days_available": 92,
+      "cycles_per_day": 3,
+      "syms": 7,
+      "total_cycles_pool": 1932,
+      "empirical_trigger_rate_z1p5": 0.129,
+      "expected_triggers_total": 249,
+      "cells_4quadrant_x_4quarter": 16,
+      "expected_per_cell": 15.6,
+      "lesson_11_cutoff": 30,
+      "conclusion": "Under OKX-anchored 92d window, expected per-cell trigger count ~15.6 falls below 30/cell cutoff. FAIL 2x below."
+    },
+    "item_08_lesson_39_direction_axis_precheck": {
+      "status": "PASS_IN_LETTER",
+      "note": "sign(dispersion_z) = cross-venue rate comparison = non-OHLCV. Both axes non-OHLCV (Binance funding + peer venue funding). But Lesson #79 4th dogfood (paradigm 238) documented this is NECESSARY-BUT-NOT-SUFFICIENT."
+    },
+    "item_09_lesson_77_corollary_both_axes_non_ohlcv": {
+      "status": "PASS_IN_LETTER_INSUFFICIENT_IN_SPIRIT",
+      "axis_1": "Binance funding rate (non-OHLCV)",
+      "axis_2": "OKX + Bybit peer funding rate (non-OHLCV)",
+      "note": "Meets letter of L77 corollary. But paradigm 231 (launchpool_bnb, first NEGATIVE L77 dogfood) proved substrate-axis non-OHLCV is insufficient when the effect is fee-bound."
+    }
+  },
+  "halt_summary": {
+    "primary_lessons_triggered": ["L61", "L62", "L56", "L28", "L30", "L11"],
+    "secondary_lessons_triggered": ["L83_candidate_joint_multi_source_rescue", "L83_lesson_239_cross_asset_fee_floor_at_multi_hour_holds"],
+    "compute_saved_min": "~5-10 min R-1 dispatch + ~15-20 min R-2 expansion + OKX cache backfill discouraged",
+    "backfill_bytes": 0
+  },
+  "artifacts": {
+    "graveyard_doc": "backend/runs/research_track/graveyard__paradigm_245_alt_cross_exchange_funding_rate_dispersion_binance_okx_bybit_percentile_bilateral_4h.md",
+    "prescreen_json": "backend/runs/research_track/paradigm_245_alt_cross_exchange_funding_rate_dispersion_binance_okx_bybit_percentile_bilateral_4h/r0_prescreen.json",
+    "prior_paradigm_103_verdict": "backend/runs/research_track/cross_exchange_funding_spread_binance_bybit_alt_directional_8h/r1/r1__verdict.md",
+    "prior_paradigm_105_substrate_audit": "backend/runs/research_track/cross_exchange_funding_spread_binance_bitget_alt/substrate_audit__bitget_v2.json"
+  },
+  "final_verdict": "R-0_GRAVEYARD",
+  "next_paradigm_recommendations": [
+    {
+      "rank": 1,
+      "slug": "alt_perp_index_price_deviation_from_spot_index_percentile_bilateral_4h",
+      "note": "Perp mark price vs spot index deviation z; untested family; distinct from LSR + funding. Substrate: Binance mark_price + spot_price via existing OHLCV or `mark_price_kline` endpoint. Genuine substrate novelty (no cross-venue spread family membership)."
+    },
+    {
+      "rank": 2,
+      "slug": "alt_orderbook_liquidity_asymmetry_top10_depth_bid_ask_ratio_bilateral_1d",
+      "note": "L2 book snapshot bid/ask depth ratio at daily frequency. Requires book snapshot substrate audit for coverage window >=180d."
+    },
+    {
+      "rank": 3,
+      "slug": "alt_binance_perp_daily_settlement_time_reversion_15m",
+      "note": "UTC 00:00 daily boundary reversion; zero substrate overlap with cross-venue/LSR/funding graveyard families (paradigm 234 §Option B forward candidate)."
+    }
+  ],
+  "banned_for_paradigm_246_plus_updated": [
+    "Any additional cross-exchange funding rate spread/dispersion transformation on OKX (permanent - 90d hard cap unchanged since 2026-05-19)",
+    "Any additional Binance vs Bybit funding spread reformulation (paradigm 103 empirically retired)",
+    "Any joint-multi-source rescue of a substrate that already has direct-substrate empirical falsification (Lesson #83 candidate reinforced 3rd time: paradigms 22->242 LSR, 103->245 cross-venue funding)"
+  ],
+  "meta_observation": "Paradigm 245 is the 3rd Lesson #83 candidate dogfood (joint-multi-source rescue of family-saturated substrate). Sequence: paradigm 22 (LSR 2-column z-diff BROAD_FALSIFIED) -> paradigm 242 (LSR percentile-diff same family R-0 duplicate) -> paradigm 245 (cross-venue funding 3-venue mean of 2-venue-already-BROAD_FALSIFIED, R-0 duplicate). Lesson #83 candidate ratchets from 1st dogfood (242) to 2nd dogfood (245) -> CONFIRMED-eligible for next Q3 ratification batch. Prescription: before proposing joint-multi-source formulations, verify that at least ONE component pair has a documented Lesson #79 PASS AND fee-floor CLEARANCE in isolation (not just correlation existence).",
+  "dispatcher_note": "Paradigm 245 followed the runbook §Next-paradigm recommendations item 1 dispatch, but the recommendation itself was insufficiently prescreened against paradigm 103's direct empirical falsification of the identical mechanism. This is a positive functional dogfood of Lesson #61 slug grep (11th cumulative), Lesson #62 DNA 5-dim (13th cumulative), and Lesson #56 outcome-family proxy (21st cumulative). The paradigm-architect halt worked as designed."
+}

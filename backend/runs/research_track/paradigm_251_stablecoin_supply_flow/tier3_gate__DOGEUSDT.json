@@ -1,0 +1,31 @@
+{
+  "passed": true,
+  "blocked_by": [],
+  "label": "p251 stablecoin_supply_flow DOGEUSDT h3d",
+  "G1": {
+    "n_trades": 375,
+    "raw_edge_pct": 1.115,
+    "raw_t": 1.749,
+    "wt_t": 0.776,
+    "t_used": 1.749,
+    "t_carried_by": "raw_t",
+    "recent_edge_pct": 1.4449,
+    "older_edge_pct": 1.2962,
+    "decay_ratio": 1.115,
+    "wt_edge_pct": 0.4732,
+    "ok": true,
+    "fail": []
+  },
+  "G2": {
+    "ok": true,
+    "blocked": [],
+    "metrics": {
+      "edge_after_1bar_pct": 0.7759,
+      "roundtrip_friction_pct": 0.08,
+      "delay_retention": 1.64,
+      "net_headroom": 9.7,
+      "cycle_margin": 3.0
+    },
+    "notes": []
+  }
+}

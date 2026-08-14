@@ -1,0 +1,50 @@
+{
+  "paradigm": "btc_onchain_active_address_regime_alt_bilateral_24h",
+  "test": "baseline_incremental_value_of_regime_filter",
+  "hold_h": 24,
+  "baseline_no_filter": {
+    "n": 2580,
+    "mean_bp": 233.64,
+    "std_bp": 364.62,
+    "t_stat": 32.547,
+    "winrate": 0.786,
+    "ci_lower_bp": 219.37,
+    "ci_upper_bp": 249.05
+  },
+  "high_regime": {
+    "n": 726,
+    "mean_bp": 216.38,
+    "std_bp": 392.12,
+    "t_stat": 14.868,
+    "winrate": 0.763,
+    "ci_lower_bp": 190.76,
+    "ci_upper_bp": 243.83
+  },
+  "low_regime": {
+    "n": 810,
+    "mean_bp": 221.64,
+    "std_bp": 335.07,
+    "t_stat": 18.825,
+    "winrate": 0.807,
+    "ci_lower_bp": 195.84,
+    "ci_upper_bp": 247.91
+  },
+  "mid_regime": {
+    "n": 1044,
+    "mean_bp": 254.95,
+    "std_bp": 366.05,
+    "t_stat": 22.505,
+    "winrate": 0.786,
+    "ci_lower_bp": 229.66,
+    "ci_upper_bp": 279.49
+  },
+  "welch_t_high_vs_baseline": -1.064,
+  "welch_t_low_vs_baseline": -0.87,
+  "welch_t_high_vs_mid": -2.091,
+  "welch_t_low_vs_mid": -2.039,
+  "interpretation": {
+    "if_baseline_positive": "BTC-sign daily momentum is the driver; on-chain filter is decoration",
+    "if_high_much_greater_than_baseline": "on-chain HIGH regime adds edge (mechanism confirmed)",
+    "if_welch_t_less_than_2": "on-chain filter is NOT statistically incremental (Lesson #32 baseline-coherent drift or Lesson #21 axis stacking)"
+  }
+}

@@ -1,0 +1,613 @@
+{
+  "generated_at": "2026-08-08T05:25:23.860111",
+  "params": {
+    "sl_level": 0.5,
+    "hold_days": 30,
+    "fee_round_trip": 0.0008
+  },
+  "cohort_size": 129,
+  "baseline": {
+    "n": 129,
+    "median_pct": 16.34,
+    "mean_pct": 6.43,
+    "win_rate_pct": 55.8,
+    "pf": 1.32,
+    "t_stat": 1.47
+  },
+  "variants": {
+    "d14_thr0.40": {
+      "check_day": 14,
+      "threshold": 0.4,
+      "fire_rate_pct": 38.0,
+      "n_fired": 49,
+      "overall": {
+        "n": 129,
+        "median_pct": 22.07,
+        "mean_pct": 8.65,
+        "win_rate_pct": 58.9,
+        "pf": 1.486,
+        "t_stat": 2.06
+      },
+      "fired_subset_early": {
+        "n": 49,
+        "median_pct": 5.61,
+        "mean_pct": 2.12,
+        "win_rate_pct": 57.1,
+        "pf": 1.114,
+        "t_stat": 0.34
+      },
+      "fired_subset_baseline": {
+        "n": 49,
+        "median_pct": -6.54,
+        "mean_pct": -3.71,
+        "win_rate_pct": 49.0,
+        "pf": 0.849,
+        "t_stat": -0.53
+      },
+      "delta_mean_pct": 5.83,
+      "delta_median_pct": 0.0,
+      "delta_positive_pct": 34.7,
+      "fired_detail": [
+        {
+          "symbol": "SOMIUSDT",
+          "vol_cliff": 18.992,
+          "early_ret_pct": -9.67,
+          "base_ret_pct": 39.64,
+          "delta_pct": -49.31,
+          "early_reason": "vol_cliff"
+        },
+        {
+          "symbol": "BREVUSDT",
+          "vol_cliff": 9.452,
+          "early_ret_pct": 22.13,
+          "base_ret_pct": 56.97,
+          "delta_pct": -34.83,
+          "early_reason": "vol_cliff"
+        },
+        {
+          "symbol": "LITUSDT",
+          "vol_cliff": 6.238,
+          "early_ret_pct": 17.11,
+          "base_ret_pct": 51.45,
+          "delta_pct": -34.33,
+          "early_reason": "vol_cliff"
+        },
+        {
+          "symbol": "MAGMAUSDT",
+          "vol_cliff": 1.211,
+          "early_ret_pct": 5.61,
+          "base_ret_pct": 27.88,
+          "delta_pct": -22.27,
+          "early_reason": "vol_cliff"
+        },
+        {
+          "symbol": "FOGOUSDT",
+          "vol_cliff": 2.471,
+          "early_ret_pct": 44.34,
+          "base_ret_pct": 65.2,
+          "delta_pct": -20.87,
+          "early_reason": "vol_cliff"
+        },
+        {
+          "symbol": "INXUSDT",
+          "vol_cliff": 0.41,
+          "early_ret_pct": 31.83,
+          "base_ret_pct": 46.17,
+          "delta_pct": -14.34,
+          "early_reason": "vol_cliff"
+        },
+        {
+          "symbol": "ALLOUSDT",
+          "vol_cliff": 0.674,
+          "early_ret_pct": 57.1,
+          "base_ret_pct": 70.89,
+          "delta_pct": -13.79,
+          "early_reason": "vol_cliff"
+        },
+        {
+          "symbol": "4USDT",
+          "vol_cliff": 0.695,
+          "early_ret_pct": 58.6,
+          "base_ret_pct": 70.97,
+          "delta_pct": -12.37,
+          "early_reason": "vol_cliff"
+        }
+      ]
+    },
+    "d14_thr0.30": {
+      "check_day": 14,
+      "threshold": 0.3,
+      "fire_rate_pct": 47.3,
+      "n_fired": 61,
+      "overall": {
+        "n": 129,
+        "median_pct": 22.07,
+        "mean_pct": 8.99,
+        "win_rate_pct": 60.5,
+        "pf": 1.519,
+        "t_stat": 2.18
+      },
+      "fired_subset_early": {
+        "n": 61,
+        "median_pct": 5.61,
+        "mean_pct": -0.36,
+        "win_rate_pct": 55.7,
+        "pf": 0.982,
+        "t_stat": -0.07
+      },
+      "fired_subset_baseline": {
+        "n": 61,
+        "median_pct": -50.08,
+        "mean_pct": -5.78,
+        "win_rate_pct": 45.9,
+        "pf": 0.775,
+        "t_stat": -0.94
+      },
+      "delta_mean_pct": 5.42,
+      "delta_median_pct": 0.0,
+      "delta_positive_pct": 31.1,
+      "fired_detail": [
+        {
+          "symbol": "SOMIUSDT",
+          "vol_cliff": 18.992,
+          "early_ret_pct": -9.67,
+          "base_ret_pct": 39.64,
+          "delta_pct": -49.31,
+          "early_reason": "vol_cliff"
+        },
+        {
+          "symbol": "BREVUSDT",
+          "vol_cliff": 9.452,
+          "early_ret_pct": 22.13,
+          "base_ret_pct": 56.97,
+          "delta_pct": -34.83,
+          "early_reason": "vol_cliff"
+        },
+        {
+          "symbol": "LITUSDT",
+          "vol_cliff": 6.238,
+          "early_ret_pct": 17.11,
+          "base_ret_pct": 51.45,
+          "delta_pct": -34.33,
+          "early_reason": "vol_cliff"
+        },
+        {
+          "symbol": "KATUSDT",
+          "vol_cliff": 0.331,
+          "early_ret_pct": 35.56,
+          "base_ret_pct": 60.77,
+          "delta_pct": -25.2,
+          "early_reason": "vol_cliff"
+        },
+        {
+          "symbol": "MAGMAUSDT",
+          "vol_cliff": 1.211,
+          "early_ret_pct": 5.61,
+          "base_ret_pct": 27.88,
+          "delta_pct": -22.27,
+          "early_reason": "vol_cliff"
+        },
+        {
+          "symbol": "USUSDT",
+          "vol_cliff": 0.374,
+          "early_ret_pct": 37.25,
+          "base_ret_pct": 59.31,
+          "delta_pct": -22.06,
+          "early_reason": "vol_cliff"
+        },
+        {
+          "symbol": "FOGOUSDT",
+          "vol_cliff": 2.471,
+          "early_ret_pct": 44.34,
+          "base_ret_pct": 65.2,
+          "delta_pct": -20.87,
+          "early_reason": "vol_cliff"
+        },
+        {
+          "symbol": "CCUSDT",
+          "vol_cliff": 0.354,
+          "early_ret_pct": 20.57,
+          "base_ret_pct": 39.34,
+          "delta_pct": -18.77,
+          "early_reason": "vol_cliff"
+        }
+      ]
+    },
+    "d14_thr0.50": {
+      "check_day": 14,
+      "threshold": 0.5,
+      "fire_rate_pct": 31.0,
+      "n_fired": 40,
+      "overall": {
+        "n": 129,
+        "median_pct": 16.34,
+        "mean_pct": 7.03,
+        "win_rate_pct": 57.4,
+        "pf": 1.373,
+        "t_stat": 1.65
+      },
+      "fired_subset_early": {
+        "n": 40,
+        "median_pct": -1.46,
+        "mean_pct": -4.11,
+        "win_rate_pct": 50.0,
+        "pf": 0.817,
+        "t_stat": -0.57
+      },
+      "fired_subset_baseline": {
+        "n": 40,
+        "median_pct": -50.08,
+        "mean_pct": -6.05,
+        "win_rate_pct": 45.0,
+        "pf": 0.771,
+        "t_stat": -0.77
+      },
+      "delta_mean_pct": 1.95,
+      "delta_median_pct": 0.0,
+      "delta_positive_pct": 30.0,
+      "fired_detail": [
+        {
+          "symbol": "SOMIUSDT",
+          "vol_cliff": 18.992,
+          "early_ret_pct": -9.67,
+          "base_ret_pct": 39.64,
+          "delta_pct": -49.31,
+          "early_reason": "vol_cliff"
+        },
+        {
+          "symbol": "BREVUSDT",
+          "vol_cliff": 9.452,
+          "early_ret_pct": 22.13,
+          "base_ret_pct": 56.97,
+          "delta_pct": -34.83,
+          "early_reason": "vol_cliff"
+        },
+        {
+          "symbol": "LITUSDT",
+          "vol_cliff": 6.238,
+          "early_ret_pct": 17.11,
+          "base_ret_pct": 51.45,
+          "delta_pct": -34.33,
+          "early_reason": "vol_cliff"
+        },
+        {
+          "symbol": "MAGMAUSDT",
+          "vol_cliff": 1.211,
+          "early_ret_pct": 5.61,
+          "base_ret_pct": 27.88,
+          "delta_pct": -22.27,
+          "early_reason": "vol_cliff"
+        },
+        {
+          "symbol": "FOGOUSDT",
+          "vol_cliff": 2.471,
+          "early_ret_pct": 44.34,
+          "base_ret_pct": 65.2,
+          "delta_pct": -20.87,
+          "early_reason": "vol_cliff"
+        },
+        {
+          "symbol": "ALLOUSDT",
+          "vol_cliff": 0.674,
+          "early_ret_pct": 57.1,
+          "base_ret_pct": 70.89,
+          "delta_pct": -13.79,
+          "early_reason": "vol_cliff"
+        },
+        {
+          "symbol": "4USDT",
+          "vol_cliff": 0.695,
+          "early_ret_pct": 58.6,
+          "base_ret_pct": 70.97,
+          "delta_pct": -12.37,
+          "early_reason": "vol_cliff"
+        },
+        {
+          "symbol": "METUSDT",
+          "vol_cliff": 2.696,
+          "early_ret_pct": 65.0,
+          "base_ret_pct": 75.07,
+          "delta_pct": -10.07,
+          "early_reason": "vol_cliff"
+        }
+      ]
+    },
+    "d7_thr0.40": {
+      "check_day": 7,
+      "threshold": 0.4,
+      "fire_rate_pct": 71.3,
+      "n_fired": 92,
+      "overall": {
+        "n": 129,
+        "median_pct": 19.29,
+        "mean_pct": 9.11,
+        "win_rate_pct": 65.9,
+        "pf": 1.633,
+        "t_stat": 2.46
+      },
+      "fired_subset_early": {
+        "n": 92,
+        "median_pct": 9.79,
+        "mean_pct": -1.26,
+        "win_rate_pct": 58.7,
+        "pf": 0.928,
+        "t_stat": -0.32
+      },
+      "fired_subset_baseline": {
+        "n": 92,
+        "median_pct": -30.73,
+        "mean_pct": -5.01,
+        "win_rate_pct": 44.6,
+        "pf": 0.803,
+        "t_stat": -0.99
+      },
+      "delta_mean_pct": 3.75,
+      "delta_median_pct": 0.0,
+      "delta_positive_pct": 27.2,
+      "fired_detail": [
+        {
+          "symbol": "4USDT",
+          "vol_cliff": 1.378,
+          "early_ret_pct": 8.64,
+          "base_ret_pct": 70.97,
+          "delta_pct": -62.33,
+          "early_reason": "vol_cliff"
+        },
+        {
+          "symbol": "BARDUSDT",
+          "vol_cliff": 0.404,
+          "early_ret_pct": -9.59,
+          "base_ret_pct": 40.84,
+          "delta_pct": -50.43,
+          "early_reason": "vol_cliff"
+        },
+        {
+          "symbol": "FIGHTUSDT",
+          "vol_cliff": 1.204,
+          "early_ret_pct": 21.14,
+          "base_ret_pct": 67.41,
+          "delta_pct": -46.27,
+          "early_reason": "vol_cliff"
+        },
+        {
+          "symbol": "CTRUSDT",
+          "vol_cliff": 0.561,
+          "early_ret_pct": -5.39,
+          "base_ret_pct": 39.4,
+          "delta_pct": -44.78,
+          "early_reason": "vol_cliff"
+        },
+        {
+          "symbol": "RECALLUSDT",
+          "vol_cliff": 0.803,
+          "early_ret_pct": 25.77,
+          "base_ret_pct": 68.83,
+          "delta_pct": -43.06,
+          "early_reason": "vol_cliff"
+        },
+        {
+          "symbol": "TURTLEUSDT",
+          "vol_cliff": 0.648,
+          "early_ret_pct": 12.54,
+          "base_ret_pct": 54.15,
+          "delta_pct": -41.61,
+          "early_reason": "vol_cliff"
+        },
+        {
+          "symbol": "ZAMAUSDT",
+          "vol_cliff": 0.406,
+          "early_ret_pct": 36.57,
+          "base_ret_pct": 77.39,
+          "delta_pct": -40.82,
+          "early_reason": "vol_cliff"
+        },
+        {
+          "symbol": "SPORTFUNUSDT",
+          "vol_cliff": 0.421,
+          "early_ret_pct": 24.6,
+          "base_ret_pct": 64.6,
+          "delta_pct": -39.99,
+          "early_reason": "vol_cliff"
+        }
+      ]
+    },
+    "d7_thr0.30": {
+      "check_day": 7,
+      "threshold": 0.3,
+      "fire_rate_pct": 82.9,
+      "n_fired": 107,
+      "overall": {
+        "n": 129,
+        "median_pct": 15.7,
+        "mean_pct": 6.96,
+        "win_rate_pct": 66.7,
+        "pf": 1.497,
+        "t_stat": 2.02
+      },
+      "fired_subset_early": {
+        "n": 107,
+        "median_pct": 11.52,
+        "mean_pct": 1.26,
+        "win_rate_pct": 61.7,
+        "pf": 1.079,
+        "t_stat": 0.34
+      },
+      "fired_subset_baseline": {
+        "n": 107,
+        "median_pct": -4.09,
+        "mean_pct": 0.62,
+        "win_rate_pct": 48.6,
+        "pf": 1.026,
+        "t_stat": 0.13
+      },
+      "delta_mean_pct": 0.64,
+      "delta_median_pct": 0.0,
+      "delta_positive_pct": 26.2,
+      "fired_detail": [
+        {
+          "symbol": "ZKCUSDT",
+          "vol_cliff": 0.315,
+          "early_ret_pct": 8.98,
+          "base_ret_pct": 80.43,
+          "delta_pct": -71.45,
+          "early_reason": "vol_cliff"
+        },
+        {
+          "symbol": "4USDT",
+          "vol_cliff": 1.378,
+          "early_ret_pct": 8.64,
+          "base_ret_pct": 70.97,
+          "delta_pct": -62.33,
+          "early_reason": "vol_cliff"
+        },
+        {
+          "symbol": "HOLOUSDT",
+          "vol_cliff": 0.335,
+          "early_ret_pct": 15.2,
+          "base_ret_pct": 72.12,
+          "delta_pct": -56.92,
+          "early_reason": "vol_cliff"
+        },
+        {
+          "symbol": "EDENUSDT",
+          "vol_cliff": 0.314,
+          "early_ret_pct": 11.75,
+          "base_ret_pct": 67.47,
+          "delta_pct": -55.73,
+          "early_reason": "vol_cliff"
+        },
+        {
+          "symbol": "BARDUSDT",
+          "vol_cliff": 0.404,
+          "early_ret_pct": -9.59,
+          "base_ret_pct": 40.84,
+          "delta_pct": -50.43,
+          "early_reason": "vol_cliff"
+        },
+        {
+          "symbol": "FIGHTUSDT",
+          "vol_cliff": 1.204,
+          "early_ret_pct": 21.14,
+          "base_ret_pct": 67.41,
+          "delta_pct": -46.27,
+          "early_reason": "vol_cliff"
+        },
+        {
+          "symbol": "CTRUSDT",
+          "vol_cliff": 0.561,
+          "early_ret_pct": -5.39,
+          "base_ret_pct": 39.4,
+          "delta_pct": -44.78,
+          "early_reason": "vol_cliff"
+        },
+        {
+          "symbol": "SOMIUSDT",
+          "vol_cliff": 0.302,
+          "early_ret_pct": -4.86,
+          "base_ret_pct": 39.64,
+          "delta_pct": -44.5,
+          "early_reason": "vol_cliff"
+        }
+      ]
+    },
+    "d7_thr0.50": {
+      "check_day": 7,
+      "threshold": 0.5,
+      "fire_rate_pct": 53.5,
+      "n_fired": 69,
+      "overall": {
+        "n": 129,
+        "median_pct": 16.31,
+        "mean_pct": 8.11,
+        "win_rate_pct": 62.8,
+        "pf": 1.507,
+        "t_stat": 2.06
+      },
+      "fired_subset_early": {
+        "n": 69,
+        "median_pct": 4.77,
+        "mean_pct": -5.3,
+        "win_rate_pct": 56.5,
+        "pf": 0.727,
+        "t_stat": -1.16
+      },
+      "fired_subset_baseline": {
+        "n": 69,
+        "median_pct": -50.08,
+        "mean_pct": -8.44,
+        "win_rate_pct": 43.5,
+        "pf": 0.689,
+        "t_stat": -1.48
+      },
+      "delta_mean_pct": 3.14,
+      "delta_median_pct": 0.0,
+      "delta_positive_pct": 24.6,
+      "fired_detail": [
+        {
+          "symbol": "4USDT",
+          "vol_cliff": 1.378,
+          "early_ret_pct": 8.64,
+          "base_ret_pct": 70.97,
+          "delta_pct": -62.33,
+          "early_reason": "vol_cliff"
+        },
+        {
+          "symbol": "FIGHTUSDT",
+          "vol_cliff": 1.204,
+          "early_ret_pct": 21.14,
+          "base_ret_pct": 67.41,
+          "delta_pct": -46.27,
+          "early_reason": "vol_cliff"
+        },
+        {
+          "symbol": "CTRUSDT",
+          "vol_cliff": 0.561,
+          "early_ret_pct": -5.39,
+          "base_ret_pct": 39.4,
+          "delta_pct": -44.78,
+          "early_reason": "vol_cliff"
+        },
+        {
+          "symbol": "RECALLUSDT",
+          "vol_cliff": 0.803,
+          "early_ret_pct": 25.77,
+          "base_ret_pct": 68.83,
+          "delta_pct": -43.06,
+          "early_reason": "vol_cliff"
+        },
+        {
+          "symbol": "TURTLEUSDT",
+          "vol_cliff": 0.648,
+          "early_ret_pct": 12.54,
+          "base_ret_pct": 54.15,
+          "delta_pct": -41.61,
+          "early_reason": "vol_cliff"
+        },
+        {
+          "symbol": "LITUSDT",
+          "vol_cliff": 1.376,
+          "early_ret_pct": 11.52,
+          "base_ret_pct": 51.45,
+          "delta_pct": -39.93,
+          "early_reason": "vol_cliff"
+        },
+        {
+          "symbol": "ATUSDT",
+          "vol_cliff": 1.135,
+          "early_ret_pct": 9.83,
+          "base_ret_pct": 46.13,
+          "delta_pct": -36.3,
+          "early_reason": "vol_cliff"
+        },
+        {
+          "symbol": "OPNUSDT",
+          "vol_cliff": 0.573,
+          "early_ret_pct": 26.97,
+          "base_ret_pct": 62.76,
+          "delta_pct": -35.79,
+          "early_reason": "vol_cliff"
+        }
+      ]
+    }
+  }
+}
