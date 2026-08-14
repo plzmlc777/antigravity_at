@@ -67,6 +67,8 @@ def main() -> int:
     p.add_argument("--min-t", type=float, default=2.0,
                    help="이 미만 |t| 셀은 후보에서 제외 (설계 §7)")
     p.add_argument("--top", type=int, default=10)
+    p.add_argument("--record", action="store_true",
+                   help="판정을 research_result 에 기록한다 (kind=plateau_verdict)")
     a = p.parse_args()
 
     from research.sweep_format import validate  # noqa: E402
@@ -164,11 +166,86 @@ def main() -> int:
     print(f"     표본 밖: {m} {('—' if ov is None else f'{ov:.1f}')} · "
           f"t {('—' if ot is None else ('∞*(표준오차 붕괴)' if abs(ot) >= 1000 else f'{ot:.2f}'))} · "
           f"거래 {o.get('n_trades')}")
+    if a.record:
+        _record(a, d, top, peak_cell, o, problems, len(IS), len(cand))
     print("  ∞* = 표본이 작아 표준오차가 붕괴한 칸. 성과가 아니라 읽지 말라는 신호다")
     print("  ⚠ 추천은 채택이 아니다. 표본 밖 사건이 충분히 쌓이기 전까지는 "
           "**현행 유지**가 기본이다.")
     print("=" * 96)
     return 0
+
+
+def _record(a, d, top, peak, oos, problems, n_cells, n_sig) -> None:
+    """판정을 DB 에 남긴다.
+
+    왜 남기나 — 화면에 찍고 마는 도구는 "언제 무엇을 왜 추천했나"를 답하지
+    못한다. 오늘 하루에만 근거 없는 수치를 세 번 만났는데(숏 규약, 복리 결함,
+    진입 시점) 전부 **과거 산출물의 근거를 되짚을 수 없어서** 커진 문제였다.
+    추천을 기록하지 않으면 이 도구가 같은 함정을 새로 만든다.
+
+    ⚠ 이건 **채택 기록이 아니라 추천 기록**이다. 채택은 대표님이 한다.
+    """
+    try:
+        from app.db.session import SessionLocal
+        from app.models.tier_result import ResearchResult
+    except Exception as exc:
+        print(f"  (기록 실패 — {type(exc).__name__}: {exc})")
+        return
+
+    axes = list(d["axes"])
+    dw, sp = d.get("data_window") or {}, d.get("split") or {}
+    n_oos = dw.get("oos_events") or dw.get("oos_trades")
+    pick = {ax: v for ax, v in zip(axes, top["key"])}
+    metrics = {
+        "metric": a.metric,
+        "is_value": top["r"].get(a.metric),
+        "is_t": top["r"].get("t"),
+        "oos_value": oos.get(a.metric),
+        "oos_t": oos.get("t"),
+        "oos_trades": oos.get("n_trades"),
+        "plateau_score": top["score"],
+        "neighbors_same": top["n_same"],
+        "neighbors_total": top["n_nb"],
+        "cliff": top["n_same"] == 0,
+        "cells_total": n_cells,
+        "cells_significant": n_sig,
+        "is_peak_cell": peak["key"] == top["key"],
+    }
+    params = {
+        "pick": pick,
+        "axes": {k: list(v) for k, v in d["axes"].items()},
+        "min_t": a.min_t,
+        "split_date": sp.get("date"),
+        "data_window": dw,
+        "source_commit": d.get("commit"),
+        "standard_problems": problems,
+        # 추천은 채택이 아니다. 이 표시가 없으면 나중에 "그때 이걸 썼다"로 읽힌다
+        "adopted": False,
+        "note": ("추천일 뿐 채택이 아니다. 표본 밖 사건이 충분히 쌓이기 전까지 "
+                 "현행 유지가 기본이다."),
+    }
+    db = SessionLocal()
+    try:
+        from datetime import datetime
+        created = datetime.utcnow()
+        db.add(ResearchResult(
+            kind="plateau_verdict",
+            strategy=(dw.get("source") or d.get("script") or "").split("/")[-1]
+                     or "unknown",
+            variant="/".join(f"{k}={v}" for k, v in pick.items())[:200],
+            cohort_n=(dw.get("is_events") or n_cells),
+            params=params, metrics=metrics,
+            git_commit=d.get("commit"),
+            script="scripts/research/plateau_select.py",
+            source_file=str(Path(a.file).name),
+            created_at=created))
+        db.commit()
+        print(f"  기록됨 → research_result (kind=plateau_verdict, adopted=false)")
+    except Exception as exc:
+        db.rollback()
+        print(f"  (기록 실패 — {type(exc).__name__}: {exc})")
+    finally:
+        db.close()
 
 
 if __name__ == "__main__":
