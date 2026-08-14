@@ -68,6 +68,20 @@ VARIANT_SPEC = {                       # 이름 → (보유일, 조기청산일,
 # 완전히 깨끗한 값은 없다 — 0.50 에서도 8.8% 는 무력화된다.
 SL_FLOOR = 0.20
 
+# ── 위약 (교훈 #85) ────────────────────────────────────────────────────
+# 신상저격수는 **사건 가설**(상장)이다. 기억의 교훈 #85:
+#   "사건가설은 '사건 안 겪는 대조군' + '같은 사건 다른 시각' 두 위약 의무"
+# 그런데 최적화기에는 위약이 하나도 없었다. 135칸에서 최고를 고르는 것 자체가
+# 다중검정인데, "이 자산군이면 아무 날에 숏 쳐도 이만큼 나오는가"를 안 봤다.
+#
+# `placebo_days` 축이 그 대조군을 만든다 — 상장일을 N일 뒤로 **가짜로** 옮겨
+# 같은 종목·같은 규칙을 상장 사건이 없는 시점에 적용한다.
+#   0   진짜 상장일 (관측)
+#   60  상장 두 달 뒤 — 같은 자산, 사건 없음
+#   120 넉 달 뒤
+# 위약 칸이 관측 칸과 비슷하면 **엣지는 상장이 아니라 자산군 드리프트**다.
+PLACEBO_AXIS = "placebo_days"
+
 DEFAULT_AXES = {
     "variant": ["base", "earlyexit_d7", "bearskip"],
     "sl": [0.3, 0.5, 0.7],
@@ -123,7 +137,7 @@ def preflight(combos: list, names: list) -> None:
             early_exit_check_day=(early or 14), baseline_hold_days=hold,
             bear_skip_btc_30d_pre_ret=0.0)
         inject = {AXIS_ALIAS.get(k, k): alias_value(k, v)
-                  for k, v in kw.items() if k != "variant"}
+                  for k, v in kw.items() if k not in ("variant", PLACEBO_AXIS)}
         try:
             build_pipeline(apply_all(spec["pipeline_spec"], inject), {})
         except Exception as exc:
@@ -160,7 +174,7 @@ def run_combo(sym: str, ld, kw: dict, bars_daily):
 
     inject = {}
     for ax, v in kw.items():
-        if ax == "variant":
+        if ax in ("variant", PLACEBO_AXIS):   # 위약은 상장일 자체를 옮긴다
             continue
         path = AXIS_ALIAS.get(ax, ax)
         if path in inject:           # 정규화가 뚫렸다면 여기서 잡는다
@@ -281,6 +295,10 @@ def main() -> int:
     # 첫 조합으로 파이프라인을 실제 조립해 보고, 안 되면 **즉시 멈춘다.**
     preflight(combos, names)
 
+    placebo_offsets = sorted({int(x or 0) for x in axes.get(PLACEBO_AXIS, [0])})
+    if placebo_offsets != [0]:
+        log.info("위약 오프셋 %s일 — 0 은 진짜 상장일(관측)", placebo_offsets)
+
     data_days = a.data_days or WINDOW_DAYS
     if data_days > WINDOW_DAYS:
         log.info("시뮬 데이터 구간 %d일 (코호트 선별은 %d일로 고정)",
@@ -318,9 +336,16 @@ def main() -> int:
             gate = daily_bars(conn, sym, ld, ld + timedelta(days=WINDOW_DAYS))
             if len(gate) < MIN_DAILY_BARS:
                 continue
-            dl = (gate if data_days <= WINDOW_DAYS
-                  else daily_bars(conn, sym, ld, ld + timedelta(days=data_days)))
             used += 1
+            # 위약 오프셋마다 다른 구간이 필요하다. 한 번씩만 읽어 캐시한다.
+            bars_by_off: dict[int, object] = {}
+            for off in placebo_offsets:
+                a0 = ld + timedelta(days=off)
+                b = a0 + timedelta(days=data_days)
+                dd = gate if (off == 0 and data_days <= WINDOW_DAYS) \
+                    else daily_bars(conn, sym, a0, b)
+                if len(dd) >= MIN_DAILY_BARS:
+                    bars_by_off[off] = dd
             side = "OOS" if od >= a.split else "IS"
             n_events[side] += 1
             win_lo = od if win_lo is None or od < win_lo else win_lo
@@ -328,8 +353,12 @@ def main() -> int:
 
             for combo in combos:
                 kw = dict(zip(names, combo))
+                off = int(kw.get(PLACEBO_AXIS, 0) or 0)
+                dl = bars_by_off.get(off)
+                if dl is None:
+                    continue           # 그 오프셋에 데이터가 모자란 사건
                 try:
-                    trades = run_combo(sym, ld, kw, dl)
+                    trades = run_combo(sym, ld + timedelta(days=off), kw, dl)
                 except Exception as exc:
                     log.warning("%s %s 실패: %s", sym, kw, exc)
                     continue

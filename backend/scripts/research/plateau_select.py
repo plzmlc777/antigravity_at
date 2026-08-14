@@ -55,6 +55,10 @@ AXIS_LIVENESS = {"sl": "sl_exits", "policy.sl_pct": "sl_exits",
 # "꺼진 줄 몰랐던 것"을 구분해야 한다. 후자만 경고할 값어치가 있다.
 DISABLED_VALUES = {"none", "off", "keep", "default", "", "1.0", "1"}
 
+# 위약 축 이름과 '관측' 값 (교훈 #85 — 사건가설은 위약 의무)
+PLACEBO_AXIS = "placebo_days"
+PLACEBO_OBSERVED = 0
+
 
 def dead_axes(IS: dict, axes: list, values: dict) -> list[str]:
     """**값을 바꿔도 아무 일이 안 일어난 축.**
@@ -87,6 +91,29 @@ def dead_axes(IS: dict, axes: list, values: dict) -> list[str]:
                        else f"{ax}: 값 {', '.join(sorted(dead))} 에서 `{key}` 가 0 "
                             f"— 그 값들은 **탐색되지 않았다**")
     return out
+
+
+def placebo_compare(IS: dict, axes: list, cell: tuple, metric: str) -> dict | None:
+    """추천 셀과 **같은 설정의 위약 칸**을 나란히.
+
+    교훈 #85: 사건가설은 '사건 안 겪는 대조군'과 '같은 사건 다른 시각' 두 위약이
+    의무다. 신상저격수는 상장이라는 사건 가설인데 최적화기에 위약이 없었다 —
+    135칸에서 최고를 고르면서 "이 자산군이면 아무 날에 숏 쳐도 이만큼 나오는가"를
+    한 번도 안 물었다.
+
+    위약이 관측에 근접하면 **엣지는 상장이 아니라 자산군 드리프트**다.
+    """
+    if PLACEBO_AXIS not in axes:
+        return None
+    i = axes.index(PLACEBO_AXIS)
+    if cell[i] != PLACEBO_OBSERVED:
+        return None                       # 추천 자체가 위약 칸이면 비교 무의미
+    out = {}
+    for k, r in IS.items():
+        if k[:i] == cell[:i] and k[i + 1:] == cell[i + 1:] and k[i] != PLACEBO_OBSERVED:
+            out[k[i]] = {"value": r.get(metric), "t": r.get("t"),
+                         "n": r.get("n_trades")}
+    return out or None
 
 
 def edge_axes(cell, axes, values) -> list[str]:
@@ -231,6 +258,28 @@ def main() -> int:
               + (f" · 데이터끝 {_r['eod_exits']}" if _r.get("eod_exits") else ""))
     if not ok:
         print("     ⚠ **절벽** — 이웃 지지가 없다. 파라미터가 조금만 틀려도 무너진다")
+    pl = placebo_compare(IS, axes, top["key"], m)
+    if pl:
+        obs_v, obs_t = top["r"].get(m), top["r"].get("t")
+        print(f"     ── 위약 대조 (교훈 #85) ──")
+        print(f"        관측(상장일)      {m} {obs_v:>9.1f} · t {obs_t:>6.2f} · "
+              f"거래 {top['r'].get('n_trades')}")
+        worst_ratio = 0.0
+        for off in sorted(pl):
+            c = pl[off]
+            ratio = abs((c["value"] or 0) / obs_v) if obs_v else 0
+            worst_ratio = max(worst_ratio, ratio)
+            print(f"        위약 +{off}일{'':<8}{m} {(c['value'] or 0):>9.1f} · "
+                  f"t {(c['t'] or 0):>6.2f} · 거래 {c['n']}  (관측 대비 {ratio*100:.0f}%)")
+        if worst_ratio >= 0.5:
+            print(f"        ⚠ **위약이 관측의 {worst_ratio*100:.0f}% 를 낸다** — "
+                  f"엣지가 상장 사건이 아니라 **자산군 드리프트**일 수 있다")
+        else:
+            print(f"        위약 최대 {worst_ratio*100:.0f}% — 상장 사건 고유성이 유지된다")
+    elif PLACEBO_AXIS not in axes:
+        print(f"     ⚠ **위약 없음** — 사건가설(상장)인데 대조군을 안 돌렸다."
+              f" `--axis {PLACEBO_AXIS}=0,60,120` (교훈 #85)")
+
     deads = dead_axes(IS, axes, values)
     if deads:
         print("     ⚠ **죽은 축** — 값을 바꿔도 아무 일이 일어나지 않았다:")
@@ -306,6 +355,9 @@ def _record(a, d, top, peak, oos, problems, n_cells, n_sig) -> None:
         # 값을 바꿔도 발동 0 인 축 — 그 구간은 탐색된 적이 없다
         "dead_axes": dead_axes(IS, list(d["axes"]),
                                {k: list(v) for k, v in d["axes"].items()}),
+        # 위약 대조 — 없으면 None 이고 그 자체가 결함 신호다
+        "placebo": placebo_compare(IS, list(d["axes"]), top["key"], a.metric),
+        "has_placebo": PLACEBO_AXIS in d["axes"],
     }
     params = {
         "pick": pick,
