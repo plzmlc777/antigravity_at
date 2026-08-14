@@ -63,6 +63,11 @@ VARIANT_SPEC = {                       # 이름 → (보유일, 조기청산일,
     "bearskip": (30, None, "bear_skip"),
 }
 
+# 손절 물리 하한. 진입 바 일중 상승폭 p50 이 10.5% 이므로 그 언저리 아래는
+# 절반 넘는 사건에서 손절이 무력화된다. 0.20 이면 무력화 32%, 0.30 이면 20%.
+# 완전히 깨끗한 값은 없다 — 0.50 에서도 8.8% 는 무력화된다.
+SL_FLOOR = 0.20
+
 DEFAULT_AXES = {
     "variant": ["base", "earlyexit_d7", "bearskip"],
     "sl": [0.3, 0.5, 0.7],
@@ -202,6 +207,12 @@ def main() -> int:
                    help="축 선언. 예 sl=0.3,0.5,0.7 · 반복 가능")
     p.add_argument("--out", default=str(OUT))
     p.add_argument("--limit", type=int, default=0, help="앞에서 N 사건만")
+    p.add_argument("--allow-thin-sl", action="store_true",
+                   help="손절 물리 하한을 무시한다. **수치를 믿지 말 것** — "
+                        "일봉 판정에서 좁은 손절은 진입 바에 무력화된다")
+    p.add_argument("--data-days", type=int, default=0,
+                   help="시뮬 데이터 구간(상장 후 일수). 기본은 코호트 창과 같다. "
+                        "재진입 창+보유가 길면 늘려야 강제 마감이 안 생긴다")
     p.add_argument("--list-axes", action="store_true",
                    help="이 계열에서 스윕 가능한 축을 출력하고 종료")
     a = p.parse_args()
@@ -238,6 +249,31 @@ def main() -> int:
     log.info("축 %s · 조합 %d칸 · 분할 %s", {k: len(v) for k, v in axes.items()},
              len(combos), a.split)
 
+    # ── 손절 물리 하한 ────────────────────────────────────────────────
+    # 커널은 **진입한 바에서 SL/TP 를 검사하지 않는다.** 일봉 하나 안에서
+    # 시가 진입과 고가 도달의 순서를 알 수 없기 때문이고, 그 선택은 보수적으로
+    # 옳다(같은 바에서 검사하면 고가가 진입 앞에 온 경우까지 손절 처리해
+    # 미래를 참조한다).
+    #
+    # 부작용은 손절 폭에 따라 달라진다. 진입 바의 (고가-시가)/시가 실측
+    # (251 사건): p50 10.5% · p75 25.4% · 평균 21.0%.
+    #   sl  2% → 89.2% 사건에서 무력화      sl 20% → 32.3%
+    #   sl  5% → 72.1%                      sl 50% →  8.8%
+    # 즉 **손절을 좁힐수록 손절이 사라진다.** 2026-08-14 에 이걸 모르고
+    # sl 0.02 까지 훑어 IS t 17.55 를 얻었는데, 엣지가 아니라 위험 관리가
+    # 꺼진 정도를 잰 것이었다.
+    #
+    # 좁은 손절을 진짜로 보려면 **1분봉 판정**이 필요하다. 일봉 스윕으로는
+    # 답할 수 없는 질문이므로 여기서 막는다.
+    sls = [float(v) for v in axes.get("sl", []) if isinstance(v, (int, float))]
+    if sls and min(sls) < SL_FLOOR and not a.allow_thin_sl:
+        raise SystemExit(
+            f"손절 {min(sls):.2%} 는 물리 하한 {SL_FLOOR:.0%} 아래다.\n"
+            f"  진입 바 일중 상승폭 실측: p50 10.5% · p75 25.4%\n"
+            f"  → 이 폭에서는 손절이 진입 바에 이미 넘겨져 **작동하지 않는다**.\n"
+            f"  일봉으로 판정하는 한 이 구간의 수치는 위험 관리가 꺼진 결과다.\n"
+            f"  정말 보려면 --allow-thin-sl (수치를 믿지 말 것) 또는 1분봉 판정.")
+
     # ── 사전 점검 ──────────────────────────────────────────────────────
     # 오타 난 축이 사건마다 경고만 남기고 **거래 0건짜리 결과**를 만들어내면
     # 안 된다. 그건 실패가 아니라 조용한 오답이고, 교훈 #88 이 정확히 그 병이다
@@ -245,11 +281,26 @@ def main() -> int:
     # 첫 조합으로 파이프라인을 실제 조립해 보고, 안 되면 **즉시 멈춘다.**
     preflight(combos, names)
 
+    data_days = a.data_days or WINDOW_DAYS
+    if data_days > WINDOW_DAYS:
+        log.info("시뮬 데이터 구간 %d일 (코호트 선별은 %d일로 고정)",
+                 data_days, WINDOW_DAYS)
+
     listings = json.load(open(LISTINGS))
     from app.db.session import engine
 
     # (조합 키) → {"IS": [수익률...], "OOS": [...]}
     bucket: dict[tuple, dict[str, list]] = {c: {"IS": [], "OOS": []} for c in combos}
+    # 데이터 끝에서 강제 마감된 거래 — 많으면 그 칸의 수치는 창 길이의
+    # 산물이지 전략의 결과가 아니다
+    eod: dict[tuple, dict[str, int]] = {c: {"IS": 0, "OOS": 0} for c in combos}
+    # 청산 사유별 횟수. **발동 0 인 축은 죽은 축**이다 — 값을 바꿔도 아무 일이
+    # 일어나지 않았다는 뜻이고, 그건 탐색된 게 아니다.
+    # 2026-08-14: sl 을 0.02 까지 좁히자 손절이 한 번도 안 걸렸는데 지표에
+    # 없어서 안 보였다. IS t 가 3.19 → 17.55 로 오른 것이 '엣지'가 아니라
+    # '손절이 꺼지는 정도'였다.
+    reasons: dict[tuple, dict[str, dict]] = {
+        c: {"IS": {}, "OOS": {}} for c in combos}
     n_events = {"IS": 0, "OOS": 0}
     win_lo, win_hi = None, None
 
@@ -261,9 +312,14 @@ def main() -> int:
             if not od:
                 continue
             ld = datetime.strptime(od, "%Y-%m-%d").date()
-            dl = daily_bars(conn, sym, ld, ld + timedelta(days=WINDOW_DAYS))
-            if len(dl) < MIN_DAILY_BARS:
+            # **코호트 선별은 항상 같은 창(35일)으로 한다.** 데이터 구간을
+            # 넓힌다고 표본이 달라지면 이전 실행과 비교가 깨진다 — 넓힌 건
+            # 시뮬이 쓸 봉이지 선별 기준이 아니다.
+            gate = daily_bars(conn, sym, ld, ld + timedelta(days=WINDOW_DAYS))
+            if len(gate) < MIN_DAILY_BARS:
                 continue
+            dl = (gate if data_days <= WINDOW_DAYS
+                  else daily_bars(conn, sym, ld, ld + timedelta(days=data_days)))
             used += 1
             side = "OOS" if od >= a.split else "IS"
             n_events[side] += 1
@@ -281,6 +337,11 @@ def main() -> int:
                     continue
                 bucket[combo][side].extend(float(t.return_pct) * 100
                                            for t in trades)
+                eod[combo][side] += sum(1 for t in trades
+                                        if t.exit_reason in ("eod", "close_at_end"))
+                for t in trades:
+                    rc = reasons[combo][side]
+                    rc[t.exit_reason] = rc.get(t.exit_reason, 0) + 1
             if a.limit and used >= a.limit:
                 break
             if i % 100 == 0:
@@ -290,14 +351,22 @@ def main() -> int:
         script="scripts/research/lifecycle_optimize.py",
         engine="canon_kernel", root=ROOT, split_date=a.split, axes=axes,
         data_window={"start": win_lo, "end": win_hi,
-                     "is_events": n_events["IS"], "oos_events": n_events["OOS"]},
+                     "is_events": n_events["IS"], "oos_events": n_events["OOS"],
+                     "cohort_window_days": WINDOW_DAYS, "sim_data_days": data_days},
         notes=("표본 밖 = 분할일 이후 상장. 지표는 **거래 기준**(재진입 포함). "
                "total_ret 은 거래별 수익률의 합(%p, 복리 아님)."))
     for combo in combos:
         kw = dict(zip(names, combo))
         for side in ("IS", "OOS"):
-            w.add(axis_values=kw, metrics=stats(np.array(bucket[combo][side])),
-                  split=side)
+            m = stats(np.array(bucket[combo][side]))
+            n = m.get("n_trades") or 0
+            m["eod_exits"] = eod[combo][side]
+            m["eod_pct"] = (100.0 * eod[combo][side] / n) if n else None
+            rc = reasons[combo][side]
+            m["sl_exits"] = rc.get("sl", 0)
+            m["tp_exits"] = rc.get("tp", 0)
+            m["time_exits"] = rc.get("time", 0)
+            w.add(axis_values=kw, metrics=m, split=side)
     d = w.write(a.out)
 
     # ── 요약 ──
