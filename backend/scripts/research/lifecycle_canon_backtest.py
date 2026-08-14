@@ -216,6 +216,9 @@ def main() -> int:
     p = argparse.ArgumentParser(description="신상저격수 백테스트 (정본 커널)")
     p.add_argument("--out", default=str(OUT))
     p.add_argument("--limit", type=int, default=0, help="앞에서 N 사건만 (빠른 확인)")
+    p.add_argument("--split", default="",
+                   help="표본 안/밖 분할 상장일 (예: 2026-05-13). 이 날 **이후** "
+                        "상장이 표본 밖. R-4 판정일을 쓰는 것이 관례다")
     p.add_argument("--window", default="",
                    help="재진입 창(상장 후 일수) 스윕, 쉼표 구분. 비우면 스펙 기본(3일)")
     p.add_argument("--tp", default="none",
@@ -284,18 +287,27 @@ def main() -> int:
 
     out = {"cohort": len(rows), "skipped": skipped, "tp_sweep": tps,
            "engine": "canon_kernel", "variants": {}}
+    split = a.split.strip()
+    if split:
+        log.info("표본 분할 %s — 이후 상장이 표본 밖", split)
+
+    def subset(rs):
+        if not split:
+            return {"all": rs}
+        return {"IS": [r for r in rs if r["listing"] < split],
+                "OOS": [r for r in rs if r["listing"] >= split]}
+
     keys = [((n if tp == "none" else f"{n}@tp{tp}")
              + ("" if w is None else f"/w{w}"))
             for n, _, _, _ in VARIANTS for tp in tps for w in wins]
-    for name in keys:
-        # (1) 사건 기준 — 첫 거래만. 패러다임 정의("상장당 한 번")에 대응하고
-        #     익절 없음 실행과 직접 비교된다.
-        first = np.array([r[name] for r in rows if r.get(name) is not None])
+    def agg(name, rs):
+        # (1) 사건 기준 — 첫 거래만. 익절 없음 실행과 직접 비교된다.
+        first = np.array([r[name] for r in rs if r.get(name) is not None])
         # (2) 거래 기준 — 재진입 포함 **전부**. 실제로 계좌가 겪는 것이다.
-        allr = np.array([x for r in rows for x in (r.get(f"{name}_rets") or [])])
+        allr = np.array([x for r in rs for x in (r.get(f"{name}_rets") or [])])
         st_first, st_all = stats(first), stats(allr)
-        reasons = [x for r in rows for x in (r.get(f"{name}_reasons") or [])]
-        out["variants"][name] = {
+        reasons = [x for r in rs for x in (r.get(f"{name}_reasons") or [])]
+        return {
             **st_all,                                   # n/mean/med/win/t = 거래 기준
             "n_events": int(len(first)),
             "n_trades": int(len(allr)),
@@ -312,8 +324,16 @@ def main() -> int:
             "tp_exits": sum(1 for x in reasons if x == "tp"),
             "sl_exits": sum(1 for x in reasons if x == "sl"),
             "reentry_events": sum(1 for r in rows if (r.get(f"{name}_n") or 0) > 1),
-            "excluded": sum(1 for r in rows if r.get(name) is None),
+            "excluded": sum(1 for r in rs if r.get(name) is None),
         }
+
+    for name in keys:
+        parts = subset(rows)
+        if split:
+            out["variants"][name] = {k: agg(name, v) for k, v in parts.items()}
+            out["variants"][name].update(agg(name, rows))   # 전체도 함께
+        else:
+            out["variants"][name] = agg(name, rows)
     out["rows"] = rows
     out["failed"] = failed[:20]
 
@@ -322,6 +342,23 @@ def main() -> int:
     print("=" * 78)
     print(f"정본 커널 백테스트 — 코호트 {len(rows)} (제외 {skipped}, 실패 {len(failed)})")
     print("=" * 78)
+    if split:
+        print(f"  {'변형':<26}" + f"{'IS 사건':>7}{'IS 거래':>7}{'IS 총%p':>9}{'IS t':>7}"
+              + f"{'OOS 사건':>8}{'OOS 거래':>8}{'OOS 총%p':>10}{'OOS 평균':>9}{'OOS t':>7}")
+        for name in keys:
+            v = out["variants"][name]
+            i, o = v.get("IS", {}), v.get("OOS", {})
+            print(f"  {name:<26}{i.get('n_events',0):>7}{i.get('n_trades',0):>7}"
+                  f"{i.get('total_ret',0):>9.0f}{(i.get('t') or 0):>7.2f}"
+                  f"{o.get('n_events',0):>8}{o.get('n_trades',0):>8}"
+                  f"{o.get('total_ret',0):>10.1f}{(o.get('mean') or 0):>9.2f}"
+                  f"{(o.get('t') or 0):>7.2f}")
+        print("-" * 78)
+        print(f"  표본 분할 {split} — 이후 상장이 표본 밖")
+        print("=" * 78)
+        print(f"  → {a.out}")
+        return 0
+
     print(f"  {'변형':<26}{'사건':>5}{'거래':>6}{'총수익%p':>10}{'평균%':>9}"
           f"{'승률%':>7}{'t':>7}{'최악%':>8}{'익절':>6}{'손절':>6}{'재진입':>7}")
     for name in keys:
