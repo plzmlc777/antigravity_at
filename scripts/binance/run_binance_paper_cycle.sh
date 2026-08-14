@@ -148,7 +148,7 @@ echo "[binance-paper] 실행기 사전 관문..." | tee -a "${LOG_FILE}"
 # `cmd | tee` 의 종료코드는 기본적으로 **tee** 의 것이다. 이 파일 상단에
 # `set -o pipefail` 이 있어 지금은 옳게 동작하지만, 그 설정이 130행 위에 있어
 # 나중에 누가 지우면 **관문이 항상 통과로 읽힌다**. PIPESTATUS 로 못박는다.
-./scripts/binance/run_engine_gates.sh 2>&1 | tee -a "${LOG_FILE}"
+./scripts/binance/run_engine_gates.sh fast cycle 2>&1 | tee -a "${LOG_FILE}"
 GATE_RC=${PIPESTATUS[0]}
 
 if [ "${GATE_RC}" -eq 0 ]; then
