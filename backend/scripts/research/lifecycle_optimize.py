@@ -82,6 +82,22 @@ SL_FLOOR = 0.20
 # 위약 칸이 관측 칸과 비슷하면 **엣지는 상장이 아니라 자산군 드리프트**다.
 PLACEBO_AXIS = "placebo_days"
 
+# 두 번째 위약 — **사건 안 겪는 대조군**.
+#   `placebo_days=control` 이면 같은 **날짜**에 이미 오래 상장된 종목으로
+#   같은 규칙을 돌린다. 달력·시장 국면은 같고 다른 것은 "신규 상장인가"뿐이다.
+#
+#   +60일 위약이 "같은 종목 다른 시각"을 물었다면, 이건 "같은 시각 다른 종목"을
+#   묻는다. 둘 다 관측에 근접하면 남는 설명은 **알트코인 전반의 하락 드리프트**다.
+#
+#   대조 종목은 **결정적으로** 고른다(정렬 후 인덱스). 무작위를 쓰면 재현이
+#   깨진다 — 교훈 #87.
+CONTROL_VALUE = "control"
+CONTROL_MIN_AGE_DAYS = 180      # 이만큼 지난 종목만 '기성'으로 본다
+# 사건당 대조 종목 수. 1개면 표본이 너무 얇아 위약 분포를 못 만든다
+# (실측: 25사건 → 대조 거래 5건). 위약은 "귀무가 어떻게 생겼나"를 재는
+# 것이므로 표본이 많을수록 낫다.
+CONTROL_PER_EVENT = 3
+
 DEFAULT_AXES = {
     "variant": ["base", "earlyexit_d7", "bearskip"],
     "sl": [0.3, 0.5, 0.7],
@@ -295,7 +311,13 @@ def main() -> int:
     # 첫 조합으로 파이프라인을 실제 조립해 보고, 안 되면 **즉시 멈춘다.**
     preflight(combos, names)
 
-    placebo_offsets = sorted({int(x or 0) for x in axes.get(PLACEBO_AXIS, [0])})
+    raw_pl = axes.get(PLACEBO_AXIS, [0])
+    use_control = any(str(x).lower() == CONTROL_VALUE for x in raw_pl)
+    placebo_offsets = sorted({int(x or 0) for x in raw_pl
+                              if str(x).lower() != CONTROL_VALUE})
+    if use_control:
+        log.info("대조군 위약 사용 — 같은 날짜, 상장 %d일 이상 지난 종목",
+                 CONTROL_MIN_AGE_DAYS)
     if placebo_offsets != [0]:
         log.info("위약 오프셋 %s일 — 0 은 진짜 상장일(관측)", placebo_offsets)
 
@@ -306,6 +328,24 @@ def main() -> int:
 
     listings = json.load(open(LISTINGS))
     from app.db.session import engine
+
+    def control_symbols(sym: str, ld) -> list[str]:
+        """이 사건의 대조 종목들. 같은 날짜에 이미 오래 상장돼 있던 것.
+
+        **결정적으로** 고른다 — 정렬한 풀에서 일정 간격으로 집는다. 무작위를
+        쓰면 재현이 깨진다(교훈 #87).
+        """
+        pool = sorted(
+            k for k, m in listings.items()
+            if m.get("onboard_date")
+            and (ld - datetime.strptime(m["onboard_date"], "%Y-%m-%d").date()).days
+            >= CONTROL_MIN_AGE_DAYS)
+        if not pool:
+            return []
+        base = sum(ord(c) for c in sym) % len(pool)
+        step = max(1, len(pool) // CONTROL_PER_EVENT)
+        return [pool[(base + i * step) % len(pool)]
+                for i in range(min(CONTROL_PER_EVENT, len(pool)))]
 
     # (조합 키) → {"IS": [수익률...], "OOS": [...]}
     bucket: dict[tuple, dict[str, list]] = {c: {"IS": [], "OOS": []} for c in combos}
@@ -338,7 +378,15 @@ def main() -> int:
                 continue
             used += 1
             # 위약 오프셋마다 다른 구간이 필요하다. 한 번씩만 읽어 캐시한다.
-            bars_by_off: dict[int, object] = {}
+            bars_by_off: dict[object, object] = {}
+            if use_control:
+                ctls = []
+                for cs in control_symbols(sym, ld):
+                    cd = daily_bars(conn, cs, ld, ld + timedelta(days=data_days))
+                    if len(cd) >= MIN_DAILY_BARS:
+                        ctls.append((cd, cs))
+                if ctls:
+                    bars_by_off[CONTROL_VALUE] = ctls
             for off in placebo_offsets:
                 a0 = ld + timedelta(days=off)
                 b = a0 + timedelta(days=data_days)
@@ -353,15 +401,22 @@ def main() -> int:
 
             for combo in combos:
                 kw = dict(zip(names, combo))
-                off = int(kw.get(PLACEBO_AXIS, 0) or 0)
-                dl = bars_by_off.get(off)
-                if dl is None:
-                    continue           # 그 오프셋에 데이터가 모자란 사건
-                try:
-                    trades = run_combo(sym, ld + timedelta(days=off), kw, dl)
-                except Exception as exc:
-                    log.warning("%s %s 실패: %s", sym, kw, exc)
-                    continue
+                pv_raw = kw.get(PLACEBO_AXIS, 0)
+                is_ctl = str(pv_raw).lower() == CONTROL_VALUE
+                got = bars_by_off.get(CONTROL_VALUE if is_ctl else int(pv_raw or 0))
+                if got is None:
+                    continue           # 그 오프셋/대조군에 데이터가 모자란 사건
+                # 대조군은 사건당 여러 종목이라 목록으로 돈다
+                runs = (got if is_ctl
+                        else [(got, sym)])
+                run_ld = (ld if is_ctl
+                          else ld + timedelta(days=int(pv_raw or 0)))
+                trades = []
+                for dl, run_sym in runs:
+                    try:
+                        trades += run_combo(run_sym, run_ld, kw, dl)
+                    except Exception as exc:
+                        log.warning("%s %s 실패: %s", run_sym, kw, exc)
                 if not trades:          # bearskip 억제 또는 진입 없음 = 표본 밖
                     continue
                 bucket[combo][side].extend(float(t.return_pct) * 100
