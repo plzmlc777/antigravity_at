@@ -44,6 +44,31 @@ def _key(r, axes):
     return tuple(r[a] for a in axes)
 
 
+def edge_axes(cell, axes, values) -> list[str]:
+    """추천 셀이 **끝값**에 앉아 있는 축들.
+
+    2026-08-14 에 두 번 연속 이 함정에 빠졌다. `sl` 을 0.3~0.7 로 훑어 0.3 이
+    이겼고, 범위를 0.15~0.4 로 넓히자 이번엔 0.15 가 이겼다. 최적값이 탐색
+    범위의 끝에 있으면 **고원을 찾은 게 아니다** — 그 너머를 안 봤을 뿐이다.
+
+    이때 고원 점수는 여전히 100% 로 나온다. 존재하는 이웃만 세기 때문이다.
+    즉 **점수가 높다는 것이 안전을 뜻하지 않는다.** 그래서 따로 경고한다.
+    """
+    out = []
+    for i, ax in enumerate(axes):
+        vs = values[ax]
+        if len(vs) < 2:
+            continue                      # 축이 아니라 고정값
+        try:
+            pos = vs.index(cell[i])
+        except ValueError:
+            continue
+        if pos == 0 or pos == len(vs) - 1:
+            out.append(f"{ax}={cell[i]} ({'최소' if pos == 0 else '최대'}값, "
+                       f"훑은 범위 {vs[0]}~{vs[-1]})")
+    return out
+
+
 def neighbors(cell, axes, values):
     """각 축에서 ±1 스텝. 축 값은 **선언 순서**를 이웃 순서로 본다."""
     out = []
@@ -156,6 +181,14 @@ def main() -> int:
     print(f"     고원 점수 {top['score']*100:.0f}% (이웃 {top['n_same']}/{top['n_nb']} 동일부호·유의)")
     if not ok:
         print("     ⚠ **절벽** — 이웃 지지가 없다. 파라미터가 조금만 틀려도 무너진다")
+    edges = edge_axes(top["key"], axes, values)
+    if edges:
+        print("     ⚠ **경계 최적** — 추천이 탐색 범위의 끝에 앉아 있다:")
+        for e in edges:
+            print(f"        · {e}")
+        print("        고원을 찾은 게 아니라 **그 너머를 안 본 것**일 수 있다.")
+        print("        해당 축의 범위를 넓혀 다시 돌려라. 고원 점수 100% 는")
+        print("        **존재하는 이웃 안에서의** 100% 다.")
     peak_cell = max(scored, key=lambda s: s["r"][m])
     if peak_cell["key"] != top["key"]:
         print(f"     (IS 최고 셀은 "
@@ -210,6 +243,9 @@ def _record(a, d, top, peak, oos, problems, n_cells, n_sig) -> None:
         "cells_total": n_cells,
         "cells_significant": n_sig,
         "is_peak_cell": peak["key"] == top["key"],
+        # 경계 최적이면 이 추천은 잠정이다 — 범위를 넓혀 다시 봐야 한다
+        "edge_axes": edge_axes(top["key"], list(d["axes"]),
+                               {k: list(v) for k, v in d["axes"].items()}),
     }
     params = {
         "pick": pick,
@@ -222,7 +258,8 @@ def _record(a, d, top, peak, oos, problems, n_cells, n_sig) -> None:
         # 추천은 채택이 아니다. 이 표시가 없으면 나중에 "그때 이걸 썼다"로 읽힌다
         "adopted": False,
         "note": ("추천일 뿐 채택이 아니다. 표본 밖 사건이 충분히 쌓이기 전까지 "
-                 "현행 유지가 기본이다."),
+                 "현행 유지가 기본이다. metrics.edge_axes 가 비어 있지 않으면 "
+                 "탐색 범위의 끝에 앉은 잠정 추천이다."),
     }
     db = SessionLocal()
     try:
