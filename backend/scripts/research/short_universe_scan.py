@@ -45,7 +45,16 @@ logging.basicConfig(level=logging.INFO,
 log = logging.getLogger("short_scan")
 
 OUT = ROOT / "runs" / "research_track" / "short_universe_scan.json"
-MIN_ANCHORS = 4          # 이보다 적으면 종목 수준 통계가 안 선다
+# 종목 수준 통계를 낼 최소 앵커 수.
+#
+# 2026-08-15: 4 로 뒀더니 앵커 5~7개짜리가 상위를 독차지했다. USELESSUSDT 는
+# IS t 가 **1.3e18** 로 찍혔는데 성과가 아니라 **표준오차 붕괴**다 — 표본이
+# 작아 분산이 0 에 가까워지면 t 가 발산한다. 그런 칸이 순위표 맨 위에 오면
+# 표 전체를 못 믿는다.
+MIN_ANCHORS = 15
+
+# |t| 가 이보다 크면 수치가 아니라 신호다 — "이 칸은 읽지 마라"
+T_COLLAPSE = 1000.0
 
 
 def universe(conn, min_dollar_vol: float, min_days: int) -> list[dict]:
@@ -129,9 +138,19 @@ def stats(a: np.ndarray) -> dict:
     if len(a) < 2:
         return {"n": int(len(a))}
     se = a.std(ddof=1) / np.sqrt(len(a))
+    t = float(a.mean() / se) if se else None
     return {"n": int(len(a)), "total": float(a.sum()), "mean": float(a.mean()),
             "med": float(np.median(a)), "win": float(100 * (a > 0).mean()),
-            "t": float(a.mean() / se) if se else None, "worst": float(a.min())}
+            "t": t, "worst": float(a.min()),
+            # 표준오차 붕괴 — 표본이 작아 분산이 0 에 가까워진 칸
+            "t_collapsed": bool(t is not None and abs(t) >= T_COLLAPSE)}
+
+
+def tfmt(t) -> str:
+    """붕괴한 t 는 숫자로 찍지 않는다. 그대로 두면 순위표를 오독한다."""
+    if t is None:
+        return "   —  "
+    return f"{t:>7.2f}" if abs(t) < T_COLLAPSE else "    ∞* "
 
 
 def main() -> int:
@@ -174,7 +193,7 @@ def main() -> int:
              a.hold, stride, split)
     symbol_meta = {u["symbol"]: u for u in uni}
 
-    rows = []
+    rows, skipped_thin = [], 0
     with engine.connect() as conn:
         for i, sym in enumerate([u["symbol"] for u in uni], 1):
             try:
@@ -201,6 +220,7 @@ def main() -> int:
                         (oos_r if anchor >= split else is_r).append(r)
                 anchor += timedelta(days=stride)
             if len(is_r) + len(oos_r) < MIN_ANCHORS:
+                skipped_thin += 1
                 continue
             rows.append({"symbol": sym, "first": str(d0), "last": str(d1),
                          "med_dollar_vol": symbol_meta[sym]["med_dollar_vol"],
@@ -210,9 +230,12 @@ def main() -> int:
                 log.info("%d/%d (사용 %d)", i, len(uni), len(rows))
 
     # ── 핵심 질문: 표본 안 순위가 표본 밖을 예측하는가 ──────────────────
+    # 붕괴한 칸은 순위 상관에서도 뺀다 — 값이 아니라 잡음이다
     both = [r for r in rows
             if r["IS"].get("mean") is not None and r["OOS"].get("mean") is not None
-            and r["IS"]["n"] >= 3 and r["OOS"]["n"] >= 3]
+            and r["IS"]["n"] >= 3 and r["OOS"]["n"] >= 3
+            and not r["IS"].get("t_collapsed")
+            and not r["OOS"].get("t_collapsed")]
     rank = None
     if len(both) >= 8:
         from scipy import stats as sps
@@ -224,8 +247,9 @@ def main() -> int:
 
     out = {"params": {"sl": a.sl, "tp": a.tp, "hold": a.hold, "stride": stride,
                       "split": a.split, "min_dollar_vol": a.min_dollar_vol,
-                      "min_days": a.min_days},
-           "n_symbols": len(rows), "rank_persistence": rank, "symbols": rows}
+                      "min_days": a.min_days, "min_anchors": MIN_ANCHORS},
+           "n_symbols": len(rows), "n_skipped_thin": skipped_thin,
+           "rank_persistence": rank, "symbols": rows}
     Path(a.out).write_text(json.dumps(out, ensure_ascii=False, indent=2))
 
     print("=" * 88)
@@ -247,13 +271,15 @@ def main() -> int:
     print("-" * 88)
     ranked = sorted([r for r in rows if r["IS"].get("mean") is not None],
                     key=lambda r: -r["IS"]["mean"])
-    print(f"  {'종목':<12}{'IS n':>6}{'IS 평균%':>10}{'IS t':>7}"
-          f"{'OOS n':>7}{'OOS 평균%':>11}{'OOS t':>7}")
+    print(f"  {'종목':<12}{'IS n':>6}{'IS 평균%':>10}{'IS t':>8}"
+          f"{'OOS n':>7}{'OOS 평균%':>11}{'OOS t':>8}")
     for r in ranked[:12]:
         i_, o_ = r["IS"], r["OOS"]
         print(f"  {r['symbol']:<12}{i_.get('n', 0):>6}{i_.get('mean', 0):>10.2f}"
-              f"{(i_.get('t') or 0):>7.2f}{o_.get('n', 0):>7}"
-              f"{(o_.get('mean') or 0):>11.2f}{(o_.get('t') or 0):>7.2f}")
+              f"{tfmt(i_.get('t')):>8}{o_.get('n', 0):>7}"
+              f"{(o_.get('mean') or 0):>11.2f}{tfmt(o_.get('t')):>8}")
+    print(f"  (앵커 {MIN_ANCHORS}개 미만이라 제외한 종목 {skipped_thin})")
+    print("  ∞* = 표본이 작아 표준오차가 붕괴한 칸. 성과가 아니라 읽지 말라는 신호")
     print("=" * 88)
     print(f"  → {a.out}")
     return 0
