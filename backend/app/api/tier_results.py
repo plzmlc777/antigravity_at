@@ -229,13 +229,19 @@ def gate_runs(limit: int = Query(50, ge=1, le=500),
 
 @router.get("/research")
 def research(kind: Optional[str] = None, strategy: Optional[str] = None,
+             include_superseded: bool = False,
              limit: int = Query(100, ge=1, le=1000),
              db: Session = Depends(get_db)) -> Dict[str, Any]:
     """백테스트·포트폴리오 시뮬 수치.
 
-    `git_commit` 을 반드시 함께 낸다. 2026-08-12~13 에 숏 수수료·재진입·팬텀
-    익절 수정이 연달아 들어가 **같은 이름의 수치가 코드에 따라 다른 뜻**을 갖는다.
-    커밋 없이는 어느 수치가 유효한지 알 수 없다.
+    **폐기된 세대는 기본 제외한다.** 2026-08-14 에 숏 수익률 규약 결함으로 20행이
+    무효가 됐다(`진입/청산−1` 은 상한이 없어 이익 거래가 부풀려졌다 — 251 코호트
+    평균 43.41% → 5.15%, t 5.73 → 1.74). 두 세대가 섞여 나오면 어느 쪽이 유효한지
+    호출자가 알 수 없다. 옛 행은 지우지 않았다 — 그때 무엇을 믿고 있었는지는
+    남아야 한다. `include_superseded=true` 로 볼 수 있다.
+
+    `git_commit` 은 **그 파일을 만든 시점의 HEAD** 다(적재 시점이 아니라).
+    다만 머신별 값이다 — 민트는 별도 미러 이력을 갖는다.
     """
     q = db.query(ResearchResult)
     if kind:
@@ -243,9 +249,13 @@ def research(kind: Optional[str] = None, strategy: Optional[str] = None,
     if strategy:
         q = q.filter(ResearchResult.strategy == strategy)
     rows = q.order_by(ResearchResult.created_at.desc()).limit(limit).all()
+    if not include_superseded:
+        rows = [r for r in rows if not (r.params or {}).get("superseded")]
     return {
         "count": len(rows),
+        "excluded_superseded": not include_superseded,
         "results": [{
+            "superseded": bool((r.params or {}).get("superseded")),
             "id": r.id,
             "kind": r.kind,
             "strategy": r.strategy,

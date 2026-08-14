@@ -46,10 +46,31 @@ LIFECYCLE_RE = re.compile(
 
 
 def git_commit() -> str | None:
+    """현재 HEAD. 마지막 수단이다 — 아래 `commit_at` 을 먼저 써라."""
     try:
         return subprocess.check_output(
             ["git", "rev-parse", "--short", "HEAD"], cwd=str(ROOT),
             stderr=subprocess.DEVNULL, timeout=10).decode().strip()
+    except Exception:
+        return None
+
+
+def commit_at(when: datetime) -> str | None:
+    """그 시각에 HEAD 였던 커밋 — **파일을 산출한 코드**.
+
+    2026-08-14: 처음엔 적재 시점 HEAD 를 적었다. 그러면 이 컬럼이 "언제 적재했나"를
+    답하지 사람이 물은 "**어느 코드가 낸 수치인가**"를 답하지 않는다. 결과 파일이
+    며칠 전에 만들어졌으면 그 사이 커밋이 몇 개든 끼어 있다.
+
+    파일 mtime 시점의 HEAD 를 역추적한다. 산출 스크립트를 고칠 필요가 없고 과거
+    파일에도 적용된다.
+    """
+    try:
+        out = subprocess.check_output(
+            ["git", "rev-list", "-1", "--first-parent",
+             f"--before={when.isoformat()}", "HEAD"],
+            cwd=str(ROOT), stderr=subprocess.DEVNULL, timeout=10).decode().strip()
+        return out[:8] or None
     except Exception:
         return None
 
@@ -147,7 +168,6 @@ def ingest_research(db, dry: bool) -> tuple[int, int]:
 
     자동 스캔하지 않는다 — 파일마다 구조가 달라서 조용히 잘못 넣느니 안 넣는 게 낫다.
     """
-    gc = git_commit()
     added = skipped = 0
     specs = [
         (RT / "lifecycle_variant_backtest.json", "backtest", "lifecycle",
@@ -169,6 +189,8 @@ def ingest_research(db, dry: bool) -> tuple[int, int]:
         except Exception:
             continue
         created = datetime.fromtimestamp(path.stat().st_mtime)
+        # 이 파일을 만든 시점의 HEAD — 적재 시점 HEAD 가 아니다
+        gc = commit_at(created) or git_commit()
         # 변형별로 행을 나눌 수 있으면 나눈다 — 조회축이 살아난다
         rows = []
         if kind == "backtest" and isinstance(data.get("variants"), dict):
