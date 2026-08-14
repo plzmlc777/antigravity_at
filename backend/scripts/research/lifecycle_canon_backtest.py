@@ -55,9 +55,13 @@ log = logging.getLogger("canon_bt")
 LISTINGS = ROOT / "runs" / "research_track" / "lifecycle_phase" / "listing_dates.json"
 OUT = ROOT / "runs" / "research_track" / "lifecycle_canon_backtest.json"
 
-# (이름, baseline_hold_days, early_exit_check_day)
-VARIANTS = [("base", 30, None), ("h21", 21, None),
-            ("earlyexit_d7", 30, 7), ("earlyexit_d14", 30, 14)]
+# (이름, baseline_hold_days, early_exit_check_day, policy_variant)
+VARIANTS = [("base", 30, None, "baseline"), ("h21", 21, None, "baseline"),
+            ("earlyexit_d7", 30, 7, "early_exit"),
+            ("earlyexit_d14", 30, 14, "early_exit"),
+            ("bearskip", 30, None, "bear_skip")]
+
+BEAR_THRESHOLD = -0.05
 
 WINDOW_DAYS = 35
 MIN_DAILY_BARS = 31
@@ -84,19 +88,51 @@ def daily_bars(conn, sym: str, a, b) -> pd.DataFrame:
     }).dropna()
 
 
-def run_one(sym: str, ld, variant: str, hold: int, early, bars_1m, bars_daily):
+_BTC_PRE_RET: dict[str, float | None] = {}
+
+
+def btc_pre_ret(listing_date: str) -> float | None:
+    """BTC 30일 사전 수익률 — **스포너와 같은 함수**로 구한다.
+
+    bearskip 은 이 값 하나로 진입을 억제한다(<= -5% 면 BEAR → 신호 0.0).
+    여기서 다시 계산하면 CANON 세션과 다른 판정이 나올 수 있다. 상장일별로
+    한 번만 부르고 캐시한다 — 코호트에 같은 날 상장이 여럿 있다.
+
+    None 이면 그 사건의 bearskip 을 **건너뛴다**(스포너와 같은 보수적 기본값 —
+    레짐을 모르는 채 세션을 만들지 않는다).
+    """
+    if listing_date not in _BTC_PRE_RET:
+        from research.lifecycle_session_spawner import compute_btc_30d_pre_ret
+        try:
+            _BTC_PRE_RET[listing_date] = compute_btc_30d_pre_ret(listing_date)
+        except Exception as exc:
+            log.warning("BTC 사전 수익률 실패 %s: %s", listing_date, exc)
+            _BTC_PRE_RET[listing_date] = None
+    return _BTC_PRE_RET[listing_date]
+
+
+def run_one(sym: str, ld, variant: str, hold: int, early, policy_variant,
+            bars_1m, bars_daily):
     """한 상장 사건 × 한 변형 — 정본 커널로 실행. 거래 목록을 돌려준다."""
     from app.composer_framework.backtester import GenericBacktester
     from app.composer_framework.pipeline_spec import build_pipeline
     from app.composer_framework.signal_source import SourceContext
     from research.lifecycle_session_spawner import build_session_spec
 
+    pre_ret = None
+    if policy_variant == "bear_skip":
+        pre_ret = btc_pre_ret(str(ld))
+        if pre_ret is None:
+            return None          # 레짐 미상 — 사건 제외 (스포너와 같은 처리)
+
     spec = build_session_spec(
         sym, str(ld),
-        policy_variant=("baseline" if early is None else "early_exit"),
+        policy_variant=policy_variant,
         early_exit_check_day=(early or 14),
         early_exit_vc_threshold=0.40,
         baseline_hold_days=hold,
+        bear_skip_btc_30d_pre_ret=pre_ret,
+        bear_skip_threshold=BEAR_THRESHOLD,
     )
     ps = spec["pipeline_spec"]
     ctx = SourceContext(symbol=sym,
@@ -147,18 +183,26 @@ def main() -> int:
 
             rec = {"symbol": sym, "listing": str(ld)}
             ok = True
-            for name, hold, early in VARIANTS:
+            for name, hold, early, pv in VARIANTS:
                 try:
-                    trades = run_one(sym, ld, name, hold, early, None, dl)
+                    trades = run_one(sym, ld, name, hold, early, pv, None, dl)
                 except Exception as exc:
                     failed.append(f"{sym}/{name}: {type(exc).__name__}: {exc}")
                     ok = False
                     break
+                if trades is None:      # bearskip 레짐 미상 — 이 사건은 표본 밖
+                    rec[f"{name}_n"] = None
+                    rec[f"{name}"] = None
+                    rec[f"{name}_reason"] = "regime_unknown"
+                    continue
                 # 진입 1회가 패러다임이다. 2회 이상이면 재진입 — 기록해 둔다.
                 rec[f"{name}_n"] = len(trades)
+                # 거래 0건은 두 가지다: bearskip 이 BEAR 로 억제했거나(정상),
+                # 신호가 아예 없었거나. 억제는 **수익률 0** 이 아니라 표본 밖이다.
                 rec[f"{name}"] = (float(trades[0].return_pct) * 100
                                   if trades else None)
-                rec[f"{name}_reason"] = trades[0].exit_reason if trades else None
+                rec[f"{name}_reason"] = (trades[0].exit_reason if trades
+                                         else "no_entry")
             if ok:
                 rows.append(rec)
             if a.limit and len(rows) >= a.limit:
@@ -168,11 +212,14 @@ def main() -> int:
 
     out = {"cohort": len(rows), "skipped": skipped,
            "engine": "canon_kernel", "variants": {}}
-    for name, _, _ in VARIANTS:
+    for name, _, _, _ in VARIANTS:
         v = np.array([r[name] for r in rows if r.get(name) is not None])
         out["variants"][name] = stats(v)
-        reent = sum(1 for r in rows if (r.get(f"{name}_n") or 0) > 1)
-        out["variants"][name]["reentry_events"] = reent
+        out["variants"][name]["reentry_events"] = sum(
+            1 for r in rows if (r.get(f"{name}_n") or 0) > 1)
+        # 억제/미상으로 표본에서 빠진 사건 — bearskip 의 n 이 왜 작은지 설명한다
+        out["variants"][name]["excluded"] = sum(
+            1 for r in rows if r.get(name) is None)
     out["rows"] = rows
     out["failed"] = failed[:20]
 
@@ -181,14 +228,16 @@ def main() -> int:
     print("=" * 78)
     print(f"정본 커널 백테스트 — 코호트 {len(rows)} (제외 {skipped}, 실패 {len(failed)})")
     print("=" * 78)
-    print(f"  {'변형':<15}{'n':>6}{'평균%':>10}{'중앙%':>10}{'승률%':>8}{'t':>8}{'재진입':>8}")
-    for name, _, _ in VARIANTS:
+    print(f"  {'변형':<15}{'n':>6}{'평균%':>10}{'중앙%':>10}{'승률%':>8}{'t':>8}"
+          f"{'재진입':>8}{'제외':>8}")
+    for name, _, _, _ in VARIANTS:
         s = out["variants"][name]
         if "mean" not in s:
             print(f"  {name:<15}{s.get('n', 0):>6}   (표본 부족)")
             continue
         print(f"  {name:<15}{s['n']:>6}{s['mean']:>10.2f}{s['med']:>10.2f}"
-              f"{s['win']:>8.1f}{s['t']:>8.2f}{s['reentry_events']:>8}")
+              f"{s['win']:>8.1f}{s['t']:>8.2f}{s['reentry_events']:>8}"
+              f"{s['excluded']:>8}")
     if failed:
         print("-" * 78)
         for f in failed[:5]:
