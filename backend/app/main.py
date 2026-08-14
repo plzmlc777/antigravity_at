@@ -150,3 +150,8 @@ app.include_router(workflow.router, prefix="/api/v1/workflow", tags=["workflow"]
 from .models.calibration_record import CalibrationRecord  # Register Model (CIO-017 Phase 7)
 from .api import calibration
 app.include_router(calibration.router, prefix="/api/v1/calibration", tags=["calibration"])
+
+# 1군/2군 결과 조회 (2026-08-14) — 읽기 전용. 설계: .claude/plans/tier1_result_store_schema.md
+from .models.tier_result import EngineGateRun, PaperTrade, ResearchResult, Tier1LayerObservation  # noqa: F401
+from .api import tier_results
+app.include_router(tier_results.router, prefix="/api/v1/tier-results", tags=["tier-results"])
