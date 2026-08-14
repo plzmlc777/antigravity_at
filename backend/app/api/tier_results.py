@@ -10,11 +10,11 @@
 
 ⚠ 여기서 절대 하면 안 되는 것 두 가지
 
-  1. **`paper_trade.tier == 2` 를 "2군 리그"로 쓰지 마라.**
+  1. **`paper_trade.tier == 2` 를 "2군"으로 쓰지 마라.**
      `ingest_tier_results.classify()` 는 lifecycle 이 아닌 것을 전부 tier 2 로
      찍는다. 실측(2026-08-14): tier=2 유효 거래 759건 / 54세션인데 **실제 리그는
      136건 / 11석**이다. 나머지는 리그에 앉은 적 없는 연구용 세션이다.
-     리그 좌석은 `tier_governor.is_governed` 하나로만 정한다(아래 `_league_seats`).
+     2군 좌석은 `tier_governor.is_governed` 하나로만 정한다(아래 `_league_seats`).
 
   2. **성과를 인용할 때 `invalid` 필터를 빼지 마라.**
      2026-08-13 에 lifecycle 498거래를 무효 처리했다(팬텀 익절/재진입/숏 수수료
@@ -147,7 +147,7 @@ def tier1_layers(db: Session = Depends(get_db)) -> Dict[str, Any]:
 
 @router.get("/tier2/seats")
 def tier2_seats(db: Session = Depends(get_db)) -> Dict[str, Any]:
-    """2군 리그 좌석별 성과 — **유효 거래만**.
+    """2군 좌석별 성과 — **유효 거래만**.
 
     좌석 목록은 `is_governed`(파일), 성과는 `paper_trade`(DB). 거래가 0건인
     좌석도 빠지지 않고 나온다 — 안 잡히는 좌석이 있으면 그게 사고다.

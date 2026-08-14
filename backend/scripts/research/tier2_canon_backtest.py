@@ -69,8 +69,13 @@ SIGNAL_LAG_BARS = 0
 WARMUP_DAYS = 31
 
 
-def league_seats() -> list[dict]:
-    """리그 좌석 — `tier_governor.is_governed` 하나로만 정한다."""
+def league_seats(session_prefixes: list[str] | None = None) -> list[dict]:
+    """리그 좌석 — `tier_governor.is_governed` 하나로만 정한다.
+
+    `session_prefixes` 를 주면 **은퇴 세션도 포함해** 그 id 로 시작하는 것만
+    돌려준다. 은퇴한 좌석을 재검증할 때 쓴다 — 리그에서 내려갔다고 근거가
+    사라지는 것은 아니다.
+    """
     from tier_governor import SESS_DIR, is_governed  # type: ignore
     out = []
     for d in sorted(glob.glob(os.path.join(SESS_DIR, "*"))):
@@ -80,6 +85,11 @@ def league_seats() -> list[dict]:
         try:
             meta = json.load(open(sj))
         except Exception:
+            continue
+        if session_prefixes:
+            sid = str(meta.get("session_id", ""))
+            if any(sid.startswith(pre) for pre in session_prefixes):
+                out.append(meta)
             continue
         if is_governed(meta, "binance") and meta.get("status") == "active":
             out.append(meta)
@@ -144,12 +154,15 @@ def main() -> int:
     p = argparse.ArgumentParser(description="2군 리그 백테스트 (정본 커널)")
     p.add_argument("--days", type=int, default=120, help="오늘 기준 소급 일수")
     p.add_argument("--seat", default="", help="종목 필터 (부분 일치)")
+    p.add_argument("--session", default="",
+                   help="세션 id 접두사 쉼표 구분. 주면 **은퇴 좌석도** 포함")
     p.add_argument("--out", default=str(OUT))
     a = p.parse_args()
 
     from app.db.session import engine
 
-    seats = league_seats()
+    pres = [x.strip() for x in a.session.split(",") if x.strip()]
+    seats = league_seats(pres or None)
     if a.seat:
         seats = [s for s in seats if a.seat.upper() in (s.get("symbol") or "")]
     end = datetime.utcnow()

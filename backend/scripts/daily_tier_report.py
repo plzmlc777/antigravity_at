@@ -1,8 +1,14 @@
-"""일일 1군/2군 결과 리포트 → 텔레그램.
+"""패러다임 리그 일일 리포트 → 텔레그램.
+
+**패러다임 리그** = 승강제가 있는 조직(3군 발굴 → 2군 검증 → 1군 실거래).
+실계좌가 걸린 유일한 리그다. 초단타·단타·미장 리그와 병렬이며 그쪽은
+승격·강등이 없다. 명명 2026-08-14 (대표님 확정).
+
+⚠ 상위어가 "리그"이므로 2군을 "2군 리그"라 부르지 않는다 — 그냥 2군이다.
 
 왜 (대표님 지시, 2026-08-13)
   3군 자동 디스패치를 정지하면서 매일 오던 텔레그램이 끊겼다. 그 자리에
-  **1군(실거래) + 2군(리그)** 일일 리포트를 넣는다. 주간·월간 리포트와 같은
+  **1군(실거래) + 2군(검증)** 일일 리포트를 넣는다. 주간·월간 리포트와 같은
   아침 시간대(07:00~07:20 KST)에 같은 형식으로 보낸다.
 
 무엇을 담나
@@ -132,7 +138,7 @@ def tier1() -> list[str]:
 # ─────────────────────────── 2군 ───────────────────────────
 
 def _league_session_ids() -> set[str]:
-    """현재 리그 좌석에 앉아 있는 세션.
+    """현재 2군 좌석에 앉아 있는 세션.
 
     `tier_governor.is_governed` 를 그대로 쓴다 — "무엇이 리그 세션인가"의 정의가
     두 곳에 있으면 갈린다. 상태 파일의 `sessions` 는 쓰지 않는다(위 주석 참조).
@@ -157,7 +163,7 @@ def _league_session_ids() -> set[str]:
 
 
 def tier2() -> list[str]:
-    out = ["", "<b>[2군] 리그</b>"]
+    out = ["", "<b>[2군] 검증</b>"]
     try:
         st = json.loads(LEAGUE_STATE.read_text())
         seats = st.get("seats", {})
@@ -165,7 +171,11 @@ def tier2() -> list[str]:
         # 추적용 dict 이고 `setdefault` 로 **추가만** 된다 — 강등된 세션이 남고,
         # 아직 체크포인트에 도달 못 한 현役 좌석은 빠진다.
         # 실측(2026-08-13): sessions 13 = terminated 7 + 누락 5, 실제 좌석은 11.
-        out.append(f"  좌석 {seats.get('used','?')}/{seats.get('max','?')} · "
+        # ⚠ 좌석 수는 **실측**이 권위다. 상태 파일의 `used` 는 갱신이 늦는다 —
+        # 2026-08-14 에 11석을 종료했는데 파일은 계속 11 을 들고 있었고, 바로
+        # 아래 줄의 실측 0 과 나란히 찍혀 리포트가 자기모순을 냈다.
+        # 정원(max)과 큐는 파일이 유일한 출처라 그대로 쓴다.
+        out.append(f"  좌석 {len(_league_session_ids())}/{seats.get('max','?')} · "
                    f"큐 {seats.get('queue','?')}")
         rounds = (st.get("league") or {}).get("rounds") or []
         if rounds:
@@ -199,27 +209,34 @@ def tier2() -> list[str]:
                 func.date(PaperTrade.exit_ts) == today).scalar() or 0)
         finally:
             db.close()
-        out.append(f"  유효 거래 누적 {n_valid} · 오늘 청산 {n_today} "
-                   f"(좌석 {len(league_ids)}세션)")
+        out.append(f"  유효 거래 누적 {n_valid} · 오늘 청산 {n_today}")
+        if not league_ids:
+            out.append("  <b>좌석 비어 있음</b> — 2026-08-14 전 좌석 강등"
+                       "(VB t 0.38 / SC t -1.37, 정본 백테스트)")
         out.append("  <i>DB paper_trade · 무효 표시 제외</i>")
     except Exception as exc:
         out.append(f"  거래 집계 실패: {esc(type(exc).__name__)}")
 
     left = (FIRST_VERDICT - datetime.now(KST).date()).days
-    out.append(f"  최초 유효 판정 {FIRST_VERDICT} "
-               + (f"(D-{left})" if left > 0 else "(도래)"))
+    # 좌석이 비면 판정일 카운트다운은 셀 대상이 없다 — 남겨두면 곧 무언가
+    # 판정될 것처럼 읽힌다
+    if _league_session_ids():
+        out.append(f"  최초 유효 판정 {FIRST_VERDICT} "
+                   + (f"(D-{left})" if left > 0 else "(도래)"))
+    else:
+        out.append("  <i>판정 대상 없음 — 3군 재개 또는 수동 시드 필요</i>")
     return out
 
 
 def build() -> str:
     now = datetime.now(KST)
-    head = [f"📊 <b>일일 리포트</b> {now:%Y-%m-%d (%a)}", ""]
+    head = [f"📊 <b>패러다임 리그 일일 리포트</b> {now:%Y-%m-%d (%a)}", ""]
     tail = ["", "<i>3군 디스패치 정지(2026-08-13) 대체 리포트</i>"]
     return "\n".join(head + tier1() + tier2() + tail)
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description="일일 1군/2군 리포트")
+    ap = argparse.ArgumentParser(description="패러다임 리그 일일 리포트")
     ap.add_argument("--dry", action="store_true", help="출력만, 발송 안 함")
     args = ap.parse_args()
 
