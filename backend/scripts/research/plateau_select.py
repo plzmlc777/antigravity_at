@@ -44,6 +44,40 @@ def _key(r, axes):
     return tuple(r[a] for a in axes)
 
 
+# 축 이름 → 그 축이 살아 있는지 확인할 지표
+# (그 축을 조절해도 이 값이 0 이면 아무 일도 안 일어난 것이다)
+AXIS_LIVENESS = {"sl": "sl_exits", "policy.sl_pct": "sl_exits",
+                 "tp": "tp_exits", "policy.tp_pct": "tp_exits"}
+
+
+def dead_axes(IS: dict, axes: list, values: dict) -> list[str]:
+    """**값을 바꿔도 아무 일이 안 일어난 축.**
+
+    2026-08-14: sl 을 0.02 까지 좁혀 IS t 17.55 를 얻었는데, 커널이 진입한 바에서
+    SL/TP 를 검사하지 않기 때문에(일봉에서 시가 진입과 고가 도달의 순서를 알 수
+    없다) 손절이 **한 번도 발동하지 않았다.** 좁힐수록 좋아진 게 아니라
+    좁힐수록 위험 관리가 꺼진 것이었다.
+
+    고원 점수도 경계 경고도 이걸 못 잡는다 — 둘 다 지표값만 보기 때문이다.
+    발동 횟수를 따로 봐야 한다.
+    """
+    out = []
+    for ax in axes:
+        key = AXIS_LIVENESS.get(ax)
+        if not key or len(values.get(ax, [])) < 2:
+            continue
+        by_val = {}
+        for k, r in IS.items():
+            v = k[axes.index(ax)]
+            by_val.setdefault(v, []).append(r.get(key))
+        dead = [str(v) for v, xs in by_val.items()
+                if all((x or 0) == 0 for x in xs)]
+        if dead:
+            out.append(f"{ax}: 값 {', '.join(sorted(dead))} 에서 `{key}` 가 0 "
+                       f"— 그 값들은 **탐색되지 않았다**")
+    return out
+
+
 def edge_axes(cell, axes, values) -> list[str]:
     """추천 셀이 **끝값**에 앉아 있는 축들.
 
@@ -179,8 +213,20 @@ def main() -> int:
     ok = top["n_same"] > 0
     print(f"  **추천**: " + " · ".join(f"{ax}={v}" for ax, v in zip(axes, top["key"])))
     print(f"     고원 점수 {top['score']*100:.0f}% (이웃 {top['n_same']}/{top['n_nb']} 동일부호·유의)")
+    _r = top["r"]
+    if any(k in _r for k in ("sl_exits", "tp_exits", "time_exits")):
+        print(f"     청산 사유: 손절 {_r.get('sl_exits', '—')} · "
+              f"익절 {_r.get('tp_exits', '—')} · 시간 {_r.get('time_exits', '—')}"
+              + (f" · 데이터끝 {_r['eod_exits']}" if _r.get("eod_exits") else ""))
     if not ok:
         print("     ⚠ **절벽** — 이웃 지지가 없다. 파라미터가 조금만 틀려도 무너진다")
+    deads = dead_axes(IS, axes, values)
+    if deads:
+        print("     ⚠ **죽은 축** — 값을 바꿔도 아무 일이 일어나지 않았다:")
+        for dmsg in deads:
+            print(f"        · {dmsg}")
+        print("        그 구간의 수치는 전략이 아니라 **기능이 꺼진 결과**다.")
+
     edges = edge_axes(top["key"], axes, values)
     if edges:
         print("     ⚠ **경계 최적** — 추천이 탐색 범위의 끝에 앉아 있다:")
@@ -245,6 +291,9 @@ def _record(a, d, top, peak, oos, problems, n_cells, n_sig) -> None:
         "is_peak_cell": peak["key"] == top["key"],
         # 경계 최적이면 이 추천은 잠정이다 — 범위를 넓혀 다시 봐야 한다
         "edge_axes": edge_axes(top["key"], list(d["axes"]),
+                               {k: list(v) for k, v in d["axes"].items()}),
+        # 값을 바꿔도 발동 0 인 축 — 그 구간은 탐색된 적이 없다
+        "dead_axes": dead_axes(IS, list(d["axes"]),
                                {k: list(v) for k, v in d["axes"].items()}),
     }
     params = {
