@@ -113,8 +113,8 @@ def _dt(v):
         return None
 
 
-def ingest_trades(db, dry: bool) -> tuple[int, int]:
-    added = skipped = 0
+def ingest_trades(db, dry: bool) -> tuple[int, int, int]:
+    added = skipped = refreshed = 0
     for d in sorted(os.listdir(SESS)):
         sf, tf = SESS / d / "session.json", SESS / d / "trades.jsonl"
         if not (sf.exists() and tf.exists()):
@@ -135,9 +135,21 @@ def ingest_trades(db, dry: bool) -> tuple[int, int]:
                 continue
             ets, xts = _dt(t.get("entry_ts")), _dt(t.get("exit_ts"))
             side = t.get("side")
-            exists = db.query(PaperTrade.id).filter(
-                PaperTrade.session_id == d, PaperTrade.row_idx == row_idx).first()
-            if exists:
+            row = (db.query(PaperTrade)
+                   .filter(PaperTrade.session_id == d,
+                           PaperTrade.row_idx == row_idx).first())
+            if row is not None:
+                # 거래 자체는 불변이지만 **무효 표시는 나중에 붙는다.**
+                # 2026-08-14: 2군 133건을 lookahead 로 무효 처리했는데 적재가
+                # 기존 행을 통째로 건너뛰어 DB 에 반영되지 않았다. 무효 표시가
+                # 이 테이블의 존재 이유인데 그게 갱신 안 되면 적재가 무의미하다.
+                inv = bool(t.get("invalid", False))
+                if row.invalid != inv:
+                    row.invalid = inv
+                    row.invalid_defects = t.get("invalid_defects")
+                    row.invalidated_on = (date.fromisoformat(t["invalidated_on"])
+                                          if t.get("invalidated_on") else None)
+                    refreshed += 1
                 skipped += 1
                 continue
             added += 1
@@ -160,7 +172,7 @@ def ingest_trades(db, dry: bool) -> tuple[int, int]:
             ))
     if not dry:
         db.commit()
-    return added, skipped
+    return added, skipped, refreshed
 
 
 def ingest_research(db, dry: bool) -> tuple[int, int]:
@@ -303,8 +315,9 @@ def main() -> int:
         print(f"1군/2군 결과 적재{' (DRY)' if a.dry else ''}")
         print("=" * 72)
         if a.all or a.trades:
-            n, s = ingest_trades(db, a.dry)
-            print(f"  paper_trade              신규 {n:>6} · 기존 {s:>6}")
+            n, s, r = ingest_trades(db, a.dry)
+            print(f"  paper_trade              신규 {n:>6} · 기존 {s:>6}"
+                  f" · **무효표시 갱신 {r}**")
         if a.all or a.research:
             n, s = ingest_research(db, a.dry)
             print(f"  research_result          신규 {n:>6} · 기존 {s:>6}")
