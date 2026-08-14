@@ -49,6 +49,12 @@ def _key(r, axes):
 AXIS_LIVENESS = {"sl": "sl_exits", "policy.sl_pct": "sl_exits",
                  "tp": "tp_exits", "policy.tp_pct": "tp_exits"}
 
+# **의도적 비활성** 값. 여기서 발동 0 은 정상이지 무력화가 아니다.
+# 2026-08-14: `tp=none` 이 죽은 축으로 잡혔는데 익절이 없으니 익절로 나갈 리가
+# 없다 — 경고가 기술적으로는 맞지만 잡음이다. 판정기가 "꺼두기로 한 것"과
+# "꺼진 줄 몰랐던 것"을 구분해야 한다. 후자만 경고할 값어치가 있다.
+DISABLED_VALUES = {"none", "off", "keep", "default", "", "1.0", "1"}
+
 
 def dead_axes(IS: dict, axes: list, values: dict) -> list[str]:
     """**값을 바꿔도 아무 일이 안 일어난 축.**
@@ -71,10 +77,15 @@ def dead_axes(IS: dict, axes: list, values: dict) -> list[str]:
             v = k[axes.index(ax)]
             by_val.setdefault(v, []).append(r.get(key))
         dead = [str(v) for v, xs in by_val.items()
-                if all((x or 0) == 0 for x in xs)]
+                if str(v).lower() not in DISABLED_VALUES
+                and all((x or 0) == 0 for x in xs)]
         if dead:
             out.append(f"{ax}: 값 {', '.join(sorted(dead))} 에서 `{key}` 가 0 "
-                       f"— 그 값들은 **탐색되지 않았다**")
+                       f"— 그 값들은 **탐색되지 않았다** "
+                       f"(비활성 의도 값 {sorted(DISABLED_VALUES & {str(v).lower() for v in values[ax]})} 은 제외함)"
+                       if (DISABLED_VALUES & {str(v).lower() for v in values[ax]})
+                       else f"{ax}: 값 {', '.join(sorted(dead))} 에서 `{key}` 가 0 "
+                            f"— 그 값들은 **탐색되지 않았다**")
     return out
 
 
