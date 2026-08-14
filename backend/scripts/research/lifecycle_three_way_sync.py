@@ -58,39 +58,45 @@ LISTINGS = ROOT / "runs" / "research_track" / "lifecycle_phase" / "listing_dates
 REAL_ACCOUNT = 8
 PAPER_ACCOUNT = 12      # System-1 페이퍼 — 실거래와 **동일 조건**(수량만 다름)
 HOLD_DAYS = 30
-SL_PCT = 0.50
-FRIC_BP = 10.0
+# SL/마찰 상수는 더 이상 여기 없다 — 정본 커널이 세션 스펙(fee_rate)과
+# 정책(sl_pct)에서 가져간다. 상수를 두 곳에 두면 갈린다.
 
 
 def bt_trade(conn, sym: str, ld: date):
-    """백테스트 층 — 순수 규칙 한 번."""
-    from sqlalchemy import text
-    r = conn.execute(text(
-        "SELECT timestamp, high, close FROM ohlcv WHERE symbol=:s AND time_frame='1m' "
-        "AND timestamp >= :a AND timestamp < :b ORDER BY timestamp"),
-        {"s": sym, "a": ld, "b": ld + timedelta(days=HOLD_DAYS + 5)}).fetchall()
-    if not r:
+    """백테스트 층 — **정본(Canon) 커널**로 순수 규칙 한 번.
+
+    2026-08-14: 예전엔 여기서 진입·청산·손절·수수료·수익률을 직접 계산했다.
+    그게 이 표의 목적을 스스로 무너뜨리고 있었다 — 4층을 비교해 원인을
+    분리하려는 표인데, BT 열만 다른 코드로 계산되니 **격차의 일부가 "전략
+    차이"가 아니라 "코드가 달라서"** 였다.
+
+    실제로 이 자체 구현은 숏 수익률을 `진입/청산 − 1` 로 재고 있었다(상한이
+    없어 이익 거래가 부풀려진다). CANON·PA·REAL 은 커널 한 곳을 지나 서로
+    어긋나지 않는데 BT 만 정본 밖에 있어서 BT 만 틀렸다.
+
+    이제 `lifecycle_canon_backtest.run_one` 을 부른다 — CANON 세션과 **같은
+    스펙 생성기·같은 조립기·같은 커널**이다. BT↔CANON 격차가 구조적으로 0 이
+    된다(지금까지는 두 코드가 우연히 같은 값을 낼 때만 0 이었다).
+
+    반환 계약은 그대로 유지한다: {"n", "ret", "entry", "reason"} 또는 None.
+    `ret` 은 **퍼센트**다(커널은 소수를 주므로 100 을 곱한다).
+    """
+    from research.lifecycle_canon_backtest import daily_bars, run_one
+
+    dl = daily_bars(conn, sym, ld, ld + timedelta(days=HOLD_DAYS + 5))
+    if len(dl) < 3:
         return None
-    df = pd.DataFrame(r, columns=["ts", "high", "close"])
-    df["ts"] = pd.to_datetime(df["ts"])
-    d = df.set_index("ts").astype(float)
-    daily = pd.DataFrame({"high": d["high"].resample("1D").max(),
-                          "close": d["close"].resample("1D").last()}).dropna()
-    if len(daily) < 3:
+    try:
+        # BT 열은 base 변형이다 — 상장 Day-1 종가 숏, 30일 보유
+        trades = run_one(sym, ld, "base", HOLD_DAYS, None, "baseline", None, dl)
+    except Exception as exc:
+        log.warning("정본 백테스트 실패 %s %s: %s", sym, ld, exc)
         return None
-    entry = float(daily["close"].iloc[0])
-    stop = entry * (1 + SL_PCT)
-    end = min(HOLD_DAYS, len(daily) - 1)
-    for k in range(1, end + 1):
-        if float(daily["high"].iloc[k]) >= stop:
-            return {"n": 1, "ret": -SL_PCT * 100 - FRIC_BP / 100,
-                    "entry": str(daily.index[0].date()), "reason": "sl"}
-    # 숏 수익률 = (진입-청산)/진입. 커널 `close()` 와 같은 규약이다.
-    # 예전엔 entry/exit-1 이라 CANON/PA/REAL 과 단위가 달랐다 — DOSUSDT 에서
-    # 같은 거래가 +37.0% vs +27.0% 로 갈렸다. 층 비교가 목적인 표에서 치명적이다.
-    ex = float(daily["close"].iloc[end])
-    return {"n": 1, "ret": (entry - ex) / entry * 100 - FRIC_BP / 100,
-            "entry": str(daily.index[0].date()), "reason": "time"}
+    if not trades:
+        return None
+    t = trades[0]
+    return {"n": len(trades), "ret": float(t.return_pct) * 100,
+            "entry": str(t.entry_ts)[:10], "reason": t.exit_reason}
 
 
 def paper_layer() -> dict:
