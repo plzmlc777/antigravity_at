@@ -85,7 +85,11 @@ def bt_trade(conn, sym: str, ld: date):
         if float(daily["high"].iloc[k]) >= stop:
             return {"n": 1, "ret": -SL_PCT * 100 - FRIC_BP / 100,
                     "entry": str(daily.index[0].date()), "reason": "sl"}
-    return {"n": 1, "ret": (entry / float(daily["close"].iloc[end]) - 1) * 100 - FRIC_BP / 100,
+    # 숏 수익률 = (진입-청산)/진입. 커널 `close()` 와 같은 규약이다.
+    # 예전엔 entry/exit-1 이라 CANON/PA/REAL 과 단위가 달랐다 — DOSUSDT 에서
+    # 같은 거래가 +37.0% vs +27.0% 로 갈렸다. 층 비교가 목적인 표에서 치명적이다.
+    ex = float(daily["close"].iloc[end])
+    return {"n": 1, "ret": (entry - ex) / entry * 100 - FRIC_BP / 100,
             "entry": str(daily.index[0].date()), "reason": "time"}
 
 

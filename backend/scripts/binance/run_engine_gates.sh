@@ -25,6 +25,9 @@ set -uo pipefail
 cd "$(dirname "$0")/../.." || exit 2
 PY=./venv/bin/python3
 MODE="${1:-fast}"
+# 거래 사이클 중인가 — 실패 시 주문이 **실제로** 막히는 상황인지 구분한다.
+# 수동 실행은 막을 주문이 없으므로 orders_blocked 로 세면 안 된다.
+CONTEXT="${2:-manual}"
 FAILED=0
 SUMMARY=""
 
@@ -36,8 +39,13 @@ note "=== 정본 관문 시작 (mode=${MODE}) ==="
 
 # ── 1) 단위 테스트 ────────────────────────────────────────────────────
 if $PY -m unittest discover -s tests/composer_framework -p 'test_*.py' > /tmp/engine_gate_unit.log 2>&1; then
-  pass "단위 테스트 ($(grep -oE 'Ran [0-9]+ tests' /tmp/engine_gate_unit.log | tail -1))"
+  UNIT_TOTAL="$(grep -oE 'Ran [0-9]+ tests' /tmp/engine_gate_unit.log | grep -oE '[0-9]+' | head -1)"
+  UNIT_PASSED="${UNIT_TOTAL}"
+  pass "단위 테스트 (Ran ${UNIT_TOTAL} tests)"
 else
+  UNIT_TOTAL="$(grep -oE 'Ran [0-9]+ tests' /tmp/engine_gate_unit.log | grep -oE '[0-9]+' | head -1)"
+  UNIT_FAILS="$(grep -oE 'failures=[0-9]+' /tmp/engine_gate_unit.log | grep -oE '[0-9]+' | head -1)"
+  UNIT_PASSED="$(( ${UNIT_TOTAL:-0} - ${UNIT_FAILS:-0} ))"
   fail "단위 테스트 — $(grep -E '^(FAILED|ERROR)' /tmp/engine_gate_unit.log | tail -1)"
 fi
 
@@ -55,6 +63,12 @@ if $PY -m scripts.research.golden_replay --verify $GOLDEN_ARGS > /tmp/engine_gat
 else
   fail "${GOLDEN_LABEL} — $(grep -oE '일치 [0-9]+ / 불일치 [0-9]+ / 재생불가 [0-9]+' /tmp/engine_gate_golden.log | tail -1)"
 fi
+# ⚠ '일치' 로 grep 하면 '불일치' 도 걸린다(부분문자열). 숫자를 **위치로** 읽는다:
+#   "일치 67 / 불일치 0 / 재생불가 0" → 67, 0, 0
+GOLD_NUMS="$(grep -oE '일치 [0-9]+ / 불일치 [0-9]+ / 재생불가 [0-9]+' /tmp/engine_gate_golden.log \
+             | tail -1 | grep -oE '[0-9]+')"
+GOLD_M="$(echo "$GOLD_NUMS" | sed -n 1p)"
+GOLD_X="$(echo "$GOLD_NUMS" | sed -n 2p)"
 
 # ── 3) 파리티 게이트 (전량 모드에서만 — 45분 걸린다) ──────────────────
 if [ "$MODE" = "--full" ]; then
@@ -64,9 +78,23 @@ if [ "$MODE" = "--full" ]; then
   else
     fail "파리티 게이트 — $(grep -oE '결과: PASS [0-9]+ / FAIL [0-9]+ / SKIP [0-9]+' /tmp/engine_gate_parity.log | tail -1)"
   fi
+  PAR_LINE="$(grep -oE 'PASS [0-9]+ / FAIL [0-9]+ / SKIP [0-9]+' /tmp/engine_gate_parity.log | tail -1)"
+  PARITY_ARG="--parity $(echo "$PAR_LINE" | grep -oE '[0-9]+' | paste -sd/ -)"
 fi
 
 echo -e "[engine-gate] === 요약 ===${SUMMARY}"
+
+# ── DB 기록 ───────────────────────────────────────────────────────────
+# ⚠ 기록 실패가 **관문 판정을 바꾸면 안 된다.** 관문은 주문 앞에 선다.
+#   `|| true` 로 부르고, 기록 스크립트도 예외를 삼켜 항상 0 으로 끝난다.
+if [ "$FAILED" -eq 0 ]; then VERDICT=pass; else VERDICT=fail; fi
+$PY -m scripts.record_gate_run \
+    --mode "$([ "$MODE" = "--full" ] && echo full || echo fast)" \
+    --verdict "$VERDICT" \
+    --unit "${UNIT_PASSED:-}/${UNIT_TOTAL:-}" \
+    --golden "${GOLD_M:-}/${GOLD_X:-}" \
+    ${PARITY_ARG:-} \
+    --context "$CONTEXT" 2>&1 | tail -1 || true
 
 if [ "$FAILED" -ne 0 ]; then
   note "**정본 이탈(non-canonical drift) — 주문 단계를 건너뛴다**"
