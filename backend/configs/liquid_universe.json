@@ -1,0 +1,2275 @@
+{
+  "built_at": "2026-08-14T21:24:29",
+  "probe_days": 30,
+  "min_dollar_vol": 1000000,
+  "min_minutes": 5000,
+  "n_candidates": 608,
+  "n_probed": 354,
+  "n_pass": 190,
+  "symbols": [
+    "BTCUSDT",
+    "ETHUSDT",
+    "SOLUSDT",
+    "BANKUSDT",
+    "XRPUSDT",
+    "ZECUSDT",
+    "HYPEUSDT",
+    "DOGEUSDT",
+    "AKEUSDT",
+    "BNBUSDT",
+    "ADAUSDT",
+    "1000PEPEUSDT",
+    "WLDUSDT",
+    "DEXEUSDT",
+    "KAITOUSDT",
+    "NEARUSDT",
+    "SUIUSDT",
+    "PUMPUSDT",
+    "ONDOUSDT",
+    "LINKUSDT",
+    "ENAUSDT",
+    "UNIUSDT",
+    "AAVEUSDT",
+    "BEATUSDT",
+    "AVAXUSDT",
+    "TAOUSDT",
+    "PAXGUSDT",
+    "ONUSDT",
+    "HOMEUSDT",
+    "ESPORTSUSDT",
+    "LABUSDT",
+    "LTCUSDT",
+    "BCHUSDT",
+    "XLMUSDT",
+    "ALLOUSDT",
+    "DOTUSDT",
+    "1000SHIBUSDT",
+    "FILUSDT",
+    "UBUSDT",
+    "PENGUUSDT",
+    "RIFUSDT",
+    "USUSDT",
+    "EPICUSDT",
+    "LITUSDT",
+    "INJUSDT",
+    "XMRUSDT",
+    "TRUMPUSDT",
+    "SYNUSDT",
+    "1000BONKUSDT",
+    "ZAMAUSDT",
+    "XAUTUSDT",
+    "ARBUSDT",
+    "ACEUSDT",
+    "TRXUSDT",
+    "XPLUSDT",
+    "LDOUSDT",
+    "COTIUSDT",
+    "LAUSDT",
+    "FETUSDT",
+    "BLESSUSDT",
+    "MMTUSDT",
+    "GWEIUSDT",
+    "HBARUSDT",
+    "JTOUSDT",
+    "APTUSDT",
+    "WLFIUSDT",
+    "ETCUSDT",
+    "EULUSDT",
+    "FARTCOINUSDT",
+    "ERAUSDT",
+    "VIRTUALUSDT",
+    "VVVUSDT",
+    "EVAAUSDT",
+    "GIGGLEUSDT",
+    "1000XECUSDT",
+    "OPUSDT",
+    "ORDIUSDT",
+    "WIFUSDT",
+    "TIAUSDT",
+    "TLMUSDT",
+    "SKYAIUSDT",
+    "AEROUSDT",
+    "ASTERUSDT",
+    "DASHUSDT",
+    "ETHFIUSDT",
+    "HEIUSDT",
+    "ICPUSDT",
+    "DODOXUSDT",
+    "ZBTUSDT",
+    "CRVUSDT",
+    "VELVETUSDT",
+    "ESPUSDT",
+    "BSBUSDT",
+    "BILLUSDT",
+    "EIGENUSDT",
+    "KITEUSDT",
+    "ZROUSDT",
+    "UAIUSDT",
+    "BOMEUSDT",
+    "ALGOUSDT",
+    "PENDLEUSDT",
+    "RIVERUSDT",
+    "PROMUSDT",
+    "ATOMUSDT",
+    "BASEDUSDT",
+    "币安人生USDT",
+    "RENDERUSDT",
+    "SEIUSDT",
+    "JUPUSDT",
+    "OPNUSDT",
+    "BULLAUSDT",
+    "RAVEUSDT",
+    "GALAUSDT",
+    "SIRENUSDT",
+    "EDGEUSDT",
+    "CHZUSDT",
+    "PEOPLEUSDT",
+    "POLUSDT",
+    "NILUSDT",
+    "MORPHOUSDT",
+    "MIRAUSDT",
+    "BUSDT",
+    "USELESSUSDT",
+    "HUSDT",
+    "BICOUSDT",
+    "HEMIUSDT",
+    "SOONUSDT",
+    "PYTHUSDT",
+    "TUTUSDT",
+    "0GUSDT",
+    "SANDUSDT",
+    "BIOUSDT",
+    "PIEVERSEUSDT",
+    "STRKUSDT",
+    "PTBUSDT",
+    "TAGUSDT",
+    "SKYUSDT",
+    "TRIAUSDT",
+    "CLOUSDT",
+    "HMSTRUSDT",
+    "SAHARAUSDT",
+    "CHIPUSDT",
+    "ROBOUSDT",
+    "ENSOUSDT",
+    "NIGHTUSDT",
+    "1000LUNCUSDT",
+    "IDOLUSDT",
+    "MEGAUSDT",
+    "AIGENSYNUSDT",
+    "CCUSDT",
+    "AIOUSDT",
+    "PNUTUSDT",
+    "ZENUSDT",
+    "CAKEUSDT",
+    "NEIROUSDT",
+    "HOLOUSDT",
+    "CFXUSDT",
+    "MANTRAUSDT",
+    "METUSDT",
+    "TACUSDT",
+    "SENTUSDT",
+    "MYXUSDT",
+    "1000RATSUSDT",
+    "IDUSDT",
+    "KOMAUSDT",
+    "TOWNSUSDT",
+    "龙虾USDT",
+    "MONUSDT",
+    "PLUMEUSDT",
+    "TAKEUSDT",
+    "SAGAUSDT",
+    "BLUAIUSDT",
+    "ELSAUSDT",
+    "MAGMAUSDT",
+    "PRLUSDT",
+    "ACTUSDT",
+    "4USDT",
+    "MUBARAKUSDT",
+    "GRASSUSDT",
+    "AXSUSDT",
+    "TSTUSDT",
+    "PARTIUSDT",
+    "AVAAIUSDT",
+    "TRBUSDT",
+    "RESOLVUSDT",
+    "GUAUSDT",
+    "BIRBUSDT",
+    "FFUSDT",
+    "BABYUSDT",
+    "TURBOUSDT"
+  ],
+  "detail": [
+    {
+      "symbol": "BTCUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 3713940720.0,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "ETHUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 2901510374.4,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "SOLUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 567426772.8,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "BANKUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 273558295.4832,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "XRPUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 226763637.408,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "ZECUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 225992995.2,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "HYPEUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 211155769.44,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 124834928.0256,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "AKEUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 114010094.05631998,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "BNBUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 106109280.0,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "ADAUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 71378705.664,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "1000PEPEUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 69374145.31056,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "WLDUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 49568910.336,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "DEXEUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 48803126.400000006,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "KAITOUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 44946342.0,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "NEARUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 44649506.879999995,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "SUIUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 43678776.96,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "PUMPUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 42176457.554400004,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "ONDOUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 41104710.72,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "LINKUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 39522988.8,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "ENAUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 38449006.646400005,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "UNIUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 35787615.839999996,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "AAVEUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 35198784.0,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "BEATUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 34526131.2,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 31929768.0,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "TAOUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 31445640.0,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "PAXGUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 29052863.999999996,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "ONUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 27553980.5424,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "HOMEUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 27098771.688,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "ESPORTSUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 23934279.715199996,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "LABUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 21466449.504000004,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "LTCUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 20841753.6,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "BCHUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 20448792.0,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "XLMUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 19506098.1024,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "ALLOUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 19248153.004800003,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "DOTUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 16669018.08,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "1000SHIBUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 16618605.027840002,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "FILUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 16355963.520000001,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "UBUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 15340969.454400001,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "PENGUUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 14398551.79488,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "RIFUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 14364939.844800001,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "USUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 13870253.92032,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "EPICUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 13727287.295999998,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "LITUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 13432844.304000001,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "INJUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 13029442.56,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "XMRUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 12680280.0,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "TRUMPUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 12636449.28,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "SYNUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 12255349.248,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "1000BONKUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 12049326.694079999,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "ZAMAUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 11743909.128,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "XAUTUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 11650521.6,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "ARBUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 11306122.027199998,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "ACEUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 9397462.838399999,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "TRXUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 9222812.409599999,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "XPLUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 9009376.5888,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "LDOUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 9001267.056,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "COTIUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 8523576.36,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "LAUSDT",
+      "n_minutes": 39047,
+      "dollar_vol_day": 8410111.7184,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-11 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "FETUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 8350138.368,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "BLESSUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 8017084.576800001,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "MMTUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 7840340.784,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "GWEIUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 7801627.392,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "HBARUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 7779635.135999999,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "JTOUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 7719447.311999999,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "APTUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 7602190.848,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "WLFIUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 7386393.7152,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "ETCUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 7384452.48,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "EULUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 7359417.216,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "FARTCOINUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 7355680.704,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "ERAUSDT",
+      "n_minutes": 33287,
+      "dollar_vol_day": 7171447.9104,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-07 23:59:00",
+      "is_new": true,
+      "pass": true
+    },
+    {
+      "symbol": "VIRTUALUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 7123130.640000001,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "VVVUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 7013721.600000001,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "EVAAUSDT",
+      "n_minutes": 33287,
+      "dollar_vol_day": 6838830.0,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-07 23:59:00",
+      "is_new": true,
+      "pass": true
+    },
+    {
+      "symbol": "GIGGLEUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 6656198.399999999,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "1000XECUSDT",
+      "n_minutes": 33287,
+      "dollar_vol_day": 6583736.3904,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-07 23:59:00",
+      "is_new": true,
+      "pass": true
+    },
+    {
+      "symbol": "OPUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 6534459.215999999,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "ORDIUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 6349923.359999999,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "WIFUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 6312041.856,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "TIAUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 6281976.816000001,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "TLMUSDT",
+      "n_minutes": 39047,
+      "dollar_vol_day": 6200958.64752,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-11 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "SKYAIUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 6147711.100800001,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "AEROUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 6012435.455999999,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "ASTERUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 5994988.416000001,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "DASHUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 5970024.000000001,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "ETHFIUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 5907321.359999999,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "HEIUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 5580250.444800001,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "ICPUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 5577998.399999999,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "DODOXUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 5495937.6096,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "ZBTUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 5490570.0672,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "CRVUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 5300670.672,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "VELVETUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 5072013.936,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "ESPUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 5001682.9103999995,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "BSBUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 4898455.8336000005,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "BILLUSDT",
+      "n_minutes": 34727,
+      "dollar_vol_day": 4553360.64,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-08 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "EIGENUSDT",
+      "n_minutes": 39047,
+      "dollar_vol_day": 4336093.4399999995,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-11 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "KITEUSDT",
+      "n_minutes": 36167,
+      "dollar_vol_day": 4326911.4384,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-09 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "ZROUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 4173358.4640000006,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "UAIUSDT",
+      "n_minutes": 37607,
+      "dollar_vol_day": 4115056.6080000005,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-10 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "BOMEUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 3998196.420192,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "ALGOUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 3939699.6288,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "PENDLEUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 3883485.3120000004,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "RIVERUSDT",
+      "n_minutes": 39047,
+      "dollar_vol_day": 3877860.9600000004,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-11 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "PROMUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 3808512.0000000005,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "ATOMUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 3659652.0000000005,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "BASEDUSDT",
+      "n_minutes": 36167,
+      "dollar_vol_day": 3653749.44,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-09 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "币安人生USDT",
+      "n_minutes": 39047,
+      "dollar_vol_day": 3435844.608,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-11 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "RENDERUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 3421968.4800000004,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "SEIUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 3349543.1616,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "JUPUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 3323924.0640000002,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "OPNUSDT",
+      "n_minutes": 33287,
+      "dollar_vol_day": 3319223.2704000003,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-07 23:59:00",
+      "is_new": true,
+      "pass": true
+    },
+    {
+      "symbol": "BULLAUSDT",
+      "n_minutes": 36167,
+      "dollar_vol_day": 3283139.79648,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-09 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "RAVEUSDT",
+      "n_minutes": 34727,
+      "dollar_vol_day": 3205663.4880000004,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-08 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "GALAUSDT",
+      "n_minutes": 39047,
+      "dollar_vol_day": 3124867.69008,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-11 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "SIRENUSDT",
+      "n_minutes": 36167,
+      "dollar_vol_day": 3047083.5456,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-09 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "EDGEUSDT",
+      "n_minutes": 33287,
+      "dollar_vol_day": 3013178.3999999994,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-07 23:59:00",
+      "is_new": true,
+      "pass": true
+    },
+    {
+      "symbol": "CHZUSDT",
+      "n_minutes": 39047,
+      "dollar_vol_day": 2996695.8288000003,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-11 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "PEOPLEUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 2922222.71664,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "POLUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 2735898.5088,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "NILUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 2708902.5695999996,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "MORPHOUSDT",
+      "n_minutes": 36167,
+      "dollar_vol_day": 2643195.888,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-09 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "MIRAUSDT",
+      "n_minutes": 33287,
+      "dollar_vol_day": 2484146.8800000004,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-07 23:59:00",
+      "is_new": true,
+      "pass": true
+    },
+    {
+      "symbol": "BUSDT",
+      "n_minutes": 36167,
+      "dollar_vol_day": 2378380.32,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-09 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "USELESSUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 2362608.6912,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "HUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 2355794.064,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "BICOUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 2247316.8767999997,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "HEMIUSDT",
+      "n_minutes": 33287,
+      "dollar_vol_day": 2224219.14,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-07 23:59:00",
+      "is_new": true,
+      "pass": true
+    },
+    {
+      "symbol": "SOONUSDT",
+      "n_minutes": 34727,
+      "dollar_vol_day": 2157871.1040000003,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-08 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "PYTHUSDT",
+      "n_minutes": 34727,
+      "dollar_vol_day": 2153815.3728,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-08 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "TUTUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 2123348.0688,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "0GUSDT",
+      "n_minutes": 37607,
+      "dollar_vol_day": 2033532.0,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-10 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "SANDUSDT",
+      "n_minutes": 39047,
+      "dollar_vol_day": 1980987.12,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-11 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "BIOUSDT",
+      "n_minutes": 36167,
+      "dollar_vol_day": 1978935.8399999999,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-09 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "PIEVERSEUSDT",
+      "n_minutes": 33287,
+      "dollar_vol_day": 1948671.3599999999,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-07 23:59:00",
+      "is_new": true,
+      "pass": true
+    },
+    {
+      "symbol": "STRKUSDT",
+      "n_minutes": 39047,
+      "dollar_vol_day": 1941689.7792000002,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-11 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "PTBUSDT",
+      "n_minutes": 34727,
+      "dollar_vol_day": 1935535.33584,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-08 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "TAGUSDT",
+      "n_minutes": 33287,
+      "dollar_vol_day": 1933002.2736000002,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-07 23:59:00",
+      "is_new": true,
+      "pass": true
+    },
+    {
+      "symbol": "SKYUSDT",
+      "n_minutes": 37607,
+      "dollar_vol_day": 1917614.7648000002,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-10 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "TRIAUSDT",
+      "n_minutes": 33287,
+      "dollar_vol_day": 1860685.70688,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-07 23:59:00",
+      "is_new": true,
+      "pass": true
+    },
+    {
+      "symbol": "CLOUSDT",
+      "n_minutes": 37607,
+      "dollar_vol_day": 1854568.5695999998,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-10 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "HMSTRUSDT",
+      "n_minutes": 34727,
+      "dollar_vol_day": 1837235.50272,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-08 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "SAHARAUSDT",
+      "n_minutes": 33287,
+      "dollar_vol_day": 1824744.2572799998,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-07 23:59:00",
+      "is_new": true,
+      "pass": true
+    },
+    {
+      "symbol": "CHIPUSDT",
+      "n_minutes": 39047,
+      "dollar_vol_day": 1813190.0255999998,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-11 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "ROBOUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 1766022.8832,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "ENSOUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 1757661.1199999999,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "NIGHTUSDT",
+      "n_minutes": 33287,
+      "dollar_vol_day": 1749267.2448,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-07 23:59:00",
+      "is_new": true,
+      "pass": true
+    },
+    {
+      "symbol": "1000LUNCUSDT",
+      "n_minutes": 39047,
+      "dollar_vol_day": 1745070.5664,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-11 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "IDOLUSDT",
+      "n_minutes": 33287,
+      "dollar_vol_day": 1718914.3199999998,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-07 23:59:00",
+      "is_new": true,
+      "pass": true
+    },
+    {
+      "symbol": "MEGAUSDT",
+      "n_minutes": 37607,
+      "dollar_vol_day": 1697203.8864000002,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-10 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "AIGENSYNUSDT",
+      "n_minutes": 34015,
+      "dollar_vol_day": 1666972.1808000002,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-14 21:11:00",
+      "is_new": true,
+      "pass": true
+    },
+    {
+      "symbol": "CCUSDT",
+      "n_minutes": 37607,
+      "dollar_vol_day": 1654822.9872,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-10 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "AIOUSDT",
+      "n_minutes": 37607,
+      "dollar_vol_day": 1649991.2688,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-10 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "PNUTUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 1552782.8448,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "ZENUSDT",
+      "n_minutes": 37607,
+      "dollar_vol_day": 1551998.8800000001,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-10 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "CAKEUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 1550191.104,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "NEIROUSDT",
+      "n_minutes": 37607,
+      "dollar_vol_day": 1533909.2719104,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-10 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "HOLOUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 1484396.928,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "CFXUSDT",
+      "n_minutes": 37607,
+      "dollar_vol_day": 1478716.0704,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-10 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "MANTRAUSDT",
+      "n_minutes": 33287,
+      "dollar_vol_day": 1448456.1696000001,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-07 23:59:00",
+      "is_new": true,
+      "pass": true
+    },
+    {
+      "symbol": "METUSDT",
+      "n_minutes": 33287,
+      "dollar_vol_day": 1440892.8000000003,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-07 23:59:00",
+      "is_new": true,
+      "pass": true
+    },
+    {
+      "symbol": "TACUSDT",
+      "n_minutes": 33287,
+      "dollar_vol_day": 1434488.4273599999,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-07 23:59:00",
+      "is_new": true,
+      "pass": true
+    },
+    {
+      "symbol": "SENTUSDT",
+      "n_minutes": 33287,
+      "dollar_vol_day": 1432114.2,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-07 23:59:00",
+      "is_new": true,
+      "pass": true
+    },
+    {
+      "symbol": "MYXUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 1430568.0,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "1000RATSUSDT",
+      "n_minutes": 37607,
+      "dollar_vol_day": 1403545.8816,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-10 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "IDUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 1390057.4592,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "KOMAUSDT",
+      "n_minutes": 39047,
+      "dollar_vol_day": 1373372.83296,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-11 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "TOWNSUSDT",
+      "n_minutes": 34727,
+      "dollar_vol_day": 1361484.9000000001,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-08 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "龙虾USDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 1323813.1262400001,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "MONUSDT",
+      "n_minutes": 36167,
+      "dollar_vol_day": 1285816.32,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-09 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "PLUMEUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 1273428.1728,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "TAKEUSDT",
+      "n_minutes": 36167,
+      "dollar_vol_day": 1265210.4816,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-09 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "SAGAUSDT",
+      "n_minutes": 36167,
+      "dollar_vol_day": 1263762.0,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-09 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "BLUAIUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 1252354.27824,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "ELSAUSDT",
+      "n_minutes": 33287,
+      "dollar_vol_day": 1233496.9727999999,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-07 23:59:00",
+      "is_new": true,
+      "pass": true
+    },
+    {
+      "symbol": "MAGMAUSDT",
+      "n_minutes": 37607,
+      "dollar_vol_day": 1212025.8384,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-10 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "PRLUSDT",
+      "n_minutes": 37607,
+      "dollar_vol_day": 1211688.576,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-10 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "ACTUSDT",
+      "n_minutes": 37607,
+      "dollar_vol_day": 1183956.80832,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-10 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "4USDT",
+      "n_minutes": 37607,
+      "dollar_vol_day": 1181493.48384,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-10 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "MUBARAKUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 1164311.5968,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "GRASSUSDT",
+      "n_minutes": 39047,
+      "dollar_vol_day": 1156622.544,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-11 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "AXSUSDT",
+      "n_minutes": 39047,
+      "dollar_vol_day": 1152949.68,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-11 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "TSTUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 1148036.47488,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "PARTIUSDT",
+      "n_minutes": 34727,
+      "dollar_vol_day": 1129098.2976,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-08 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "AVAAIUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 1111223.7863999999,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "TRBUSDT",
+      "n_minutes": 39047,
+      "dollar_vol_day": 1101219.84,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-11 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "RESOLVUSDT",
+      "n_minutes": 33287,
+      "dollar_vol_day": 1089477.2448,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-07 23:59:00",
+      "is_new": true,
+      "pass": true
+    },
+    {
+      "symbol": "GUAUSDT",
+      "n_minutes": 39047,
+      "dollar_vol_day": 1065772.2528000001,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-11 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "BIRBUSDT",
+      "n_minutes": 33287,
+      "dollar_vol_day": 1058606.7552,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-07 23:59:00",
+      "is_new": true,
+      "pass": true
+    },
+    {
+      "symbol": "FFUSDT",
+      "n_minutes": 37607,
+      "dollar_vol_day": 1048669.2719999999,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-10 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "BABYUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 1031546.3328000001,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": true
+    },
+    {
+      "symbol": "TURBOUSDT",
+      "n_minutes": 34727,
+      "dollar_vol_day": 1020662.053488,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-08 23:59:00",
+      "is_new": false,
+      "pass": true
+    }
+  ],
+  "rejected": [
+    {
+      "symbol": "DOSUSDT",
+      "n_minutes": 4369,
+      "dollar_vol_day": 8526140.064,
+      "first": "2026-08-11 15:00:00",
+      "last": "2026-08-14 21:14:00",
+      "is_new": true,
+      "pass": false
+    },
+    {
+      "symbol": "TRADOORUSDT",
+      "n_minutes": 34727,
+      "dollar_vol_day": 992185.0560000001,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-08 23:59:00",
+      "is_new": false,
+      "pass": false
+    },
+    {
+      "symbol": "OPENUSDT",
+      "n_minutes": 39047,
+      "dollar_vol_day": 990864.576,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-11 23:59:00",
+      "is_new": false,
+      "pass": false
+    },
+    {
+      "symbol": "THEUSDT",
+      "n_minutes": 36167,
+      "dollar_vol_day": 980003.9232,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-09 23:59:00",
+      "is_new": false,
+      "pass": false
+    },
+    {
+      "symbol": "EDENUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 970320.2256,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": false
+    },
+    {
+      "symbol": "XANUSDT",
+      "n_minutes": 37607,
+      "dollar_vol_day": 956443.3344,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-10 23:59:00",
+      "is_new": false,
+      "pass": false
+    },
+    {
+      "symbol": "APRUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 939677.1840000001,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": false
+    },
+    {
+      "symbol": "TREEUSDT",
+      "n_minutes": 33287,
+      "dollar_vol_day": 937008.9792,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-07 23:59:00",
+      "is_new": true,
+      "pass": false
+    },
+    {
+      "symbol": "LIGHTUSDT",
+      "n_minutes": 37607,
+      "dollar_vol_day": 920179.008,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-10 23:59:00",
+      "is_new": false,
+      "pass": false
+    },
+    {
+      "symbol": "JCTUSDT",
+      "n_minutes": 34727,
+      "dollar_vol_day": 907589.31696,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-08 23:59:00",
+      "is_new": false,
+      "pass": false
+    },
+    {
+      "symbol": "ZEREBROUSDT",
+      "n_minutes": 34727,
+      "dollar_vol_day": 863083.26,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-08 23:59:00",
+      "is_new": false,
+      "pass": false
+    },
+    {
+      "symbol": "JSTUSDT",
+      "n_minutes": 37607,
+      "dollar_vol_day": 856875.8016,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-10 23:59:00",
+      "is_new": false,
+      "pass": false
+    },
+    {
+      "symbol": "YGGUSDT",
+      "n_minutes": 34727,
+      "dollar_vol_day": 844737.1775999999,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-08 23:59:00",
+      "is_new": false,
+      "pass": false
+    },
+    {
+      "symbol": "MOODENGUSDT",
+      "n_minutes": 34727,
+      "dollar_vol_day": 824600.736,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-08 23:59:00",
+      "is_new": false,
+      "pass": false
+    },
+    {
+      "symbol": "STORJUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 811191.744,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": false
+    },
+    {
+      "symbol": "AIAUSDT",
+      "n_minutes": 39047,
+      "dollar_vol_day": 808189.776,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-11 23:59:00",
+      "is_new": false,
+      "pass": false
+    },
+    {
+      "symbol": "POWERUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 800243.712,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": false
+    },
+    {
+      "symbol": "HUMAUSDT",
+      "n_minutes": 34727,
+      "dollar_vol_day": 795362.436,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-08 23:59:00",
+      "is_new": false,
+      "pass": false
+    },
+    {
+      "symbol": "INUSDT",
+      "n_minutes": 33287,
+      "dollar_vol_day": 781188.6240000001,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-07 23:59:00",
+      "is_new": true,
+      "pass": false
+    },
+    {
+      "symbol": "COAIUSDT",
+      "n_minutes": 36167,
+      "dollar_vol_day": 774906.9119999999,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-09 23:59:00",
+      "is_new": false,
+      "pass": false
+    },
+    {
+      "symbol": "STABLEUSDT",
+      "n_minutes": 33287,
+      "dollar_vol_day": 737134.992,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-07 23:59:00",
+      "is_new": true,
+      "pass": false
+    },
+    {
+      "symbol": "MUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 735575.9040000001,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": false
+    },
+    {
+      "symbol": "IOTAUSDT",
+      "n_minutes": 33287,
+      "dollar_vol_day": 731399.1551999999,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-07 23:59:00",
+      "is_new": true,
+      "pass": false
+    },
+    {
+      "symbol": "TAIKOUSDT",
+      "n_minutes": 33287,
+      "dollar_vol_day": 711177.8112,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-07 23:59:00",
+      "is_new": true,
+      "pass": false
+    },
+    {
+      "symbol": "KGENUSDT",
+      "n_minutes": 34727,
+      "dollar_vol_day": 708857.856,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-08 23:59:00",
+      "is_new": false,
+      "pass": false
+    },
+    {
+      "symbol": "GUNUSDT",
+      "n_minutes": 37607,
+      "dollar_vol_day": 704980.07136,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-10 23:59:00",
+      "is_new": false,
+      "pass": false
+    },
+    {
+      "symbol": "ICNTUSDT",
+      "n_minutes": 33287,
+      "dollar_vol_day": 689790.24,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-07 23:59:00",
+      "is_new": true,
+      "pass": false
+    },
+    {
+      "symbol": "SPACEUSDT",
+      "n_minutes": 33287,
+      "dollar_vol_day": 686471.18112,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-07 23:59:00",
+      "is_new": true,
+      "pass": false
+    },
+    {
+      "symbol": "ONEUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 685670.62464,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": false
+    },
+    {
+      "symbol": "STOUSDT",
+      "n_minutes": 34727,
+      "dollar_vol_day": 666770.2272,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-08 23:59:00",
+      "is_new": false,
+      "pass": false
+    },
+    {
+      "symbol": "MOVEUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 660530.0016000001,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": false
+    },
+    {
+      "symbol": "PHAUSDT",
+      "n_minutes": 36167,
+      "dollar_vol_day": 656389.4976,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-09 23:59:00",
+      "is_new": false,
+      "pass": false
+    },
+    {
+      "symbol": "HANAUSDT",
+      "n_minutes": 33287,
+      "dollar_vol_day": 655088.4288,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-07 23:59:00",
+      "is_new": true,
+      "pass": false
+    },
+    {
+      "symbol": "ARCUSDT",
+      "n_minutes": 39047,
+      "dollar_vol_day": 649547.136,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-11 23:59:00",
+      "is_new": false,
+      "pass": false
+    },
+    {
+      "symbol": "PLAYUSDT",
+      "n_minutes": 33287,
+      "dollar_vol_day": 646752.2112,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-07 23:59:00",
+      "is_new": true,
+      "pass": false
+    },
+    {
+      "symbol": "XPINUSDT",
+      "n_minutes": 36167,
+      "dollar_vol_day": 644040.6825600001,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-09 23:59:00",
+      "is_new": false,
+      "pass": false
+    },
+    {
+      "symbol": "GPSUSDT",
+      "n_minutes": 40487,
+      "dollar_vol_day": 641027.15712,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-12 23:59:00",
+      "is_new": false,
+      "pass": false
+    },
+    {
+      "symbol": "CFGUSDT",
+      "n_minutes": 33287,
+      "dollar_vol_day": 640638.7200000001,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-07 23:59:00",
+      "is_new": true,
+      "pass": false
+    },
+    {
+      "symbol": "FHEUSDT",
+      "n_minutes": 39047,
+      "dollar_vol_day": 640012.6656,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-11 23:59:00",
+      "is_new": false,
+      "pass": false
+    },
+    {
+      "symbol": "AGTUSDT",
+      "n_minutes": 33287,
+      "dollar_vol_day": 631999.4687999999,
+      "first": "2026-07-15 21:13:00",
+      "last": "2026-08-07 23:59:00",
+      "is_new": true,
+      "pass": false
+    }
+  ]
+}
