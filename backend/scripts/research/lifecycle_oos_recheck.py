@@ -88,7 +88,9 @@ def one_trade(daily: pd.DataFrame) -> tuple:
         if float(daily["high"].iloc[k]) >= stop:
             return (-SL_PCT * 100 - FRIC_BP / 100, k, "sl")
     exit_px = float(daily["close"].iloc[end])
-    ret = (entry / exit_px - 1.0) * 100 - FRIC_BP / 100     # 숏
+    # 숏 수익률 = (진입-청산)/진입 — 커널 close() 규약. 예전엔 entry/exit-1 이라
+    # 상한이 없어 이익 거래가 부풀려졌다(251 코호트 평균 43.41%→5.15%). 2026-08-14
+    ret = (entry - exit_px) / entry * 100 - FRIC_BP / 100     # 숏
     return (ret, end, "time")
 
 

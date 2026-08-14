@@ -126,6 +126,48 @@ class GenericBacktester:
                               predictions=preds, policy=pipeline.policy,
                               features=test)
 
+    # ------------------------------------------- rule-based (no fit)
+
+    def run_rule_based(
+        self,
+        *,
+        pipeline: Pipeline,
+        ctx: SourceContext,
+        signal_lag_bars: int = 1,
+    ) -> BacktestKPIs:
+        """학습 없는(규칙 기반) 파이프라인을 **전체 구간**에 흘려보낸다.
+
+        `run_static` 은 쓸 수 없다. 학습/시험 분할이 앞구간을 잘라내는데,
+        신상저격수처럼 **상장 첫날에 진입하는** 전략은 그 진입이 잘려 거래가
+        0건이 된다. train_frac=0.0 을 주면 이번엔 fit 이 표본 부족으로 막힌다.
+
+        CANON 오케스트레이터의 no-fit 경로와 같은 동작이다 — passthrough 컴포저는
+        fit 이 무동작이라 빈 학습을 주고 예외를 삼킨다.
+
+        `signal_lag_bars=1` (기본): **바 N 에서 안 신호를 바 N+1 시가에 체결**한다.
+        `_simulate` 는 같은 바의 예측으로 같은 바 시가에 들어가므로, 일괄
+        백테스트에서는 여기서 명시적으로 한 바 밀어야 라이브와 같아진다.
+
+        왜 기본이 1 인가 — 신상저격수는 "상장 **Day-1 종가** 숏"이다. 밀지 않으면
+        상장 바 시가(=상장가)에 들어가 상장 직후 급등을 정면으로 맞는다. 실측:
+        251 코호트에서 손절이 70건 났고 평균이 +5.15% → -0.37% 로 뒤집혔다.
+        라이브 CANON 은 DOSUSDT 를 0.38(Day-1 종가)에 잡았지 0.4686(상장가)이
+        아니다. 0 을 주면 그 라이브 동작과 어긋난다.
+
+        기존 경로(run_static / run_walk_forward)의 동작은 바꾸지 않는다.
+        """
+        feat = pipeline.build_features(ctx)
+        try:
+            pipeline.fit(feat.iloc[:0])
+        except Exception:      # noqa: BLE001 — 무동작 fit 의 표본 부족은 정상
+            pass
+        preds = pd.Series(pipeline.predict(feat), index=feat.index)
+        if signal_lag_bars:
+            preds = preds.shift(signal_lag_bars)
+        bars = ctx.ohlcv_eval.loc[feat.index]
+        return self._simulate(symbol=ctx.symbol, bars=bars, predictions=preds,
+                              policy=pipeline.policy, features=feat)
+
     # ------------------------------------------- walk-forward
 
     def run_walk_forward(
