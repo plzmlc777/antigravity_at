@@ -172,6 +172,10 @@ def ingest_research(db, dry: bool) -> tuple[int, int]:
     specs = [
         (RT / "lifecycle_variant_backtest.json", "backtest", "lifecycle",
          "scripts/research/lifecycle_variant_backtest.py"),
+        # 정본 커널 백테스트 (2026-08-14~). 위 손계산본과 같은 코호트를 독립
+        # 구현으로 재현한다 — 두 경로가 0.3%p 안에서 만나는 것이 교차 검증이다.
+        (RT / "lifecycle_canon_backtest.json", "backtest", "lifecycle",
+         "scripts/research/lifecycle_canon_backtest.py"),
         (RT / "lifecycle_phase" / "variant_x_sizing__metrics.json", "portfolio_sim",
          "lifecycle", "scripts/research/lifecycle_variant_x_sizing_sim.py"),
         (RT / "lifecycle_phase" / "variant_sizing_v2__metrics.json", "portfolio_sim",
@@ -195,7 +199,12 @@ def ingest_research(db, dry: bool) -> tuple[int, int]:
         rows = []
         if kind == "backtest" and isinstance(data.get("variants"), dict):
             for var, m in data["variants"].items():
-                rows.append((var, {"cohort_n": data.get("n")}, m))
+                # `engine` 을 반드시 실어야 한다. 2026-08-14 부터 같은 (kind,
+                # strategy, variant) 에 **두 산출 경로**가 존재한다 — 손계산
+                # 스크립트와 정본 커널. 어느 엔진이 낸 수치인지 없으면 두 세대가
+                # 구분 없이 섞인다.
+                rows.append((var, {"cohort_n": data.get("n"),
+                                   "engine": data.get("engine") or "handrolled"}, m))
         elif isinstance(data.get("results"), dict):
             for key, m in data["results"].items():
                 rows.append((str(key), {"cohort": data.get("cohort")}, m))
