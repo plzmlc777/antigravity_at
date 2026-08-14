@@ -1,0 +1,6305 @@
+{
+  "window_days": 120,
+  "start": "2026-04-16",
+  "end": "2026-08-14",
+  "warmup_days": 31,
+  "engine": "canon_kernel",
+  "signal_lag_bars": 0,
+  "seats": [
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "name": "DOGEUSDT_alt_volume_burst_pos_continuation_long_paper_seed",
+      "eval_min": 5,
+      "n": 58,
+      "mean": -0.11508623969073072,
+      "med": -0.28295268259440254,
+      "win": 39.6551724137931,
+      "t": -0.8299182541913224
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "name": "NEARUSDT_alt_volume_burst_pos_continuation_long_paper_seed",
+      "eval_min": 5,
+      "n": 165,
+      "mean": -0.015861356802473553,
+      "med": 0.032999801775160376,
+      "win": 51.515151515151516,
+      "t": -0.11774417728115175
+    },
+    {
+      "symbol": "BNBUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "name": "BNBUSDT_stablecoin_supply_flow_paper_seed",
+      "eval_min": 1440,
+      "n": 17,
+      "mean": -0.5831698291730743,
+      "med": -0.637181630596431,
+      "win": 35.294117647058826,
+      "t": -0.5784257290795219
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "name": "DOGEUSDT_stablecoin_supply_flow_paper_seed",
+      "eval_min": 1440,
+      "n": 16,
+      "mean": -0.6479259405987472,
+      "med": -1.240721640878902,
+      "win": 37.5,
+      "t": -0.7227816576882738
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "name": "WIFUSDT_alt_volume_burst_pos_continuation_long_paper_seed",
+      "eval_min": 5,
+      "n": 132,
+      "mean": 0.004685094055750935,
+      "med": -0.1281046718929282,
+      "win": 46.21212121212121,
+      "t": 0.032208224541364516
+    },
+    {
+      "symbol": "XRPUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "name": "XRPUSDT_alt_volume_burst_pos_continuation_long_paper_seed",
+      "eval_min": 5,
+      "n": 44,
+      "mean": -0.1018280082316548,
+      "med": -0.14788565181467683,
+      "win": 45.45454545454545,
+      "t": -0.5577584575987483
+    },
+    {
+      "symbol": "LINKUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "name": "LINKUSDT_stablecoin_supply_flow_paper_seed",
+      "eval_min": 1440,
+      "n": 16,
+      "mean": -0.40467036282012614,
+      "med": -0.3967140847322883,
+      "win": 37.5,
+      "t": -0.4141292064416953
+    },
+    {
+      "symbol": "XRPUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "name": "XRPUSDT_stablecoin_supply_flow_paper_seed",
+      "eval_min": 1440,
+      "n": 17,
+      "mean": -1.2203374371350546,
+      "med": -1.3996645623292203,
+      "win": 29.411764705882355,
+      "t": -1.178188319712244
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "name": "ADAUSDT_alt_volume_burst_pos_continuation_long_paper_seed",
+      "eval_min": 5,
+      "n": 119,
+      "mean": 0.13558938966795647,
+      "med": -0.07996801279486646,
+      "win": 46.21848739495798,
+      "t": 0.9861926348045924
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "name": "AVAXUSDT_stablecoin_supply_flow_paper_seed",
+      "eval_min": 1440,
+      "n": 16,
+      "mean": -0.26496125596204917,
+      "med": -1.522798352385689,
+      "win": 25.0,
+      "t": -0.20254911622485086
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "name": "AVAXUSDT_alt_volume_burst_pos_continuation_long_paper_seed",
+      "eval_min": 5,
+      "n": 84,
+      "mean": 0.13189936837816468,
+      "med": 0.1059454042129195,
+      "win": 53.57142857142857,
+      "t": 1.0318360650502283
+    }
+  ],
+  "families": {
+    "VB": {
+      "n": 602,
+      "mean": 0.02335640962283793,
+      "med": -0.07996801279487353,
+      "win": 48.006644518272424,
+      "t": 0.379903755832156
+    },
+    "SC": {
+      "n": 82,
+      "mean": -0.6309822497235726,
+      "med": -1.0553177626296728,
+      "win": 32.926829268292686,
+      "t": -1.3695249067358575
+    }
+  },
+  "trades": [
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.37586209684090327,
+      "reason": "time",
+      "entry_ts": "2026-04-16 03:45:00",
+      "exit_ts": "2026-04-16 05:00:00"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.059016631797361364,
+      "reason": "time",
+      "entry_ts": "2026-04-17 13:10:00",
+      "exit_ts": "2026-04-17 14:25:00"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.18461823481750544,
+      "reason": "time",
+      "entry_ts": "2026-04-19 13:25:00",
+      "exit_ts": "2026-04-19 14:40:00"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.701747925596399,
+      "reason": "time",
+      "entry_ts": "2026-04-23 00:15:00",
+      "exit_ts": "2026-04-23 01:30:00"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.39913760987919533,
+      "reason": "time",
+      "entry_ts": "2026-04-28 05:25:00",
+      "exit_ts": "2026-04-28 06:40:00"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.9436263790319178,
+      "reason": "time",
+      "entry_ts": "2026-04-29 07:35:00",
+      "exit_ts": "2026-04-29 08:50:00"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 3.215646648688772,
+      "reason": "time",
+      "entry_ts": "2026-04-29 09:15:00",
+      "exit_ts": "2026-04-29 10:30:00"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -2.0371836412111706,
+      "reason": "time",
+      "entry_ts": "2026-04-29 12:20:00",
+      "exit_ts": "2026-04-29 13:35:00"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.367821899246864,
+      "reason": "time",
+      "entry_ts": "2026-04-29 17:40:00",
+      "exit_ts": "2026-04-29 18:55:00"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.0585877712197844,
+      "reason": "time",
+      "entry_ts": "2026-04-30 00:35:00",
+      "exit_ts": "2026-04-30 01:50:00"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.6737763341979366,
+      "reason": "time",
+      "entry_ts": "2026-04-30 03:20:00",
+      "exit_ts": "2026-04-30 04:35:00"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.1189030407537484,
+      "reason": "time",
+      "entry_ts": "2026-05-01 03:20:00",
+      "exit_ts": "2026-05-01 04:35:00"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.8564478528474387,
+      "reason": "time",
+      "entry_ts": "2026-05-04 01:35:00",
+      "exit_ts": "2026-05-04 02:50:00"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.945301276735332,
+      "reason": "time",
+      "entry_ts": "2026-05-05 22:55:00",
+      "exit_ts": "2026-05-06 00:10:00"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.0998241090324683,
+      "reason": "time",
+      "entry_ts": "2026-05-10 20:55:00",
+      "exit_ts": "2026-05-10 22:10:00"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.4015702614796818,
+      "reason": "time",
+      "entry_ts": "2026-05-10 23:00:00",
+      "exit_ts": "2026-05-11 00:15:00"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.803455501201892,
+      "reason": "time",
+      "entry_ts": "2026-05-14 18:30:00",
+      "exit_ts": "2026-05-14 19:45:00"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.5729179983968297,
+      "reason": "time",
+      "entry_ts": "2026-05-17 23:45:00",
+      "exit_ts": "2026-05-18 01:00:00"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.6109633441309567,
+      "reason": "time",
+      "entry_ts": "2026-05-18 11:45:00",
+      "exit_ts": "2026-05-18 13:00:00"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.662731369828961,
+      "reason": "time",
+      "entry_ts": "2026-05-20 15:20:00",
+      "exit_ts": "2026-05-20 16:35:00"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.29145932544818604,
+      "reason": "time",
+      "entry_ts": "2026-05-22 18:50:00",
+      "exit_ts": "2026-05-22 20:05:00"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.0150460363799887,
+      "reason": "time",
+      "entry_ts": "2026-05-23 07:55:00",
+      "exit_ts": "2026-05-23 09:10:00"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.7039881971884635,
+      "reason": "time",
+      "entry_ts": "2026-05-23 20:40:00",
+      "exit_ts": "2026-05-23 21:55:00"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.47311583841038085,
+      "reason": "time",
+      "entry_ts": "2026-06-01 14:00:00",
+      "exit_ts": "2026-06-01 15:15:00"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.35481860686205374,
+      "reason": "time",
+      "entry_ts": "2026-06-01 15:35:00",
+      "exit_ts": "2026-06-01 16:50:00"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.4328498351850423,
+      "reason": "time",
+      "entry_ts": "2026-06-02 15:35:00",
+      "exit_ts": "2026-06-02 16:50:00"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.8279436545023641,
+      "reason": "time",
+      "entry_ts": "2026-06-06 05:25:00",
+      "exit_ts": "2026-06-06 06:40:00"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.5994829104753197,
+      "reason": "time",
+      "entry_ts": "2026-06-07 22:15:00",
+      "exit_ts": "2026-06-07 23:30:00"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.5944602259177909,
+      "reason": "time",
+      "entry_ts": "2026-06-09 04:35:00",
+      "exit_ts": "2026-06-09 05:50:00"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.0483337866564921,
+      "reason": "time",
+      "entry_ts": "2026-06-10 12:35:00",
+      "exit_ts": "2026-06-10 13:50:00"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.13875141789381995,
+      "reason": "time",
+      "entry_ts": "2026-06-11 04:00:00",
+      "exit_ts": "2026-06-11 05:15:00"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.218606340393269,
+      "reason": "time",
+      "entry_ts": "2026-06-11 17:30:00",
+      "exit_ts": "2026-06-11 18:45:00"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.0518006324580238,
+      "reason": "time",
+      "entry_ts": "2026-06-12 14:30:00",
+      "exit_ts": "2026-06-12 15:45:00"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.7642980715911957,
+      "reason": "time",
+      "entry_ts": "2026-06-14 21:20:00",
+      "exit_ts": "2026-06-14 22:35:00"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.40163736580007636,
+      "reason": "time",
+      "entry_ts": "2026-06-20 14:50:00",
+      "exit_ts": "2026-06-20 16:05:00"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.4818080308406879,
+      "reason": "time",
+      "entry_ts": "2026-06-24 01:35:00",
+      "exit_ts": "2026-06-24 02:50:00"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.6646028813144587,
+      "reason": "time",
+      "entry_ts": "2026-06-24 11:50:00",
+      "exit_ts": "2026-06-24 13:05:00"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.9563412524613603,
+      "reason": "time",
+      "entry_ts": "2026-06-24 16:55:00",
+      "exit_ts": "2026-06-24 18:10:00"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.9651925739024498,
+      "reason": "time",
+      "entry_ts": "2026-06-24 20:05:00",
+      "exit_ts": "2026-06-24 21:20:00"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -2.6949188762159357,
+      "reason": "time",
+      "entry_ts": "2026-06-25 12:35:00",
+      "exit_ts": "2026-06-25 13:50:00"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.2309253472076256,
+      "reason": "time",
+      "entry_ts": "2026-06-25 14:05:00",
+      "exit_ts": "2026-06-25 15:20:00"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 2.451046013312772,
+      "reason": "time",
+      "entry_ts": "2026-06-26 03:05:00",
+      "exit_ts": "2026-06-26 04:20:00"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.17265748391263847,
+      "reason": "time",
+      "entry_ts": "2026-06-26 15:40:00",
+      "exit_ts": "2026-06-26 16:55:00"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.6341263837789989,
+      "reason": "time",
+      "entry_ts": "2026-06-26 20:05:00",
+      "exit_ts": "2026-06-26 21:20:00"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.10754737575020643,
+      "reason": "time",
+      "entry_ts": "2026-06-30 18:20:00",
+      "exit_ts": "2026-06-30 19:35:00"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.44722105712573623,
+      "reason": "time",
+      "entry_ts": "2026-07-01 15:25:00",
+      "exit_ts": "2026-07-01 16:40:00"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.22153256376781105,
+      "reason": "time",
+      "entry_ts": "2026-07-02 03:30:00",
+      "exit_ts": "2026-07-02 04:45:00"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.8642279419215536,
+      "reason": "time",
+      "entry_ts": "2026-07-02 13:35:00",
+      "exit_ts": "2026-07-02 14:50:00"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.3033569181023368,
+      "reason": "time",
+      "entry_ts": "2026-07-04 15:10:00",
+      "exit_ts": "2026-07-04 16:25:00"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.400965288518365,
+      "reason": "time",
+      "entry_ts": "2026-07-05 17:25:00",
+      "exit_ts": "2026-07-05 18:40:00"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.0287787874712795,
+      "reason": "time",
+      "entry_ts": "2026-07-06 21:10:00",
+      "exit_ts": "2026-07-06 22:25:00"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.27444603974061904,
+      "reason": "time",
+      "entry_ts": "2026-07-08 11:45:00",
+      "exit_ts": "2026-07-08 13:00:00"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.7649147634612173,
+      "reason": "time",
+      "entry_ts": "2026-07-09 01:10:00",
+      "exit_ts": "2026-07-09 02:25:00"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.07996801279487024,
+      "reason": "time",
+      "entry_ts": "2026-07-10 01:50:00",
+      "exit_ts": "2026-07-10 03:05:00"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.31037706703514,
+      "reason": "time",
+      "entry_ts": "2026-07-13 00:15:00",
+      "exit_ts": "2026-07-13 01:30:00"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.0564204025158943,
+      "reason": "time",
+      "entry_ts": "2026-07-14 12:35:00",
+      "exit_ts": "2026-07-14 13:50:00"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.40807696458838644,
+      "reason": "time",
+      "entry_ts": "2026-07-24 07:05:00",
+      "exit_ts": "2026-07-24 08:20:00"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.259046326584629,
+      "reason": "time",
+      "entry_ts": "2026-08-11 22:05:00",
+      "exit_ts": "2026-08-11 23:20:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.06027062859067978,
+      "reason": "time",
+      "entry_ts": "2026-04-16 03:45:00",
+      "exit_ts": "2026-04-16 05:00:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.78890183057214,
+      "reason": "time",
+      "entry_ts": "2026-04-16 14:00:00",
+      "exit_ts": "2026-04-16 15:15:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.5249431680689838,
+      "reason": "time",
+      "entry_ts": "2026-04-19 14:50:00",
+      "exit_ts": "2026-04-19 16:05:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.21283794174637724,
+      "reason": "time",
+      "entry_ts": "2026-04-21 20:10:00",
+      "exit_ts": "2026-04-21 21:25:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.456824177466406,
+      "reason": "time",
+      "entry_ts": "2026-04-29 18:15:00",
+      "exit_ts": "2026-04-29 19:30:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.9215609315232588,
+      "reason": "time",
+      "entry_ts": "2026-05-05 22:55:00",
+      "exit_ts": "2026-05-06 00:10:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.20470444300912752,
+      "reason": "time",
+      "entry_ts": "2026-05-06 08:35:00",
+      "exit_ts": "2026-05-06 09:50:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 2.680253865304716,
+      "reason": "time",
+      "entry_ts": "2026-05-06 11:05:00",
+      "exit_ts": "2026-05-06 12:20:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -3.4495151355800036,
+      "reason": "time",
+      "entry_ts": "2026-05-06 21:40:00",
+      "exit_ts": "2026-05-06 22:55:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.32538708654471793,
+      "reason": "time",
+      "entry_ts": "2026-05-07 02:25:00",
+      "exit_ts": "2026-05-07 03:40:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.1665721104861004,
+      "reason": "time",
+      "entry_ts": "2026-05-08 07:40:00",
+      "exit_ts": "2026-05-08 08:55:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.4957556030084804,
+      "reason": "time",
+      "entry_ts": "2026-05-08 09:25:00",
+      "exit_ts": "2026-05-08 10:40:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.1660553170036305,
+      "reason": "time",
+      "entry_ts": "2026-05-08 11:20:00",
+      "exit_ts": "2026-05-08 12:35:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.46085758834966717,
+      "reason": "time",
+      "entry_ts": "2026-05-08 15:00:00",
+      "exit_ts": "2026-05-08 16:15:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.6035263150140429,
+      "reason": "time",
+      "entry_ts": "2026-05-08 16:55:00",
+      "exit_ts": "2026-05-08 18:10:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.3068192078007322,
+      "reason": "time",
+      "entry_ts": "2026-05-10 20:55:00",
+      "exit_ts": "2026-05-10 22:10:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.46085758834967316,
+      "reason": "time",
+      "entry_ts": "2026-05-12 07:40:00",
+      "exit_ts": "2026-05-12 08:55:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.6583315127557219,
+      "reason": "time",
+      "entry_ts": "2026-05-12 16:35:00",
+      "exit_ts": "2026-05-12 17:50:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.758856432720285,
+      "reason": "time",
+      "entry_ts": "2026-05-12 19:00:00",
+      "exit_ts": "2026-05-12 20:15:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.9526402205075539,
+      "reason": "time",
+      "entry_ts": "2026-05-13 01:05:00",
+      "exit_ts": "2026-05-13 02:20:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.0438486315511097,
+      "reason": "time",
+      "entry_ts": "2026-05-13 09:50:00",
+      "exit_ts": "2026-05-13 11:05:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.10844185267442326,
+      "reason": "time",
+      "entry_ts": "2026-05-13 12:00:00",
+      "exit_ts": "2026-05-13 13:15:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.7992024979891157,
+      "reason": "time",
+      "entry_ts": "2026-05-15 16:30:00",
+      "exit_ts": "2026-05-15 17:45:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.0570069161090598,
+      "reason": "time",
+      "entry_ts": "2026-05-17 23:45:00",
+      "exit_ts": "2026-05-18 01:00:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.5008105061224433,
+      "reason": "time",
+      "entry_ts": "2026-05-20 06:00:00",
+      "exit_ts": "2026-05-20 07:15:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.10017627564359412,
+      "reason": "time",
+      "entry_ts": "2026-05-20 13:05:00",
+      "exit_ts": "2026-05-20 14:20:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.6641376332614404,
+      "reason": "time",
+      "entry_ts": "2026-05-20 15:20:00",
+      "exit_ts": "2026-05-20 16:35:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.5006319746982577,
+      "reason": "time",
+      "entry_ts": "2026-05-20 17:50:00",
+      "exit_ts": "2026-05-20 19:05:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.30874885306321914,
+      "reason": "time",
+      "entry_ts": "2026-05-21 04:35:00",
+      "exit_ts": "2026-05-21 05:50:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.032999801775160376,
+      "reason": "time",
+      "entry_ts": "2026-05-21 08:55:00",
+      "exit_ts": "2026-05-21 10:10:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.6696048853185916,
+      "reason": "time",
+      "entry_ts": "2026-05-21 12:35:00",
+      "exit_ts": "2026-05-21 13:50:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -3.202469012395056,
+      "reason": "time",
+      "entry_ts": "2026-05-21 15:25:00",
+      "exit_ts": "2026-05-21 16:40:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 2.07062870216154,
+      "reason": "time",
+      "entry_ts": "2026-05-21 17:15:00",
+      "exit_ts": "2026-05-21 18:30:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 2.442999654425461,
+      "reason": "time",
+      "entry_ts": "2026-05-21 19:50:00",
+      "exit_ts": "2026-05-21 21:05:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.1053146724891005,
+      "reason": "time",
+      "entry_ts": "2026-05-21 22:15:00",
+      "exit_ts": "2026-05-21 23:30:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 3.296745817801925,
+      "reason": "time",
+      "entry_ts": "2026-05-22 00:35:00",
+      "exit_ts": "2026-05-22 01:50:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.8536562153077845,
+      "reason": "time",
+      "entry_ts": "2026-05-22 02:10:00",
+      "exit_ts": "2026-05-22 03:25:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.5770918499673814,
+      "reason": "time",
+      "entry_ts": "2026-05-22 03:35:00",
+      "exit_ts": "2026-05-22 04:50:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.9452736681079466,
+      "reason": "time",
+      "entry_ts": "2026-05-22 05:35:00",
+      "exit_ts": "2026-05-22 06:50:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 2.9853443238089463,
+      "reason": "time",
+      "entry_ts": "2026-05-22 06:55:00",
+      "exit_ts": "2026-05-22 08:10:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -2.035698176245513,
+      "reason": "time",
+      "entry_ts": "2026-05-22 10:25:00",
+      "exit_ts": "2026-05-22 11:40:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.1590180342549732,
+      "reason": "time",
+      "entry_ts": "2026-05-22 13:00:00",
+      "exit_ts": "2026-05-22 14:15:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.6944748133062708,
+      "reason": "time",
+      "entry_ts": "2026-05-22 15:20:00",
+      "exit_ts": "2026-05-22 16:35:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.0085928453897364,
+      "reason": "time",
+      "entry_ts": "2026-05-22 18:50:00",
+      "exit_ts": "2026-05-22 20:05:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.5075858387030359,
+      "reason": "time",
+      "entry_ts": "2026-05-22 20:55:00",
+      "exit_ts": "2026-05-22 22:10:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.4942850446028694,
+      "reason": "time",
+      "entry_ts": "2026-05-23 00:50:00",
+      "exit_ts": "2026-05-23 02:05:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.7953859029180631,
+      "reason": "time",
+      "entry_ts": "2026-05-23 09:35:00",
+      "exit_ts": "2026-05-23 10:50:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.0977787102980723,
+      "reason": "time",
+      "entry_ts": "2026-05-23 13:05:00",
+      "exit_ts": "2026-05-23 14:20:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 3.9900012535031593,
+      "reason": "time",
+      "entry_ts": "2026-05-23 15:00:00",
+      "exit_ts": "2026-05-23 16:15:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.20856522255963916,
+      "reason": "time",
+      "entry_ts": "2026-05-23 16:50:00",
+      "exit_ts": "2026-05-23 18:05:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 2.1620987506775613,
+      "reason": "time",
+      "entry_ts": "2026-05-23 18:20:00",
+      "exit_ts": "2026-05-23 19:35:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.7936042901740319,
+      "reason": "time",
+      "entry_ts": "2026-05-23 20:15:00",
+      "exit_ts": "2026-05-23 21:30:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.6354621608955713,
+      "reason": "time",
+      "entry_ts": "2026-05-23 23:35:00",
+      "exit_ts": "2026-05-24 00:50:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.4127574615449566,
+      "reason": "time",
+      "entry_ts": "2026-05-24 02:50:00",
+      "exit_ts": "2026-05-24 04:05:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -2.403689686915936,
+      "reason": "time",
+      "entry_ts": "2026-05-24 04:35:00",
+      "exit_ts": "2026-05-24 05:50:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.2045369430385566,
+      "reason": "time",
+      "entry_ts": "2026-05-24 07:55:00",
+      "exit_ts": "2026-05-24 09:10:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.17161410718970088,
+      "reason": "time",
+      "entry_ts": "2026-05-24 11:35:00",
+      "exit_ts": "2026-05-24 12:50:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.3678034958855911,
+      "reason": "time",
+      "entry_ts": "2026-05-24 14:30:00",
+      "exit_ts": "2026-05-24 15:45:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.1386154584620958,
+      "reason": "time",
+      "entry_ts": "2026-05-24 17:35:00",
+      "exit_ts": "2026-05-24 18:50:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -2.7189124350260006,
+      "reason": "time",
+      "entry_ts": "2026-05-24 21:05:00",
+      "exit_ts": "2026-05-24 22:20:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.075022273248375,
+      "reason": "time",
+      "entry_ts": "2026-05-25 00:10:00",
+      "exit_ts": "2026-05-25 01:25:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.6380202410054292,
+      "reason": "time",
+      "entry_ts": "2026-05-25 12:15:00",
+      "exit_ts": "2026-05-25 13:30:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 3.519010676132339,
+      "reason": "time",
+      "entry_ts": "2026-05-25 13:45:00",
+      "exit_ts": "2026-05-25 15:00:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 2.989374198507172,
+      "reason": "time",
+      "entry_ts": "2026-05-25 15:50:00",
+      "exit_ts": "2026-05-25 17:05:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.9362909394905439,
+      "reason": "time",
+      "entry_ts": "2026-05-25 19:55:00",
+      "exit_ts": "2026-05-25 21:10:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.4434457573827442,
+      "reason": "time",
+      "entry_ts": "2026-05-26 02:50:00",
+      "exit_ts": "2026-05-26 04:05:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.5482305996130611,
+      "reason": "time",
+      "entry_ts": "2026-05-26 04:25:00",
+      "exit_ts": "2026-05-26 05:40:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 5.128629399304123,
+      "reason": "time",
+      "entry_ts": "2026-05-26 10:35:00",
+      "exit_ts": "2026-05-26 11:50:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.6875480769436897,
+      "reason": "time",
+      "entry_ts": "2026-05-26 12:20:00",
+      "exit_ts": "2026-05-26 13:35:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.2738564630805161,
+      "reason": "time",
+      "entry_ts": "2026-05-26 13:45:00",
+      "exit_ts": "2026-05-26 15:00:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.6709776657160268,
+      "reason": "time",
+      "entry_ts": "2026-05-27 12:25:00",
+      "exit_ts": "2026-05-27 13:40:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.91374154563528,
+      "reason": "time",
+      "entry_ts": "2026-05-27 14:35:00",
+      "exit_ts": "2026-05-27 15:50:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.6441122937328294,
+      "reason": "time",
+      "entry_ts": "2026-05-27 18:55:00",
+      "exit_ts": "2026-05-27 20:10:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.8250221038345095,
+      "reason": "time",
+      "entry_ts": "2026-05-28 03:20:00",
+      "exit_ts": "2026-05-28 04:35:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.6759971767577485,
+      "reason": "time",
+      "entry_ts": "2026-05-28 14:15:00",
+      "exit_ts": "2026-05-28 15:30:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.8198264433506401,
+      "reason": "time",
+      "entry_ts": "2026-05-28 15:40:00",
+      "exit_ts": "2026-05-28 16:55:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.5951373013242267,
+      "reason": "time",
+      "entry_ts": "2026-05-28 18:15:00",
+      "exit_ts": "2026-05-28 19:30:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 2.081763448466766,
+      "reason": "time",
+      "entry_ts": "2026-05-29 00:45:00",
+      "exit_ts": "2026-05-29 02:00:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.5900046666570238,
+      "reason": "time",
+      "entry_ts": "2026-05-29 15:10:00",
+      "exit_ts": "2026-05-29 16:25:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.8104338103158064,
+      "reason": "time",
+      "entry_ts": "2026-05-29 17:15:00",
+      "exit_ts": "2026-05-29 18:30:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 3.0302127285867684,
+      "reason": "time",
+      "entry_ts": "2026-05-30 04:40:00",
+      "exit_ts": "2026-05-30 05:55:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.7447411999579137,
+      "reason": "time",
+      "entry_ts": "2026-05-31 04:05:00",
+      "exit_ts": "2026-05-31 05:20:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.12313001365328005,
+      "reason": "time",
+      "entry_ts": "2026-05-31 14:10:00",
+      "exit_ts": "2026-05-31 15:25:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -3.081857385801051,
+      "reason": "time",
+      "entry_ts": "2026-05-31 15:30:00",
+      "exit_ts": "2026-05-31 16:45:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.7462466710443652,
+      "reason": "time",
+      "entry_ts": "2026-05-31 21:35:00",
+      "exit_ts": "2026-05-31 22:50:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -3.067610165236233,
+      "reason": "time",
+      "entry_ts": "2026-06-01 03:10:00",
+      "exit_ts": "2026-06-01 04:25:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.2358862742073686,
+      "reason": "time",
+      "entry_ts": "2026-06-01 12:25:00",
+      "exit_ts": "2026-06-01 13:40:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 2.3680523707217827,
+      "reason": "time",
+      "entry_ts": "2026-06-01 17:00:00",
+      "exit_ts": "2026-06-01 18:15:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.2655103920782895,
+      "reason": "time",
+      "entry_ts": "2026-06-01 19:10:00",
+      "exit_ts": "2026-06-01 20:25:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -2.750436573700138,
+      "reason": "time",
+      "entry_ts": "2026-06-01 22:55:00",
+      "exit_ts": "2026-06-02 00:10:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.5768973309552434,
+      "reason": "time",
+      "entry_ts": "2026-06-02 01:25:00",
+      "exit_ts": "2026-06-02 02:40:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -2.450333735119096,
+      "reason": "time",
+      "entry_ts": "2026-06-02 03:35:00",
+      "exit_ts": "2026-06-02 04:50:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 2.37254266939308,
+      "reason": "time",
+      "entry_ts": "2026-06-02 16:10:00",
+      "exit_ts": "2026-06-02 17:25:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -5.751495497245796,
+      "reason": "time",
+      "entry_ts": "2026-06-02 21:40:00",
+      "exit_ts": "2026-06-02 22:55:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.0595334211290657,
+      "reason": "time",
+      "entry_ts": "2026-06-03 04:30:00",
+      "exit_ts": "2026-06-03 05:45:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.9795250874719074,
+      "reason": "time",
+      "entry_ts": "2026-06-03 08:35:00",
+      "exit_ts": "2026-06-03 09:50:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.7684774996561903,
+      "reason": "time",
+      "entry_ts": "2026-06-03 13:20:00",
+      "exit_ts": "2026-06-03 14:35:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -4.7408615716124345,
+      "reason": "time",
+      "entry_ts": "2026-06-03 15:35:00",
+      "exit_ts": "2026-06-03 16:50:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.988967604001088,
+      "reason": "time",
+      "entry_ts": "2026-06-03 18:50:00",
+      "exit_ts": "2026-06-03 20:05:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.8095775928401626,
+      "reason": "time",
+      "entry_ts": "2026-06-04 01:40:00",
+      "exit_ts": "2026-06-04 02:55:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.24437777336617164,
+      "reason": "time",
+      "entry_ts": "2026-06-04 15:10:00",
+      "exit_ts": "2026-06-04 16:25:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 2.826796554105645,
+      "reason": "time",
+      "entry_ts": "2026-06-04 23:25:00",
+      "exit_ts": "2026-06-05 00:40:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.1719302998058365,
+      "reason": "time",
+      "entry_ts": "2026-06-05 03:20:00",
+      "exit_ts": "2026-06-05 04:35:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -6.282830997155782,
+      "reason": "time",
+      "entry_ts": "2026-06-05 05:35:00",
+      "exit_ts": "2026-06-05 06:50:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.0547975931578497,
+      "reason": "time",
+      "entry_ts": "2026-06-05 07:30:00",
+      "exit_ts": "2026-06-05 08:45:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 2.6999593863242097,
+      "reason": "time",
+      "entry_ts": "2026-06-05 16:20:00",
+      "exit_ts": "2026-06-05 17:35:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.0412240167224223,
+      "reason": "time",
+      "entry_ts": "2026-06-05 22:15:00",
+      "exit_ts": "2026-06-05 23:30:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.0021983986188907,
+      "reason": "time",
+      "entry_ts": "2026-06-06 05:25:00",
+      "exit_ts": "2026-06-06 06:40:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -4.2860473880262875,
+      "reason": "time",
+      "entry_ts": "2026-06-07 01:50:00",
+      "exit_ts": "2026-06-07 03:05:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -2.896780805873439,
+      "reason": "time",
+      "entry_ts": "2026-06-07 09:25:00",
+      "exit_ts": "2026-06-07 10:40:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 2.0815272710974577,
+      "reason": "time",
+      "entry_ts": "2026-06-07 15:25:00",
+      "exit_ts": "2026-06-07 16:40:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.1825338829985093,
+      "reason": "time",
+      "entry_ts": "2026-06-10 02:05:00",
+      "exit_ts": "2026-06-10 03:20:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 2.4286827192382368,
+      "reason": "time",
+      "entry_ts": "2026-06-10 12:35:00",
+      "exit_ts": "2026-06-10 13:50:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 2.3607506150082638,
+      "reason": "time",
+      "entry_ts": "2026-06-11 03:45:00",
+      "exit_ts": "2026-06-11 05:00:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.32511038764079864,
+      "reason": "time",
+      "entry_ts": "2026-06-11 10:10:00",
+      "exit_ts": "2026-06-11 11:25:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.4003287573859435,
+      "reason": "time",
+      "entry_ts": "2026-06-11 17:35:00",
+      "exit_ts": "2026-06-11 18:50:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.1829978752300876,
+      "reason": "time",
+      "entry_ts": "2026-06-12 06:40:00",
+      "exit_ts": "2026-06-12 07:55:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 2.138651118499992,
+      "reason": "time",
+      "entry_ts": "2026-06-15 10:55:00",
+      "exit_ts": "2026-06-15 12:10:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.3103849369343206,
+      "reason": "time",
+      "entry_ts": "2026-06-18 17:30:00",
+      "exit_ts": "2026-06-18 18:45:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.6915312970856927,
+      "reason": "time",
+      "entry_ts": "2026-06-19 03:20:00",
+      "exit_ts": "2026-06-19 04:35:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.12633461696525292,
+      "reason": "time",
+      "entry_ts": "2026-06-20 14:50:00",
+      "exit_ts": "2026-06-20 16:05:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.017467415764060353,
+      "reason": "time",
+      "entry_ts": "2026-06-23 03:05:00",
+      "exit_ts": "2026-06-23 04:20:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -2.010537821424956,
+      "reason": "time",
+      "entry_ts": "2026-06-25 12:35:00",
+      "exit_ts": "2026-06-25 13:50:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.1903783940969107,
+      "reason": "time",
+      "entry_ts": "2026-06-25 14:05:00",
+      "exit_ts": "2026-06-25 15:20:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.4570247372748683,
+      "reason": "time",
+      "entry_ts": "2026-06-26 06:45:00",
+      "exit_ts": "2026-06-26 08:00:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.9080345762247594,
+      "reason": "time",
+      "entry_ts": "2026-06-26 11:15:00",
+      "exit_ts": "2026-06-26 12:30:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.0644018254766927,
+      "reason": "time",
+      "entry_ts": "2026-06-26 19:35:00",
+      "exit_ts": "2026-06-26 20:50:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -2.0897056339918896,
+      "reason": "time",
+      "entry_ts": "2026-06-28 00:10:00",
+      "exit_ts": "2026-06-28 01:25:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.9950188832482334,
+      "reason": "time",
+      "entry_ts": "2026-06-28 13:20:00",
+      "exit_ts": "2026-06-28 14:35:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.5006839369515319,
+      "reason": "time",
+      "entry_ts": "2026-06-29 17:20:00",
+      "exit_ts": "2026-06-29 18:35:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.1985159113612146,
+      "reason": "time",
+      "entry_ts": "2026-06-30 16:35:00",
+      "exit_ts": "2026-06-30 17:50:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.7840009276108788,
+      "reason": "time",
+      "entry_ts": "2026-07-01 01:35:00",
+      "exit_ts": "2026-07-01 02:50:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.9418119544634858,
+      "reason": "time",
+      "entry_ts": "2026-07-01 15:05:00",
+      "exit_ts": "2026-07-01 16:20:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.44848235626717786,
+      "reason": "time",
+      "entry_ts": "2026-07-02 01:35:00",
+      "exit_ts": "2026-07-02 02:50:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.8131132405082403,
+      "reason": "time",
+      "entry_ts": "2026-07-02 03:30:00",
+      "exit_ts": "2026-07-02 04:45:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.0297821604657878,
+      "reason": "time",
+      "entry_ts": "2026-07-03 10:30:00",
+      "exit_ts": "2026-07-03 11:45:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.4251442280230968,
+      "reason": "time",
+      "entry_ts": "2026-07-03 13:10:00",
+      "exit_ts": "2026-07-03 14:25:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 2.2285811943429428,
+      "reason": "time",
+      "entry_ts": "2026-07-04 14:15:00",
+      "exit_ts": "2026-07-04 15:30:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.2560743235810237,
+      "reason": "time",
+      "entry_ts": "2026-07-05 22:35:00",
+      "exit_ts": "2026-07-05 23:50:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.1019347805481006,
+      "reason": "time",
+      "entry_ts": "2026-07-06 15:10:00",
+      "exit_ts": "2026-07-06 16:25:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.8452722309831366,
+      "reason": "time",
+      "entry_ts": "2026-07-06 21:10:00",
+      "exit_ts": "2026-07-06 22:25:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.2624535984422782,
+      "reason": "time",
+      "entry_ts": "2026-07-07 08:40:00",
+      "exit_ts": "2026-07-07 09:55:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.6418904830705715,
+      "reason": "time",
+      "entry_ts": "2026-07-10 01:50:00",
+      "exit_ts": "2026-07-10 03:05:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.13161490300652398,
+      "reason": "time",
+      "entry_ts": "2026-07-10 14:35:00",
+      "exit_ts": "2026-07-10 15:50:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.391245371010467,
+      "reason": "time",
+      "entry_ts": "2026-07-12 19:10:00",
+      "exit_ts": "2026-07-12 20:25:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.300365350043196,
+      "reason": "time",
+      "entry_ts": "2026-07-13 15:00:00",
+      "exit_ts": "2026-07-13 16:15:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.22084492846113113,
+      "reason": "time",
+      "entry_ts": "2026-07-14 06:00:00",
+      "exit_ts": "2026-07-14 07:15:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.22785163191752117,
+      "reason": "time",
+      "entry_ts": "2026-07-14 12:35:00",
+      "exit_ts": "2026-07-14 13:50:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.16650468574286606,
+      "reason": "time",
+      "entry_ts": "2026-07-15 08:45:00",
+      "exit_ts": "2026-07-15 10:00:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.6318289130749914,
+      "reason": "time",
+      "entry_ts": "2026-07-15 10:50:00",
+      "exit_ts": "2026-07-15 12:05:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.9434152407207944,
+      "reason": "time",
+      "entry_ts": "2026-07-15 22:25:00",
+      "exit_ts": "2026-07-15 23:40:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.016573080912565808,
+      "reason": "time",
+      "entry_ts": "2026-07-16 13:35:00",
+      "exit_ts": "2026-07-16 14:50:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.9530556709354878,
+      "reason": "time",
+      "entry_ts": "2026-07-16 17:15:00",
+      "exit_ts": "2026-07-16 18:30:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.07173244062697769,
+      "reason": "time",
+      "entry_ts": "2026-07-20 15:50:00",
+      "exit_ts": "2026-07-20 17:05:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.3971037579663032,
+      "reason": "time",
+      "entry_ts": "2026-07-23 11:00:00",
+      "exit_ts": "2026-07-23 12:15:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.5824852379490166,
+      "reason": "time",
+      "entry_ts": "2026-07-26 22:05:00",
+      "exit_ts": "2026-07-26 23:20:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.40385790578417624,
+      "reason": "time",
+      "entry_ts": "2026-07-27 03:55:00",
+      "exit_ts": "2026-07-27 05:10:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.5341686312567789,
+      "reason": "time",
+      "entry_ts": "2026-07-28 13:50:00",
+      "exit_ts": "2026-07-28 15:05:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.10529780671167,
+      "reason": "time",
+      "entry_ts": "2026-07-29 18:05:00",
+      "exit_ts": "2026-07-29 19:20:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.7467934811890852,
+      "reason": "time",
+      "entry_ts": "2026-08-02 01:00:00",
+      "exit_ts": "2026-08-02 02:15:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.14986529827403253,
+      "reason": "time",
+      "entry_ts": "2026-08-03 14:15:00",
+      "exit_ts": "2026-08-03 15:30:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.200281115729485,
+      "reason": "time",
+      "entry_ts": "2026-08-10 08:05:00",
+      "exit_ts": "2026-08-10 09:20:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.7921519671433261,
+      "reason": "time",
+      "entry_ts": "2026-08-11 22:30:00",
+      "exit_ts": "2026-08-11 23:45:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.2242951783963872,
+      "reason": "time",
+      "entry_ts": "2026-08-12 01:15:00",
+      "exit_ts": "2026-08-12 02:30:00"
+    },
+    {
+      "symbol": "NEARUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.281842603936083,
+      "reason": "time",
+      "entry_ts": "2026-08-12 02:45:00",
+      "exit_ts": "2026-08-12 04:00:00"
+    },
+    {
+      "symbol": "BNBUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "long",
+      "ret": -2.245999288002335,
+      "reason": "time",
+      "entry_ts": "2026-04-18 00:00:00",
+      "exit_ts": "2026-04-21 00:00:00"
+    },
+    {
+      "symbol": "BNBUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "long",
+      "ret": 0.6346838608417934,
+      "reason": "time",
+      "entry_ts": "2026-04-22 00:00:00",
+      "exit_ts": "2026-04-25 00:00:00"
+    },
+    {
+      "symbol": "BNBUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "short",
+      "ret": -1.2709717237010814,
+      "reason": "time",
+      "entry_ts": "2026-05-02 00:00:00",
+      "exit_ts": "2026-05-05 00:00:00"
+    },
+    {
+      "symbol": "BNBUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "short",
+      "ret": 2.208491866228104,
+      "reason": "time",
+      "entry_ts": "2026-05-14 00:00:00",
+      "exit_ts": "2026-05-17 00:00:00"
+    },
+    {
+      "symbol": "BNBUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "short",
+      "ret": -7.845221985672335,
+      "reason": "time",
+      "entry_ts": "2026-05-30 00:00:00",
+      "exit_ts": "2026-06-02 00:00:00"
+    },
+    {
+      "symbol": "BNBUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "short",
+      "ret": 12.001687657430727,
+      "reason": "time",
+      "entry_ts": "2026-06-03 00:00:00",
+      "exit_ts": "2026-06-06 00:00:00"
+    },
+    {
+      "symbol": "BNBUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "short",
+      "ret": -3.4046289562055265,
+      "reason": "time",
+      "entry_ts": "2026-06-07 00:00:00",
+      "exit_ts": "2026-06-10 00:00:00"
+    },
+    {
+      "symbol": "BNBUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "short",
+      "ret": -4.025268252777965,
+      "reason": "time",
+      "entry_ts": "2026-06-11 00:00:00",
+      "exit_ts": "2026-06-14 00:00:00"
+    },
+    {
+      "symbol": "BNBUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "short",
+      "ret": 1.820550024218273,
+      "reason": "time",
+      "entry_ts": "2026-06-28 00:00:00",
+      "exit_ts": "2026-07-01 00:00:00"
+    },
+    {
+      "symbol": "BNBUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "short",
+      "ret": -4.6115045115375635,
+      "reason": "time",
+      "entry_ts": "2026-07-02 00:00:00",
+      "exit_ts": "2026-07-05 00:00:00"
+    },
+    {
+      "symbol": "BNBUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "long",
+      "ret": -1.4475706252332996,
+      "reason": "time",
+      "entry_ts": "2026-07-11 00:00:00",
+      "exit_ts": "2026-07-14 00:00:00"
+    },
+    {
+      "symbol": "BNBUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "long",
+      "ret": -2.449986118600659,
+      "reason": "time",
+      "entry_ts": "2026-07-15 00:00:00",
+      "exit_ts": "2026-07-18 00:00:00"
+    },
+    {
+      "symbol": "BNBUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "long",
+      "ret": 0.5097629943976917,
+      "reason": "time",
+      "entry_ts": "2026-07-19 00:00:00",
+      "exit_ts": "2026-07-22 00:00:00"
+    },
+    {
+      "symbol": "BNBUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "long",
+      "ret": -0.4402040440408411,
+      "reason": "time",
+      "entry_ts": "2026-07-23 00:00:00",
+      "exit_ts": "2026-07-26 00:00:00"
+    },
+    {
+      "symbol": "BNBUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "long",
+      "ret": -0.637181630596431,
+      "reason": "time",
+      "entry_ts": "2026-07-27 00:00:00",
+      "exit_ts": "2026-07-30 00:00:00"
+    },
+    {
+      "symbol": "BNBUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "short",
+      "ret": -0.4887992916978781,
+      "reason": "time",
+      "entry_ts": "2026-08-01 00:00:00",
+      "exit_ts": "2026-08-04 00:00:00"
+    },
+    {
+      "symbol": "BNBUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "long",
+      "ret": 1.778272929007065,
+      "reason": "eod",
+      "entry_ts": "2026-08-11 00:00:00",
+      "exit_ts": "2026-08-12 00:00:00"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "long",
+      "ret": -4.3136972264234394,
+      "reason": "time",
+      "entry_ts": "2026-04-18 00:00:00",
+      "exit_ts": "2026-04-21 00:00:00"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "long",
+      "ret": 3.344181091360379,
+      "reason": "time",
+      "entry_ts": "2026-04-22 00:00:00",
+      "exit_ts": "2026-04-25 00:00:00"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "short",
+      "ret": -1.537340955190852,
+      "reason": "time",
+      "entry_ts": "2026-05-02 00:00:00",
+      "exit_ts": "2026-05-05 00:00:00"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "short",
+      "ret": 2.8252468916518727,
+      "reason": "time",
+      "entry_ts": "2026-05-14 00:00:00",
+      "exit_ts": "2026-05-17 00:00:00"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "short",
+      "ret": -1.4955183140993424,
+      "reason": "time",
+      "entry_ts": "2026-05-30 00:00:00",
+      "exit_ts": "2026-06-02 00:00:00"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "short",
+      "ret": 6.922368421052625,
+      "reason": "time",
+      "entry_ts": "2026-06-03 00:00:00",
+      "exit_ts": "2026-06-08 00:00:00"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "short",
+      "ret": 0.23298725376594015,
+      "reason": "time",
+      "entry_ts": "2026-06-09 00:00:00",
+      "exit_ts": "2026-06-12 00:00:00"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "short",
+      "ret": 3.1583666890530493,
+      "reason": "time",
+      "entry_ts": "2026-06-28 00:00:00",
+      "exit_ts": "2026-07-01 00:00:00"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "short",
+      "ret": -7.604826153206802,
+      "reason": "time",
+      "entry_ts": "2026-07-02 00:00:00",
+      "exit_ts": "2026-07-05 00:00:00"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "long",
+      "ret": -2.966426820200619,
+      "reason": "time",
+      "entry_ts": "2026-07-11 00:00:00",
+      "exit_ts": "2026-07-14 00:00:00"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "long",
+      "ret": -2.6310034975528587,
+      "reason": "time",
+      "entry_ts": "2026-07-15 00:00:00",
+      "exit_ts": "2026-07-18 00:00:00"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "long",
+      "ret": 1.1054538041315514,
+      "reason": "time",
+      "entry_ts": "2026-07-19 00:00:00",
+      "exit_ts": "2026-07-22 00:00:00"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "long",
+      "ret": -1.8190174937288153,
+      "reason": "time",
+      "entry_ts": "2026-07-23 00:00:00",
+      "exit_ts": "2026-07-26 00:00:00"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "long",
+      "ret": -4.493011955523102,
+      "reason": "time",
+      "entry_ts": "2026-07-27 00:00:00",
+      "exit_ts": "2026-07-30 00:00:00"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "short",
+      "ret": -0.9859249676584615,
+      "reason": "time",
+      "entry_ts": "2026-08-01 00:00:00",
+      "exit_ts": "2026-08-04 00:00:00"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "long",
+      "ret": -0.10865181701108166,
+      "reason": "eod",
+      "entry_ts": "2026-08-11 00:00:00",
+      "exit_ts": "2026-08-12 00:00:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 2.3002369300213967,
+      "reason": "time",
+      "entry_ts": "2026-04-16 03:45:00",
+      "exit_ts": "2026-04-16 05:00:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -3.7738693801591983,
+      "reason": "time",
+      "entry_ts": "2026-04-16 13:15:00",
+      "exit_ts": "2026-04-16 14:30:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.12635614277968316,
+      "reason": "time",
+      "entry_ts": "2026-04-16 16:35:00",
+      "exit_ts": "2026-04-16 17:50:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.7172758885816664,
+      "reason": "time",
+      "entry_ts": "2026-04-16 19:20:00",
+      "exit_ts": "2026-04-16 20:35:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 2.7510222107162754,
+      "reason": "time",
+      "entry_ts": "2026-04-17 12:30:00",
+      "exit_ts": "2026-04-17 13:45:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.36063967357691196,
+      "reason": "time",
+      "entry_ts": "2026-04-19 13:25:00",
+      "exit_ts": "2026-04-19 14:40:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.3141581312138753,
+      "reason": "time",
+      "entry_ts": "2026-04-19 15:55:00",
+      "exit_ts": "2026-04-19 17:10:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.22969833045803878,
+      "reason": "time",
+      "entry_ts": "2026-04-20 08:50:00",
+      "exit_ts": "2026-04-20 10:05:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.4369488624622635,
+      "reason": "time",
+      "entry_ts": "2026-04-21 20:10:00",
+      "exit_ts": "2026-04-21 21:25:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -2.456501543145946,
+      "reason": "time",
+      "entry_ts": "2026-04-23 00:20:00",
+      "exit_ts": "2026-04-23 01:35:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.5179736324647963,
+      "reason": "time",
+      "entry_ts": "2026-04-27 03:25:00",
+      "exit_ts": "2026-04-27 04:40:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 2.5919882743281346,
+      "reason": "time",
+      "entry_ts": "2026-04-30 03:15:00",
+      "exit_ts": "2026-04-30 04:30:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.082333697988607,
+      "reason": "time",
+      "entry_ts": "2026-04-30 15:55:00",
+      "exit_ts": "2026-04-30 17:10:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.3666508577541219,
+      "reason": "time",
+      "entry_ts": "2026-05-01 15:30:00",
+      "exit_ts": "2026-05-01 16:45:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 2.304126069614586,
+      "reason": "time",
+      "entry_ts": "2026-05-02 13:40:00",
+      "exit_ts": "2026-05-02 14:55:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.12985320100617326,
+      "reason": "time",
+      "entry_ts": "2026-05-05 22:55:00",
+      "exit_ts": "2026-05-06 00:10:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.3011954417470408,
+      "reason": "time",
+      "entry_ts": "2026-05-06 01:55:00",
+      "exit_ts": "2026-05-06 03:10:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 2.588936309262623,
+      "reason": "time",
+      "entry_ts": "2026-05-06 03:30:00",
+      "exit_ts": "2026-05-06 04:45:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.1534890176160892,
+      "reason": "time",
+      "entry_ts": "2026-05-06 05:05:00",
+      "exit_ts": "2026-05-06 06:20:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -3.214381903025133,
+      "reason": "time",
+      "entry_ts": "2026-05-06 06:45:00",
+      "exit_ts": "2026-05-06 08:00:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.8897014639225983,
+      "reason": "time",
+      "entry_ts": "2026-05-06 08:10:00",
+      "exit_ts": "2026-05-06 09:25:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.7379312940581215,
+      "reason": "time",
+      "entry_ts": "2026-05-06 18:00:00",
+      "exit_ts": "2026-05-06 19:15:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.21913240274917856,
+      "reason": "time",
+      "entry_ts": "2026-05-07 01:10:00",
+      "exit_ts": "2026-05-07 02:25:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.7138804855416345,
+      "reason": "time",
+      "entry_ts": "2026-05-10 19:00:00",
+      "exit_ts": "2026-05-10 20:15:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.0069945911974703895,
+      "reason": "time",
+      "entry_ts": "2026-05-13 08:10:00",
+      "exit_ts": "2026-05-13 09:25:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.17721378601842455,
+      "reason": "time",
+      "entry_ts": "2026-05-15 16:30:00",
+      "exit_ts": "2026-05-15 17:45:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.610905082705162,
+      "reason": "time",
+      "entry_ts": "2026-05-17 23:45:00",
+      "exit_ts": "2026-05-18 01:00:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.706391105677372,
+      "reason": "time",
+      "entry_ts": "2026-05-18 19:05:00",
+      "exit_ts": "2026-05-18 20:20:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.42315400123939484,
+      "reason": "time",
+      "entry_ts": "2026-05-21 17:25:00",
+      "exit_ts": "2026-05-21 18:40:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.3878879881021362,
+      "reason": "time",
+      "entry_ts": "2026-05-22 18:50:00",
+      "exit_ts": "2026-05-22 20:05:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.6924673532023005,
+      "reason": "time",
+      "entry_ts": "2026-05-23 07:55:00",
+      "exit_ts": "2026-05-23 09:10:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.5397227612022665,
+      "reason": "time",
+      "entry_ts": "2026-05-23 20:40:00",
+      "exit_ts": "2026-05-23 21:55:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 3.2887334462626074,
+      "reason": "time",
+      "entry_ts": "2026-05-29 14:55:00",
+      "exit_ts": "2026-05-29 16:10:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.6026175972070417,
+      "reason": "time",
+      "entry_ts": "2026-05-30 05:10:00",
+      "exit_ts": "2026-05-30 06:25:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.3517852924118545,
+      "reason": "time",
+      "entry_ts": "2026-06-01 14:00:00",
+      "exit_ts": "2026-06-01 15:15:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 3.4299707878888426,
+      "reason": "time",
+      "entry_ts": "2026-06-02 15:35:00",
+      "exit_ts": "2026-06-02 16:50:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -2.5573241777668896,
+      "reason": "time",
+      "entry_ts": "2026-06-03 22:10:00",
+      "exit_ts": "2026-06-03 23:25:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 6.253825484024396,
+      "reason": "time",
+      "entry_ts": "2026-06-04 02:10:00",
+      "exit_ts": "2026-06-04 03:25:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.6783276181646632,
+      "reason": "time",
+      "entry_ts": "2026-06-04 13:35:00",
+      "exit_ts": "2026-06-04 14:50:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.3531936622941307,
+      "reason": "time",
+      "entry_ts": "2026-06-04 17:55:00",
+      "exit_ts": "2026-06-04 19:10:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 2.547819871410016,
+      "reason": "time",
+      "entry_ts": "2026-06-05 06:45:00",
+      "exit_ts": "2026-06-05 08:00:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.6491327519625126,
+      "reason": "time",
+      "entry_ts": "2026-06-05 09:15:00",
+      "exit_ts": "2026-06-05 10:30:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.376785269987459,
+      "reason": "time",
+      "entry_ts": "2026-06-05 14:05:00",
+      "exit_ts": "2026-06-05 15:20:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.8934361739175465,
+      "reason": "time",
+      "entry_ts": "2026-06-05 15:50:00",
+      "exit_ts": "2026-06-05 17:05:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 3.7395007867160435,
+      "reason": "time",
+      "entry_ts": "2026-06-05 19:00:00",
+      "exit_ts": "2026-06-05 20:15:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 5.178981039163271,
+      "reason": "time",
+      "entry_ts": "2026-06-06 04:40:00",
+      "exit_ts": "2026-06-06 05:55:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.1228385358185404,
+      "reason": "time",
+      "entry_ts": "2026-06-06 08:30:00",
+      "exit_ts": "2026-06-06 09:45:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.17235530030411075,
+      "reason": "time",
+      "entry_ts": "2026-06-07 08:40:00",
+      "exit_ts": "2026-06-07 09:55:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -3.135626483351602,
+      "reason": "time",
+      "entry_ts": "2026-06-07 22:15:00",
+      "exit_ts": "2026-06-07 23:30:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.7375023558858441,
+      "reason": "time",
+      "entry_ts": "2026-06-08 09:40:00",
+      "exit_ts": "2026-06-08 10:55:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.9104676512212322,
+      "reason": "time",
+      "entry_ts": "2026-06-09 00:20:00",
+      "exit_ts": "2026-06-09 01:35:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.933805298425964,
+      "reason": "time",
+      "entry_ts": "2026-06-09 04:35:00",
+      "exit_ts": "2026-06-09 05:50:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.8843838611344255,
+      "reason": "time",
+      "entry_ts": "2026-06-10 12:35:00",
+      "exit_ts": "2026-06-10 13:50:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.014446680344235617,
+      "reason": "time",
+      "entry_ts": "2026-06-11 04:00:00",
+      "exit_ts": "2026-06-11 05:15:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.9428858015335295,
+      "reason": "time",
+      "entry_ts": "2026-06-11 17:30:00",
+      "exit_ts": "2026-06-11 18:45:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -2.0050898223681153,
+      "reason": "time",
+      "entry_ts": "2026-06-12 14:55:00",
+      "exit_ts": "2026-06-12 16:10:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.10891673576318167,
+      "reason": "time",
+      "entry_ts": "2026-06-12 16:15:00",
+      "exit_ts": "2026-06-12 17:30:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.9619859496302171,
+      "reason": "time",
+      "entry_ts": "2026-06-12 19:40:00",
+      "exit_ts": "2026-06-12 20:55:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.4570247372748908,
+      "reason": "time",
+      "entry_ts": "2026-06-13 01:45:00",
+      "exit_ts": "2026-06-13 03:00:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.173509090987274,
+      "reason": "time",
+      "entry_ts": "2026-06-15 10:55:00",
+      "exit_ts": "2026-06-15 12:10:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.167299403262758,
+      "reason": "time",
+      "entry_ts": "2026-06-15 14:05:00",
+      "exit_ts": "2026-06-15 15:20:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.5493802479008283,
+      "reason": "time",
+      "entry_ts": "2026-06-16 18:05:00",
+      "exit_ts": "2026-06-16 19:20:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.7051395930690858,
+      "reason": "time",
+      "entry_ts": "2026-06-17 03:00:00",
+      "exit_ts": "2026-06-17 04:15:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.03635332828449197,
+      "reason": "time",
+      "entry_ts": "2026-06-17 15:05:00",
+      "exit_ts": "2026-06-17 16:20:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.5414252209563979,
+      "reason": "time",
+      "entry_ts": "2026-06-18 17:30:00",
+      "exit_ts": "2026-06-18 18:45:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.04203446826399896,
+      "reason": "time",
+      "entry_ts": "2026-06-20 05:15:00",
+      "exit_ts": "2026-06-20 06:30:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.26443576415587183,
+      "reason": "time",
+      "entry_ts": "2026-06-20 14:50:00",
+      "exit_ts": "2026-06-20 16:05:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.5560610776534916,
+      "reason": "time",
+      "entry_ts": "2026-06-21 16:00:00",
+      "exit_ts": "2026-06-21 17:15:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.921652999450037,
+      "reason": "time",
+      "entry_ts": "2026-06-22 01:30:00",
+      "exit_ts": "2026-06-22 02:45:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.1305290967724904,
+      "reason": "time",
+      "entry_ts": "2026-06-22 13:40:00",
+      "exit_ts": "2026-06-22 14:55:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.42277428651181076,
+      "reason": "time",
+      "entry_ts": "2026-06-23 06:25:00",
+      "exit_ts": "2026-06-23 07:40:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.01660718084357132,
+      "reason": "time",
+      "entry_ts": "2026-06-23 13:35:00",
+      "exit_ts": "2026-06-23 14:50:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -2.065558392027792,
+      "reason": "time",
+      "entry_ts": "2026-06-24 11:50:00",
+      "exit_ts": "2026-06-24 13:05:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.2900311494182864,
+      "reason": "time",
+      "entry_ts": "2026-06-24 16:55:00",
+      "exit_ts": "2026-06-24 18:10:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.8808015255436388,
+      "reason": "time",
+      "entry_ts": "2026-06-24 20:05:00",
+      "exit_ts": "2026-06-24 21:20:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -4.363211179024687,
+      "reason": "time",
+      "entry_ts": "2026-06-25 12:35:00",
+      "exit_ts": "2026-06-25 13:50:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -2.69675727228059,
+      "reason": "time",
+      "entry_ts": "2026-06-25 14:35:00",
+      "exit_ts": "2026-06-25 15:50:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.00900208098578054,
+      "reason": "time",
+      "entry_ts": "2026-06-25 20:05:00",
+      "exit_ts": "2026-06-25 21:20:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.5141151661163101,
+      "reason": "time",
+      "entry_ts": "2026-06-26 02:20:00",
+      "exit_ts": "2026-06-26 03:35:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.692556764760037,
+      "reason": "time",
+      "entry_ts": "2026-06-26 07:05:00",
+      "exit_ts": "2026-06-26 08:20:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.9239171042902391,
+      "reason": "time",
+      "entry_ts": "2026-06-26 16:05:00",
+      "exit_ts": "2026-06-26 17:20:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.5980239142191376,
+      "reason": "time",
+      "entry_ts": "2026-06-26 18:05:00",
+      "exit_ts": "2026-06-26 19:20:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.7560459687092782,
+      "reason": "time",
+      "entry_ts": "2026-06-26 20:05:00",
+      "exit_ts": "2026-06-26 21:20:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.2715080102144452,
+      "reason": "time",
+      "entry_ts": "2026-06-26 23:50:00",
+      "exit_ts": "2026-06-27 01:05:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.0005921295604012,
+      "reason": "time",
+      "entry_ts": "2026-06-27 01:10:00",
+      "exit_ts": "2026-06-27 02:25:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.58024174945406,
+      "reason": "time",
+      "entry_ts": "2026-06-27 02:50:00",
+      "exit_ts": "2026-06-27 04:05:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.7924103086038217,
+      "reason": "time",
+      "entry_ts": "2026-06-27 07:45:00",
+      "exit_ts": "2026-06-27 09:00:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -4.076769292283078,
+      "reason": "time",
+      "entry_ts": "2026-06-27 09:50:00",
+      "exit_ts": "2026-06-27 11:05:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.8325522629881966,
+      "reason": "time",
+      "entry_ts": "2026-06-27 12:50:00",
+      "exit_ts": "2026-06-27 14:05:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.9661759869431255,
+      "reason": "time",
+      "entry_ts": "2026-06-27 15:15:00",
+      "exit_ts": "2026-06-27 16:30:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -4.348184056059947,
+      "reason": "time",
+      "entry_ts": "2026-06-27 16:35:00",
+      "exit_ts": "2026-06-27 17:50:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.3423811969874193,
+      "reason": "time",
+      "entry_ts": "2026-06-28 06:00:00",
+      "exit_ts": "2026-06-28 07:15:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.021535245550892708,
+      "reason": "time",
+      "entry_ts": "2026-06-28 07:50:00",
+      "exit_ts": "2026-06-28 09:05:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.8171759672975151,
+      "reason": "time",
+      "entry_ts": "2026-06-28 11:05:00",
+      "exit_ts": "2026-06-28 12:20:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.2715186497802895,
+      "reason": "time",
+      "entry_ts": "2026-06-28 14:55:00",
+      "exit_ts": "2026-06-28 16:10:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.8319264929913592,
+      "reason": "time",
+      "entry_ts": "2026-06-28 20:35:00",
+      "exit_ts": "2026-06-28 21:50:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.4253137454695645,
+      "reason": "time",
+      "entry_ts": "2026-06-28 22:40:00",
+      "exit_ts": "2026-06-28 23:55:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.3397048057567482,
+      "reason": "time",
+      "entry_ts": "2026-06-29 00:15:00",
+      "exit_ts": "2026-06-29 01:30:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.9831130047981025,
+      "reason": "time",
+      "entry_ts": "2026-06-29 06:15:00",
+      "exit_ts": "2026-06-29 07:30:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.805749722271766,
+      "reason": "time",
+      "entry_ts": "2026-06-29 11:35:00",
+      "exit_ts": "2026-06-29 12:50:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.6437498456377013,
+      "reason": "time",
+      "entry_ts": "2026-06-29 16:50:00",
+      "exit_ts": "2026-06-29 18:05:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.5785822279836101,
+      "reason": "time",
+      "entry_ts": "2026-07-01 03:55:00",
+      "exit_ts": "2026-07-01 05:10:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.09201138821581119,
+      "reason": "time",
+      "entry_ts": "2026-07-01 14:55:00",
+      "exit_ts": "2026-07-01 16:10:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.03574713716135126,
+      "reason": "time",
+      "entry_ts": "2026-07-01 21:10:00",
+      "exit_ts": "2026-07-01 22:25:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.088687332084713,
+      "reason": "time",
+      "entry_ts": "2026-07-02 03:30:00",
+      "exit_ts": "2026-07-02 04:45:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.6143228869425191,
+      "reason": "time",
+      "entry_ts": "2026-07-02 08:30:00",
+      "exit_ts": "2026-07-02 09:45:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 2.2437536613261635,
+      "reason": "time",
+      "entry_ts": "2026-07-02 10:50:00",
+      "exit_ts": "2026-07-02 12:05:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.4247179793982192,
+      "reason": "time",
+      "entry_ts": "2026-07-03 06:10:00",
+      "exit_ts": "2026-07-03 07:25:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.9334593312759316,
+      "reason": "time",
+      "entry_ts": "2026-07-03 13:00:00",
+      "exit_ts": "2026-07-03 14:15:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.2478729438456997,
+      "reason": "time",
+      "entry_ts": "2026-07-03 21:15:00",
+      "exit_ts": "2026-07-03 22:30:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.4766895470224037,
+      "reason": "time",
+      "entry_ts": "2026-07-04 15:10:00",
+      "exit_ts": "2026-07-04 16:25:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.8793282686924931,
+      "reason": "time",
+      "entry_ts": "2026-07-06 21:10:00",
+      "exit_ts": "2026-07-06 22:25:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.9072184254624573,
+      "reason": "time",
+      "entry_ts": "2026-07-07 13:00:00",
+      "exit_ts": "2026-07-07 14:15:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.3983874901282207,
+      "reason": "time",
+      "entry_ts": "2026-07-08 11:45:00",
+      "exit_ts": "2026-07-08 13:00:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.04699517905669615,
+      "reason": "time",
+      "entry_ts": "2026-07-08 23:20:00",
+      "exit_ts": "2026-07-09 00:35:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.8307760177081261,
+      "reason": "time",
+      "entry_ts": "2026-07-09 01:10:00",
+      "exit_ts": "2026-07-09 02:25:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.10832350476895336,
+      "reason": "time",
+      "entry_ts": "2026-07-10 01:50:00",
+      "exit_ts": "2026-07-10 03:05:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.14459934008282838,
+      "reason": "time",
+      "entry_ts": "2026-07-14 02:45:00",
+      "exit_ts": "2026-07-14 04:00:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.145317935611883,
+      "reason": "time",
+      "entry_ts": "2026-07-14 12:35:00",
+      "exit_ts": "2026-07-14 13:50:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.9801484811480996,
+      "reason": "time",
+      "entry_ts": "2026-07-15 01:45:00",
+      "exit_ts": "2026-07-15 03:00:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.74982982608134,
+      "reason": "time",
+      "entry_ts": "2026-07-15 12:35:00",
+      "exit_ts": "2026-07-15 13:50:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.728378343665759,
+      "reason": "time",
+      "entry_ts": "2026-07-16 14:05:00",
+      "exit_ts": "2026-07-16 15:20:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.2425798911204589,
+      "reason": "time",
+      "entry_ts": "2026-07-16 15:55:00",
+      "exit_ts": "2026-07-16 17:10:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.5368198899408433,
+      "reason": "time",
+      "entry_ts": "2026-07-19 13:10:00",
+      "exit_ts": "2026-07-19 14:25:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.4090853777066061,
+      "reason": "time",
+      "entry_ts": "2026-07-19 17:05:00",
+      "exit_ts": "2026-07-19 18:20:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.14451583707600968,
+      "reason": "time",
+      "entry_ts": "2026-07-21 10:05:00",
+      "exit_ts": "2026-07-21 11:20:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.48863890026809664,
+      "reason": "time",
+      "entry_ts": "2026-07-25 04:05:00",
+      "exit_ts": "2026-07-25 05:20:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.7478826651157481,
+      "reason": "time",
+      "entry_ts": "2026-07-25 12:50:00",
+      "exit_ts": "2026-07-25 14:05:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.049294641781073414,
+      "reason": "time",
+      "entry_ts": "2026-07-25 18:05:00",
+      "exit_ts": "2026-07-25 19:20:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.4894763406112948,
+      "reason": "time",
+      "entry_ts": "2026-07-29 18:05:00",
+      "exit_ts": "2026-07-29 19:20:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.06473876778036841,
+      "reason": "time",
+      "entry_ts": "2026-08-02 02:10:00",
+      "exit_ts": "2026-08-02 03:25:00"
+    },
+    {
+      "symbol": "WIFUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.6660092561215769,
+      "reason": "time",
+      "entry_ts": "2026-08-12 21:50:00",
+      "exit_ts": "2026-08-12 23:05:00"
+    },
+    {
+      "symbol": "XRPUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.3073335125879806,
+      "reason": "time",
+      "entry_ts": "2026-04-16 03:45:00",
+      "exit_ts": "2026-04-16 05:00:00"
+    },
+    {
+      "symbol": "XRPUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.0283599870631919,
+      "reason": "time",
+      "entry_ts": "2026-04-16 14:00:00",
+      "exit_ts": "2026-04-16 15:15:00"
+    },
+    {
+      "symbol": "XRPUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.10996727752153805,
+      "reason": "time",
+      "entry_ts": "2026-04-21 20:10:00",
+      "exit_ts": "2026-04-21 21:25:00"
+    },
+    {
+      "symbol": "XRPUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.1564941247284645,
+      "reason": "time",
+      "entry_ts": "2026-04-29 18:15:00",
+      "exit_ts": "2026-04-29 19:30:00"
+    },
+    {
+      "symbol": "XRPUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.8184105315994312,
+      "reason": "time",
+      "entry_ts": "2026-05-10 16:30:00",
+      "exit_ts": "2026-05-10 17:45:00"
+    },
+    {
+      "symbol": "XRPUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.4092365501779645,
+      "reason": "time",
+      "entry_ts": "2026-05-17 23:45:00",
+      "exit_ts": "2026-05-18 01:00:00"
+    },
+    {
+      "symbol": "XRPUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.31505799060478623,
+      "reason": "time",
+      "entry_ts": "2026-05-18 11:40:00",
+      "exit_ts": "2026-05-18 12:55:00"
+    },
+    {
+      "symbol": "XRPUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.5637441006225209,
+      "reason": "time",
+      "entry_ts": "2026-05-18 19:05:00",
+      "exit_ts": "2026-05-18 20:20:00"
+    },
+    {
+      "symbol": "XRPUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.6171334590028873,
+      "reason": "time",
+      "entry_ts": "2026-05-20 15:20:00",
+      "exit_ts": "2026-05-20 16:35:00"
+    },
+    {
+      "symbol": "XRPUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.6794359134452267,
+      "reason": "time",
+      "entry_ts": "2026-05-21 17:15:00",
+      "exit_ts": "2026-05-21 18:30:00"
+    },
+    {
+      "symbol": "XRPUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.10284347799340578,
+      "reason": "time",
+      "entry_ts": "2026-05-23 07:55:00",
+      "exit_ts": "2026-05-23 09:10:00"
+    },
+    {
+      "symbol": "XRPUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 3.797396589220539,
+      "reason": "time",
+      "entry_ts": "2026-06-04 02:10:00",
+      "exit_ts": "2026-06-04 03:25:00"
+    },
+    {
+      "symbol": "XRPUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.07048730552066823,
+      "reason": "time",
+      "entry_ts": "2026-06-05 09:05:00",
+      "exit_ts": "2026-06-05 10:20:00"
+    },
+    {
+      "symbol": "XRPUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.16160202585631336,
+      "reason": "time",
+      "entry_ts": "2026-06-05 16:15:00",
+      "exit_ts": "2026-06-05 17:30:00"
+    },
+    {
+      "symbol": "XRPUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.6099603980908029,
+      "reason": "time",
+      "entry_ts": "2026-06-06 05:25:00",
+      "exit_ts": "2026-06-06 06:40:00"
+    },
+    {
+      "symbol": "XRPUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.6356746020521111,
+      "reason": "time",
+      "entry_ts": "2026-06-06 16:50:00",
+      "exit_ts": "2026-06-06 18:05:00"
+    },
+    {
+      "symbol": "XRPUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.876379770672386,
+      "reason": "time",
+      "entry_ts": "2026-06-07 09:05:00",
+      "exit_ts": "2026-06-07 10:20:00"
+    },
+    {
+      "symbol": "XRPUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.45819249726123995,
+      "reason": "time",
+      "entry_ts": "2026-06-07 22:15:00",
+      "exit_ts": "2026-06-07 23:30:00"
+    },
+    {
+      "symbol": "XRPUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.6749871529022148,
+      "reason": "time",
+      "entry_ts": "2026-06-09 04:35:00",
+      "exit_ts": "2026-06-09 05:50:00"
+    },
+    {
+      "symbol": "XRPUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.3923310832837998,
+      "reason": "time",
+      "entry_ts": "2026-06-10 12:35:00",
+      "exit_ts": "2026-06-10 13:50:00"
+    },
+    {
+      "symbol": "XRPUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.725223514028798,
+      "reason": "time",
+      "entry_ts": "2026-06-11 17:30:00",
+      "exit_ts": "2026-06-11 18:45:00"
+    },
+    {
+      "symbol": "XRPUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.2394972209179151,
+      "reason": "time",
+      "entry_ts": "2026-06-11 19:35:00",
+      "exit_ts": "2026-06-11 20:50:00"
+    },
+    {
+      "symbol": "XRPUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.6882163090914628,
+      "reason": "time",
+      "entry_ts": "2026-06-12 14:55:00",
+      "exit_ts": "2026-06-12 16:10:00"
+    },
+    {
+      "symbol": "XRPUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.5294436165609043,
+      "reason": "time",
+      "entry_ts": "2026-06-15 12:45:00",
+      "exit_ts": "2026-06-15 14:00:00"
+    },
+    {
+      "symbol": "XRPUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.4197567268082172,
+      "reason": "time",
+      "entry_ts": "2026-06-15 20:00:00",
+      "exit_ts": "2026-06-15 21:15:00"
+    },
+    {
+      "symbol": "XRPUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.7129220508950218,
+      "reason": "time",
+      "entry_ts": "2026-06-20 15:20:00",
+      "exit_ts": "2026-06-20 16:35:00"
+    },
+    {
+      "symbol": "XRPUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.2792264436287744,
+      "reason": "time",
+      "entry_ts": "2026-06-24 11:50:00",
+      "exit_ts": "2026-06-24 13:05:00"
+    },
+    {
+      "symbol": "XRPUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.6354274117013402,
+      "reason": "time",
+      "entry_ts": "2026-06-24 20:05:00",
+      "exit_ts": "2026-06-24 21:20:00"
+    },
+    {
+      "symbol": "XRPUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -3.219303466566528,
+      "reason": "time",
+      "entry_ts": "2026-06-25 12:35:00",
+      "exit_ts": "2026-06-25 13:50:00"
+    },
+    {
+      "symbol": "XRPUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.6812159402280865,
+      "reason": "time",
+      "entry_ts": "2026-06-25 14:05:00",
+      "exit_ts": "2026-06-25 15:20:00"
+    },
+    {
+      "symbol": "XRPUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.16575264390092673,
+      "reason": "time",
+      "entry_ts": "2026-06-26 16:05:00",
+      "exit_ts": "2026-06-26 17:20:00"
+    },
+    {
+      "symbol": "XRPUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.9834900991060044,
+      "reason": "time",
+      "entry_ts": "2026-06-26 20:05:00",
+      "exit_ts": "2026-06-26 21:20:00"
+    },
+    {
+      "symbol": "XRPUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.5684826483096208,
+      "reason": "time",
+      "entry_ts": "2026-07-01 15:25:00",
+      "exit_ts": "2026-07-01 16:40:00"
+    },
+    {
+      "symbol": "XRPUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.09881347395123408,
+      "reason": "time",
+      "entry_ts": "2026-07-02 03:30:00",
+      "exit_ts": "2026-07-02 04:45:00"
+    },
+    {
+      "symbol": "XRPUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.6398096960457926,
+      "reason": "time",
+      "entry_ts": "2026-07-02 13:35:00",
+      "exit_ts": "2026-07-02 14:50:00"
+    },
+    {
+      "symbol": "XRPUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.5715352843077134,
+      "reason": "time",
+      "entry_ts": "2026-07-04 14:15:00",
+      "exit_ts": "2026-07-04 15:30:00"
+    },
+    {
+      "symbol": "XRPUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.2304294091088688,
+      "reason": "time",
+      "entry_ts": "2026-07-06 14:30:00",
+      "exit_ts": "2026-07-06 15:45:00"
+    },
+    {
+      "symbol": "XRPUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.5892356257220511,
+      "reason": "time",
+      "entry_ts": "2026-07-06 21:10:00",
+      "exit_ts": "2026-07-06 22:25:00"
+    },
+    {
+      "symbol": "XRPUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.4848378357469943,
+      "reason": "time",
+      "entry_ts": "2026-07-08 11:45:00",
+      "exit_ts": "2026-07-08 13:00:00"
+    },
+    {
+      "symbol": "XRPUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.8539771915893909,
+      "reason": "time",
+      "entry_ts": "2026-07-09 01:10:00",
+      "exit_ts": "2026-07-09 02:25:00"
+    },
+    {
+      "symbol": "XRPUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.13416927777304033,
+      "reason": "time",
+      "entry_ts": "2026-07-10 01:50:00",
+      "exit_ts": "2026-07-10 03:05:00"
+    },
+    {
+      "symbol": "XRPUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.179488190173188,
+      "reason": "time",
+      "entry_ts": "2026-07-13 00:15:00",
+      "exit_ts": "2026-07-13 01:30:00"
+    },
+    {
+      "symbol": "XRPUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.4062778436297234,
+      "reason": "time",
+      "entry_ts": "2026-07-14 12:35:00",
+      "exit_ts": "2026-07-14 13:50:00"
+    },
+    {
+      "symbol": "XRPUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.6084558556675681,
+      "reason": "time",
+      "entry_ts": "2026-07-14 19:35:00",
+      "exit_ts": "2026-07-14 20:50:00"
+    },
+    {
+      "symbol": "LINKUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "long",
+      "ret": -3.470613420084217,
+      "reason": "time",
+      "entry_ts": "2026-04-18 00:00:00",
+      "exit_ts": "2026-04-21 00:00:00"
+    },
+    {
+      "symbol": "LINKUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "long",
+      "ret": -0.31402260220272266,
+      "reason": "time",
+      "entry_ts": "2026-04-22 00:00:00",
+      "exit_ts": "2026-04-25 00:00:00"
+    },
+    {
+      "symbol": "LINKUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "short",
+      "ret": -2.9854521452145137,
+      "reason": "time",
+      "entry_ts": "2026-05-02 00:00:00",
+      "exit_ts": "2026-05-05 00:00:00"
+    },
+    {
+      "symbol": "LINKUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "short",
+      "ret": 4.827474787036125,
+      "reason": "time",
+      "entry_ts": "2026-05-14 00:00:00",
+      "exit_ts": "2026-05-17 00:00:00"
+    },
+    {
+      "symbol": "LINKUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "short",
+      "ret": -0.4794055672618539,
+      "reason": "time",
+      "entry_ts": "2026-05-30 00:00:00",
+      "exit_ts": "2026-06-02 00:00:00"
+    },
+    {
+      "symbol": "LINKUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "short",
+      "ret": 5.3821600955794375,
+      "reason": "time",
+      "entry_ts": "2026-06-03 00:00:00",
+      "exit_ts": "2026-06-08 00:00:00"
+    },
+    {
+      "symbol": "LINKUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "short",
+      "ret": 1.321611208406306,
+      "reason": "time",
+      "entry_ts": "2026-06-09 00:00:00",
+      "exit_ts": "2026-06-12 00:00:00"
+    },
+    {
+      "symbol": "LINKUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "short",
+      "ret": 1.2097764367027883,
+      "reason": "time",
+      "entry_ts": "2026-06-28 00:00:00",
+      "exit_ts": "2026-07-01 00:00:00"
+    },
+    {
+      "symbol": "LINKUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "short",
+      "ret": -8.86665397688646,
+      "reason": "time",
+      "entry_ts": "2026-07-02 00:00:00",
+      "exit_ts": "2026-07-05 00:00:00"
+    },
+    {
+      "symbol": "LINKUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "long",
+      "ret": -1.0834330591137953,
+      "reason": "time",
+      "entry_ts": "2026-07-11 00:00:00",
+      "exit_ts": "2026-07-14 00:00:00"
+    },
+    {
+      "symbol": "LINKUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "long",
+      "ret": -1.181807032670569,
+      "reason": "time",
+      "entry_ts": "2026-07-15 00:00:00",
+      "exit_ts": "2026-07-18 00:00:00"
+    },
+    {
+      "symbol": "LINKUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "long",
+      "ret": 3.6567034459139696,
+      "reason": "time",
+      "entry_ts": "2026-07-19 00:00:00",
+      "exit_ts": "2026-07-22 00:00:00"
+    },
+    {
+      "symbol": "LINKUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "long",
+      "ret": -2.952031982756263,
+      "reason": "time",
+      "entry_ts": "2026-07-23 00:00:00",
+      "exit_ts": "2026-07-26 00:00:00"
+    },
+    {
+      "symbol": "LINKUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "long",
+      "ret": -5.663168258708059,
+      "reason": "time",
+      "entry_ts": "2026-07-27 00:00:00",
+      "exit_ts": "2026-07-30 00:00:00"
+    },
+    {
+      "symbol": "LINKUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "short",
+      "ret": -0.300487327047884,
+      "reason": "time",
+      "entry_ts": "2026-08-01 00:00:00",
+      "exit_ts": "2026-08-04 00:00:00"
+    },
+    {
+      "symbol": "LINKUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "long",
+      "ret": 4.424623593185692,
+      "reason": "eod",
+      "entry_ts": "2026-08-11 00:00:00",
+      "exit_ts": "2026-08-12 00:00:00"
+    },
+    {
+      "symbol": "XRPUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "long",
+      "ret": -3.548613777080526,
+      "reason": "time",
+      "entry_ts": "2026-04-18 00:00:00",
+      "exit_ts": "2026-04-21 00:00:00"
+    },
+    {
+      "symbol": "XRPUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "long",
+      "ret": -0.09391747977620307,
+      "reason": "time",
+      "entry_ts": "2026-04-22 00:00:00",
+      "exit_ts": "2026-04-25 00:00:00"
+    },
+    {
+      "symbol": "XRPUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "short",
+      "ret": -0.5061631768953081,
+      "reason": "time",
+      "entry_ts": "2026-05-02 00:00:00",
+      "exit_ts": "2026-05-05 00:00:00"
+    },
+    {
+      "symbol": "XRPUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "short",
+      "ret": 0.8529210489412332,
+      "reason": "time",
+      "entry_ts": "2026-05-14 00:00:00",
+      "exit_ts": "2026-05-17 00:00:00"
+    },
+    {
+      "symbol": "XRPUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "short",
+      "ret": 2.358898419864559,
+      "reason": "time",
+      "entry_ts": "2026-05-30 00:00:00",
+      "exit_ts": "2026-06-02 00:00:00"
+    },
+    {
+      "symbol": "XRPUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "short",
+      "ret": 9.344955825282806,
+      "reason": "time",
+      "entry_ts": "2026-06-03 00:00:00",
+      "exit_ts": "2026-06-06 00:00:00"
+    },
+    {
+      "symbol": "XRPUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "short",
+      "ret": -4.117488789237671,
+      "reason": "time",
+      "entry_ts": "2026-06-07 00:00:00",
+      "exit_ts": "2026-06-10 00:00:00"
+    },
+    {
+      "symbol": "XRPUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "short",
+      "ret": -4.989826673964591,
+      "reason": "time",
+      "entry_ts": "2026-06-11 00:00:00",
+      "exit_ts": "2026-06-14 00:00:00"
+    },
+    {
+      "symbol": "XRPUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "short",
+      "ret": 0.6175756996847706,
+      "reason": "time",
+      "entry_ts": "2026-06-28 00:00:00",
+      "exit_ts": "2026-07-01 00:00:00"
+    },
+    {
+      "symbol": "XRPUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "short",
+      "ret": -9.99276078282349,
+      "reason": "time",
+      "entry_ts": "2026-07-02 00:00:00",
+      "exit_ts": "2026-07-05 00:00:00"
+    },
+    {
+      "symbol": "XRPUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "long",
+      "ret": -3.4377879283069506,
+      "reason": "time",
+      "entry_ts": "2026-07-11 00:00:00",
+      "exit_ts": "2026-07-14 00:00:00"
+    },
+    {
+      "symbol": "XRPUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "long",
+      "ret": -2.13016305356905,
+      "reason": "time",
+      "entry_ts": "2026-07-15 00:00:00",
+      "exit_ts": "2026-07-18 00:00:00"
+    },
+    {
+      "symbol": "XRPUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "long",
+      "ret": 4.585772356503301,
+      "reason": "time",
+      "entry_ts": "2026-07-19 00:00:00",
+      "exit_ts": "2026-07-22 00:00:00"
+    },
+    {
+      "symbol": "XRPUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "long",
+      "ret": -3.9580628235826496,
+      "reason": "time",
+      "entry_ts": "2026-07-23 00:00:00",
+      "exit_ts": "2026-07-26 00:00:00"
+    },
+    {
+      "symbol": "XRPUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "long",
+      "ret": -3.609410091796456,
+      "reason": "time",
+      "entry_ts": "2026-07-27 00:00:00",
+      "exit_ts": "2026-07-30 00:00:00"
+    },
+    {
+      "symbol": "XRPUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "short",
+      "ret": -1.3996645623292203,
+      "reason": "time",
+      "entry_ts": "2026-08-01 00:00:00",
+      "exit_ts": "2026-08-04 00:00:00"
+    },
+    {
+      "symbol": "XRPUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "long",
+      "ret": -0.722000642210481,
+      "reason": "eod",
+      "entry_ts": "2026-08-11 00:00:00",
+      "exit_ts": "2026-08-12 00:00:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.5231710132848284,
+      "reason": "time",
+      "entry_ts": "2026-04-16 03:45:00",
+      "exit_ts": "2026-04-16 05:00:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.19906221063421117,
+      "reason": "time",
+      "entry_ts": "2026-04-16 15:40:00",
+      "exit_ts": "2026-04-16 16:55:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.18977368558942534,
+      "reason": "time",
+      "entry_ts": "2026-04-16 18:50:00",
+      "exit_ts": "2026-04-16 20:05:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.8903926478753084,
+      "reason": "time",
+      "entry_ts": "2026-04-17 09:30:00",
+      "exit_ts": "2026-04-17 10:45:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.8553843419897255,
+      "reason": "time",
+      "entry_ts": "2026-04-20 09:10:00",
+      "exit_ts": "2026-04-20 10:25:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.36574178114643907,
+      "reason": "time",
+      "entry_ts": "2026-04-21 20:10:00",
+      "exit_ts": "2026-04-21 21:25:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.8424100239422324,
+      "reason": "time",
+      "entry_ts": "2026-04-23 00:20:00",
+      "exit_ts": "2026-04-23 01:35:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.00035045742657164317,
+      "reason": "time",
+      "entry_ts": "2026-04-25 01:40:00",
+      "exit_ts": "2026-04-25 02:55:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -2.3589148689717763,
+      "reason": "time",
+      "entry_ts": "2026-04-27 04:30:00",
+      "exit_ts": "2026-04-27 05:45:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.7544372647600744,
+      "reason": "time",
+      "entry_ts": "2026-04-29 18:15:00",
+      "exit_ts": "2026-04-29 19:30:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.36019246147694617,
+      "reason": "time",
+      "entry_ts": "2026-05-01 03:20:00",
+      "exit_ts": "2026-05-01 04:35:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.4596033926854771,
+      "reason": "time",
+      "entry_ts": "2026-05-05 22:55:00",
+      "exit_ts": "2026-05-06 00:10:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.07996801279486625,
+      "reason": "time",
+      "entry_ts": "2026-05-08 21:35:00",
+      "exit_ts": "2026-05-08 22:50:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.3444087796100515,
+      "reason": "time",
+      "entry_ts": "2026-05-10 15:50:00",
+      "exit_ts": "2026-05-10 17:05:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.4334259083961143,
+      "reason": "time",
+      "entry_ts": "2026-05-10 20:55:00",
+      "exit_ts": "2026-05-10 22:10:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.3422833709390044,
+      "reason": "time",
+      "entry_ts": "2026-05-15 16:30:00",
+      "exit_ts": "2026-05-15 17:45:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.9240516012244846,
+      "reason": "time",
+      "entry_ts": "2026-05-17 23:45:00",
+      "exit_ts": "2026-05-18 01:00:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.40003214086663996,
+      "reason": "time",
+      "entry_ts": "2026-05-18 19:05:00",
+      "exit_ts": "2026-05-18 20:20:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.0426332534471161,
+      "reason": "time",
+      "entry_ts": "2026-05-22 18:50:00",
+      "exit_ts": "2026-05-22 20:05:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.3416354976996727,
+      "reason": "time",
+      "entry_ts": "2026-05-23 07:55:00",
+      "exit_ts": "2026-05-23 09:10:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.24119436533576263,
+      "reason": "time",
+      "entry_ts": "2026-05-23 20:40:00",
+      "exit_ts": "2026-05-23 21:55:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.13528410264501933,
+      "reason": "time",
+      "entry_ts": "2026-05-28 14:15:00",
+      "exit_ts": "2026-05-28 15:30:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.4261478870984052,
+      "reason": "time",
+      "entry_ts": "2026-05-29 14:55:00",
+      "exit_ts": "2026-05-29 16:10:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.407352771213992,
+      "reason": "time",
+      "entry_ts": "2026-06-02 14:30:00",
+      "exit_ts": "2026-06-02 15:45:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 2.9974535691017197,
+      "reason": "time",
+      "entry_ts": "2026-06-03 03:50:00",
+      "exit_ts": "2026-06-03 05:05:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.44715232877909045,
+      "reason": "time",
+      "entry_ts": "2026-06-03 07:20:00",
+      "exit_ts": "2026-06-03 08:35:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -2.4494137763663413,
+      "reason": "time",
+      "entry_ts": "2026-06-04 00:35:00",
+      "exit_ts": "2026-06-04 01:50:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 3.634336841179768,
+      "reason": "time",
+      "entry_ts": "2026-06-04 02:10:00",
+      "exit_ts": "2026-06-04 03:25:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.907136831787627,
+      "reason": "time",
+      "entry_ts": "2026-06-04 15:10:00",
+      "exit_ts": "2026-06-04 16:25:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.137322848638302,
+      "reason": "time",
+      "entry_ts": "2026-06-04 17:55:00",
+      "exit_ts": "2026-06-04 19:10:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -3.823369787531647,
+      "reason": "time",
+      "entry_ts": "2026-06-05 01:25:00",
+      "exit_ts": "2026-06-05 02:40:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 4.5558203051067805,
+      "reason": "time",
+      "entry_ts": "2026-06-05 04:05:00",
+      "exit_ts": "2026-06-05 05:20:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.10314750092631629,
+      "reason": "time",
+      "entry_ts": "2026-06-05 09:15:00",
+      "exit_ts": "2026-06-05 10:30:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.3897015279443017,
+      "reason": "time",
+      "entry_ts": "2026-06-05 12:40:00",
+      "exit_ts": "2026-06-05 13:55:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.6248046236051015,
+      "reason": "time",
+      "entry_ts": "2026-06-05 14:10:00",
+      "exit_ts": "2026-06-05 15:25:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 3.1371542292174066,
+      "reason": "time",
+      "entry_ts": "2026-06-05 15:50:00",
+      "exit_ts": "2026-06-05 17:05:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.9148798476875611,
+      "reason": "time",
+      "entry_ts": "2026-06-05 19:50:00",
+      "exit_ts": "2026-06-05 21:05:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.6191299804473307,
+      "reason": "time",
+      "entry_ts": "2026-06-06 05:25:00",
+      "exit_ts": "2026-06-06 06:40:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.6405937624950306,
+      "reason": "time",
+      "entry_ts": "2026-06-06 07:15:00",
+      "exit_ts": "2026-06-06 08:30:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.5590987579731488,
+      "reason": "time",
+      "entry_ts": "2026-06-06 13:25:00",
+      "exit_ts": "2026-06-06 14:40:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.0177125411517653,
+      "reason": "time",
+      "entry_ts": "2026-06-07 01:10:00",
+      "exit_ts": "2026-06-07 02:25:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.6217031259785203,
+      "reason": "time",
+      "entry_ts": "2026-06-07 09:05:00",
+      "exit_ts": "2026-06-07 10:20:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.6786500498662085,
+      "reason": "time",
+      "entry_ts": "2026-06-07 22:15:00",
+      "exit_ts": "2026-06-07 23:30:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.193284821993546,
+      "reason": "time",
+      "entry_ts": "2026-06-08 10:35:00",
+      "exit_ts": "2026-06-08 11:50:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.8261987512687452,
+      "reason": "time",
+      "entry_ts": "2026-06-10 12:35:00",
+      "exit_ts": "2026-06-10 13:50:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.26000410646553157,
+      "reason": "time",
+      "entry_ts": "2026-06-11 04:00:00",
+      "exit_ts": "2026-06-11 05:15:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.4775384810104784,
+      "reason": "time",
+      "entry_ts": "2026-06-11 17:30:00",
+      "exit_ts": "2026-06-11 18:45:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.8329885437129546,
+      "reason": "time",
+      "entry_ts": "2026-06-12 14:55:00",
+      "exit_ts": "2026-06-12 16:10:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.07996801279486646,
+      "reason": "time",
+      "entry_ts": "2026-06-12 16:15:00",
+      "exit_ts": "2026-06-12 17:30:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 3.511736142313868,
+      "reason": "time",
+      "entry_ts": "2026-06-14 21:20:00",
+      "exit_ts": "2026-06-14 22:35:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.2272182433751475,
+      "reason": "time",
+      "entry_ts": "2026-06-14 23:50:00",
+      "exit_ts": "2026-06-15 01:05:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.5652575413303376,
+      "reason": "time",
+      "entry_ts": "2026-06-15 10:55:00",
+      "exit_ts": "2026-06-15 12:10:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -2.1237868488967684,
+      "reason": "time",
+      "entry_ts": "2026-06-16 18:05:00",
+      "exit_ts": "2026-06-16 19:20:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.817839018238868,
+      "reason": "time",
+      "entry_ts": "2026-06-19 13:50:00",
+      "exit_ts": "2026-06-19 15:05:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.2645493526726987,
+      "reason": "time",
+      "entry_ts": "2026-06-20 14:50:00",
+      "exit_ts": "2026-06-20 16:05:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.9450765148485856,
+      "reason": "time",
+      "entry_ts": "2026-06-22 01:30:00",
+      "exit_ts": "2026-06-22 02:45:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.6219071693356414,
+      "reason": "time",
+      "entry_ts": "2026-06-24 10:15:00",
+      "exit_ts": "2026-06-24 11:30:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.3507046980404616,
+      "reason": "time",
+      "entry_ts": "2026-06-24 11:50:00",
+      "exit_ts": "2026-06-24 13:05:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.22159810774484362,
+      "reason": "time",
+      "entry_ts": "2026-06-24 16:55:00",
+      "exit_ts": "2026-06-24 18:10:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 2.3074396383400444,
+      "reason": "time",
+      "entry_ts": "2026-06-24 20:05:00",
+      "exit_ts": "2026-06-24 21:20:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.4847757048429993,
+      "reason": "time",
+      "entry_ts": "2026-06-24 22:05:00",
+      "exit_ts": "2026-06-24 23:20:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -3.3206176988663962,
+      "reason": "time",
+      "entry_ts": "2026-06-25 12:35:00",
+      "exit_ts": "2026-06-25 13:50:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 2.0076983615775528,
+      "reason": "time",
+      "entry_ts": "2026-06-25 14:00:00",
+      "exit_ts": "2026-06-25 15:15:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.4152701335572935,
+      "reason": "time",
+      "entry_ts": "2026-06-26 16:05:00",
+      "exit_ts": "2026-06-26 17:20:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.8890370977115213,
+      "reason": "time",
+      "entry_ts": "2026-06-26 20:05:00",
+      "exit_ts": "2026-06-26 21:20:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.6171724858443552,
+      "reason": "time",
+      "entry_ts": "2026-06-26 23:15:00",
+      "exit_ts": "2026-06-27 00:30:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.07996801279487684,
+      "reason": "time",
+      "entry_ts": "2026-06-29 11:35:00",
+      "exit_ts": "2026-06-29 12:50:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.41822133705757997,
+      "reason": "time",
+      "entry_ts": "2026-06-29 17:15:00",
+      "exit_ts": "2026-06-29 18:30:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.1271196219498718,
+      "reason": "time",
+      "entry_ts": "2026-07-01 03:40:00",
+      "exit_ts": "2026-07-01 04:55:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.174810974486625,
+      "reason": "time",
+      "entry_ts": "2026-07-01 12:35:00",
+      "exit_ts": "2026-07-01 13:50:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.11144967300439634,
+      "reason": "time",
+      "entry_ts": "2026-07-01 14:15:00",
+      "exit_ts": "2026-07-01 15:30:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.30731893289198525,
+      "reason": "time",
+      "entry_ts": "2026-07-02 03:30:00",
+      "exit_ts": "2026-07-02 04:45:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.6035645443315248,
+      "reason": "time",
+      "entry_ts": "2026-07-02 12:35:00",
+      "exit_ts": "2026-07-02 13:50:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.2540438370106552,
+      "reason": "time",
+      "entry_ts": "2026-07-02 16:10:00",
+      "exit_ts": "2026-07-02 17:25:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.14241803278690104,
+      "reason": "time",
+      "entry_ts": "2026-07-02 18:55:00",
+      "exit_ts": "2026-07-02 20:10:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.9408175191461784,
+      "reason": "time",
+      "entry_ts": "2026-07-02 23:40:00",
+      "exit_ts": "2026-07-03 00:55:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.123197509986846,
+      "reason": "time",
+      "entry_ts": "2026-07-03 16:05:00",
+      "exit_ts": "2026-07-03 17:20:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.3094753190038036,
+      "reason": "time",
+      "entry_ts": "2026-07-03 18:35:00",
+      "exit_ts": "2026-07-03 19:50:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 4.281182554602478,
+      "reason": "time",
+      "entry_ts": "2026-07-04 14:15:00",
+      "exit_ts": "2026-07-04 15:30:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.3121067362528662,
+      "reason": "time",
+      "entry_ts": "2026-07-04 16:05:00",
+      "exit_ts": "2026-07-04 17:20:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -2.631756511216225,
+      "reason": "time",
+      "entry_ts": "2026-07-04 18:00:00",
+      "exit_ts": "2026-07-04 19:15:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.8062818486312332,
+      "reason": "time",
+      "entry_ts": "2026-07-04 22:00:00",
+      "exit_ts": "2026-07-04 23:15:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.939957529629347,
+      "reason": "time",
+      "entry_ts": "2026-07-06 15:55:00",
+      "exit_ts": "2026-07-06 17:10:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.297777346826921,
+      "reason": "time",
+      "entry_ts": "2026-07-06 18:50:00",
+      "exit_ts": "2026-07-06 20:05:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.45641592663256003,
+      "reason": "time",
+      "entry_ts": "2026-07-06 21:10:00",
+      "exit_ts": "2026-07-06 22:25:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.37895075363031483,
+      "reason": "time",
+      "entry_ts": "2026-07-08 11:45:00",
+      "exit_ts": "2026-07-08 13:00:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.4940830062291221,
+      "reason": "time",
+      "entry_ts": "2026-07-10 01:50:00",
+      "exit_ts": "2026-07-10 03:05:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.02153524555087917,
+      "reason": "time",
+      "entry_ts": "2026-07-11 15:15:00",
+      "exit_ts": "2026-07-11 16:30:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.07996801279488001,
+      "reason": "time",
+      "entry_ts": "2026-07-14 05:10:00",
+      "exit_ts": "2026-07-14 06:25:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.5346502791052905,
+      "reason": "time",
+      "entry_ts": "2026-07-14 12:35:00",
+      "exit_ts": "2026-07-14 13:50:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.9186253556131452,
+      "reason": "time",
+      "entry_ts": "2026-07-14 15:35:00",
+      "exit_ts": "2026-07-14 16:50:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.5256079386427286,
+      "reason": "time",
+      "entry_ts": "2026-07-15 12:35:00",
+      "exit_ts": "2026-07-15 13:50:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.6378341963462691,
+      "reason": "time",
+      "entry_ts": "2026-07-17 10:05:00",
+      "exit_ts": "2026-07-17 11:20:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.3214665795313302,
+      "reason": "time",
+      "entry_ts": "2026-07-17 16:45:00",
+      "exit_ts": "2026-07-17 18:00:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.9850407663021695,
+      "reason": "time",
+      "entry_ts": "2026-07-20 11:50:00",
+      "exit_ts": "2026-07-20 13:05:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.2579728203730168,
+      "reason": "time",
+      "entry_ts": "2026-07-20 18:05:00",
+      "exit_ts": "2026-07-20 19:20:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.479081646221308,
+      "reason": "time",
+      "entry_ts": "2026-07-20 21:35:00",
+      "exit_ts": "2026-07-20 22:50:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.6135197742765326,
+      "reason": "time",
+      "entry_ts": "2026-07-21 03:55:00",
+      "exit_ts": "2026-07-21 05:10:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.5473837862115554,
+      "reason": "time",
+      "entry_ts": "2026-07-21 05:15:00",
+      "exit_ts": "2026-07-21 06:30:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.09310363614369072,
+      "reason": "time",
+      "entry_ts": "2026-07-21 19:35:00",
+      "exit_ts": "2026-07-21 20:50:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.0092348602727512,
+      "reason": "time",
+      "entry_ts": "2026-07-22 13:50:00",
+      "exit_ts": "2026-07-22 15:05:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.30263103672176583,
+      "reason": "time",
+      "entry_ts": "2026-07-22 15:50:00",
+      "exit_ts": "2026-07-22 17:05:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.26043766719680156,
+      "reason": "time",
+      "entry_ts": "2026-07-25 17:50:00",
+      "exit_ts": "2026-07-25 19:05:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.2665183926429435,
+      "reason": "time",
+      "entry_ts": "2026-07-27 14:35:00",
+      "exit_ts": "2026-07-27 15:50:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.0358356657337047,
+      "reason": "time",
+      "entry_ts": "2026-07-27 22:45:00",
+      "exit_ts": "2026-07-28 00:00:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.3038477310739994,
+      "reason": "time",
+      "entry_ts": "2026-07-28 06:25:00",
+      "exit_ts": "2026-07-28 07:40:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.8214895859837941,
+      "reason": "time",
+      "entry_ts": "2026-07-28 22:10:00",
+      "exit_ts": "2026-07-28 23:25:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.46111519291201064,
+      "reason": "time",
+      "entry_ts": "2026-07-29 18:05:00",
+      "exit_ts": "2026-07-29 19:20:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.9736702858399752,
+      "reason": "time",
+      "entry_ts": "2026-07-30 14:35:00",
+      "exit_ts": "2026-07-30 15:50:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 2.093449969754523,
+      "reason": "time",
+      "entry_ts": "2026-08-02 01:05:00",
+      "exit_ts": "2026-08-02 02:20:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.4606492204880381,
+      "reason": "time",
+      "entry_ts": "2026-08-02 04:15:00",
+      "exit_ts": "2026-08-02 05:30:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.18598396185292548,
+      "reason": "time",
+      "entry_ts": "2026-08-02 09:35:00",
+      "exit_ts": "2026-08-02 10:50:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.3943359365114827,
+      "reason": "time",
+      "entry_ts": "2026-08-02 14:20:00",
+      "exit_ts": "2026-08-02 15:35:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.5504422836543726,
+      "reason": "time",
+      "entry_ts": "2026-08-03 13:15:00",
+      "exit_ts": "2026-08-03 14:30:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.099180645853513,
+      "reason": "time",
+      "entry_ts": "2026-08-04 02:55:00",
+      "exit_ts": "2026-08-04 04:10:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.5399579298715232,
+      "reason": "time",
+      "entry_ts": "2026-08-04 07:35:00",
+      "exit_ts": "2026-08-04 08:50:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.23018211235939692,
+      "reason": "time",
+      "entry_ts": "2026-08-05 07:40:00",
+      "exit_ts": "2026-08-05 08:55:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 6.200136194883321,
+      "reason": "time",
+      "entry_ts": "2026-08-06 14:25:00",
+      "exit_ts": "2026-08-06 15:40:00"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -2.0707845893900427,
+      "reason": "time",
+      "entry_ts": "2026-08-06 15:50:00",
+      "exit_ts": "2026-08-06 17:05:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "long",
+      "ret": -4.667135719052565,
+      "reason": "time",
+      "entry_ts": "2026-04-18 00:00:00",
+      "exit_ts": "2026-04-21 00:00:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "long",
+      "ret": -0.005472302505106856,
+      "reason": "time",
+      "entry_ts": "2026-04-22 00:00:00",
+      "exit_ts": "2026-04-25 00:00:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "short",
+      "ret": -1.02720246614555,
+      "reason": "time",
+      "entry_ts": "2026-05-02 00:00:00",
+      "exit_ts": "2026-05-05 00:00:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "short",
+      "ret": 4.69113846153846,
+      "reason": "time",
+      "entry_ts": "2026-05-14 00:00:00",
+      "exit_ts": "2026-05-17 00:00:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "short",
+      "ret": -1.3159016207639125,
+      "reason": "time",
+      "entry_ts": "2026-05-30 00:00:00",
+      "exit_ts": "2026-06-02 00:00:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "short",
+      "ret": 16.595372385960616,
+      "reason": "time",
+      "entry_ts": "2026-06-03 00:00:00",
+      "exit_ts": "2026-06-08 00:00:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "short",
+      "ret": 1.6509494232475597,
+      "reason": "time",
+      "entry_ts": "2026-06-09 00:00:00",
+      "exit_ts": "2026-06-12 00:00:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "short",
+      "ret": -1.7296950840074654,
+      "reason": "time",
+      "entry_ts": "2026-06-28 00:00:00",
+      "exit_ts": "2026-07-01 00:00:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "short",
+      "ret": -4.584953467427196,
+      "reason": "time",
+      "entry_ts": "2026-07-02 00:00:00",
+      "exit_ts": "2026-07-05 00:00:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "long",
+      "ret": -4.352717710243289,
+      "reason": "time",
+      "entry_ts": "2026-07-11 00:00:00",
+      "exit_ts": "2026-07-14 00:00:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "long",
+      "ret": -1.9413695028694773,
+      "reason": "time",
+      "entry_ts": "2026-07-15 00:00:00",
+      "exit_ts": "2026-07-18 00:00:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "long",
+      "ret": -0.14079286866898758,
+      "reason": "time",
+      "entry_ts": "2026-07-19 00:00:00",
+      "exit_ts": "2026-07-22 00:00:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "long",
+      "ret": 2.2437536613261604,
+      "reason": "time",
+      "entry_ts": "2026-07-23 00:00:00",
+      "exit_ts": "2026-07-26 00:00:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "long",
+      "ret": -4.762561829783881,
+      "reason": "time",
+      "entry_ts": "2026-07-27 00:00:00",
+      "exit_ts": "2026-07-30 00:00:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "short",
+      "ret": -3.026040100250622,
+      "reason": "time",
+      "entry_ts": "2026-08-01 00:00:00",
+      "exit_ts": "2026-08-04 00:00:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_stablecoin_supply_flow",
+      "side": "long",
+      "ret": -1.8667513557475317,
+      "reason": "eod",
+      "entry_ts": "2026-08-11 00:00:00",
+      "exit_ts": "2026-08-12 00:00:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.20533664706706892,
+      "reason": "time",
+      "entry_ts": "2026-04-16 03:45:00",
+      "exit_ts": "2026-04-16 05:00:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.6210015993602702,
+      "reason": "time",
+      "entry_ts": "2026-04-16 14:00:00",
+      "exit_ts": "2026-04-16 15:15:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.3970434422736582,
+      "reason": "time",
+      "entry_ts": "2026-04-16 15:40:00",
+      "exit_ts": "2026-04-16 16:55:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.45903313073305235,
+      "reason": "time",
+      "entry_ts": "2026-04-21 20:10:00",
+      "exit_ts": "2026-04-21 21:25:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.4868870156363365,
+      "reason": "time",
+      "entry_ts": "2026-04-23 00:20:00",
+      "exit_ts": "2026-04-23 01:35:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.199243145932068,
+      "reason": "time",
+      "entry_ts": "2026-05-02 21:40:00",
+      "exit_ts": "2026-05-02 22:55:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.23027382526698037,
+      "reason": "time",
+      "entry_ts": "2026-05-03 09:35:00",
+      "exit_ts": "2026-05-03 10:50:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.34150847042923665,
+      "reason": "time",
+      "entry_ts": "2026-05-10 08:05:00",
+      "exit_ts": "2026-05-10 09:20:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.2646430507876314,
+      "reason": "time",
+      "entry_ts": "2026-05-17 23:45:00",
+      "exit_ts": "2026-05-18 01:00:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.46634162081479025,
+      "reason": "time",
+      "entry_ts": "2026-05-18 19:05:00",
+      "exit_ts": "2026-05-18 20:20:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.46538761544560237,
+      "reason": "time",
+      "entry_ts": "2026-05-20 15:20:00",
+      "exit_ts": "2026-05-20 16:35:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.03596072382143647,
+      "reason": "time",
+      "entry_ts": "2026-05-21 17:25:00",
+      "exit_ts": "2026-05-21 18:40:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.4280040792671652,
+      "reason": "time",
+      "entry_ts": "2026-05-23 07:55:00",
+      "exit_ts": "2026-05-23 09:10:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.05884103700732852,
+      "reason": "time",
+      "entry_ts": "2026-05-23 20:40:00",
+      "exit_ts": "2026-05-23 21:55:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.36194123772771775,
+      "reason": "time",
+      "entry_ts": "2026-05-28 14:15:00",
+      "exit_ts": "2026-05-28 15:30:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.2783689841333374,
+      "reason": "time",
+      "entry_ts": "2026-05-29 15:30:00",
+      "exit_ts": "2026-05-29 16:45:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.4441827324201824,
+      "reason": "time",
+      "entry_ts": "2026-06-01 14:00:00",
+      "exit_ts": "2026-06-01 15:15:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.6388811381922251,
+      "reason": "time",
+      "entry_ts": "2026-06-01 15:35:00",
+      "exit_ts": "2026-06-01 16:50:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.6367885141990228,
+      "reason": "time",
+      "entry_ts": "2026-06-02 15:35:00",
+      "exit_ts": "2026-06-02 16:50:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.199480808513838,
+      "reason": "time",
+      "entry_ts": "2026-06-02 23:35:00",
+      "exit_ts": "2026-06-03 00:50:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.790274991568266,
+      "reason": "time",
+      "entry_ts": "2026-06-06 05:25:00",
+      "exit_ts": "2026-06-06 06:40:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.666354734701881,
+      "reason": "time",
+      "entry_ts": "2026-06-06 07:10:00",
+      "exit_ts": "2026-06-06 08:25:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.3904164033454329,
+      "reason": "time",
+      "entry_ts": "2026-06-07 01:10:00",
+      "exit_ts": "2026-06-07 02:25:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.2848732365255293,
+      "reason": "time",
+      "entry_ts": "2026-06-07 22:15:00",
+      "exit_ts": "2026-06-07 23:30:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.6412592857593867,
+      "reason": "time",
+      "entry_ts": "2026-06-08 09:40:00",
+      "exit_ts": "2026-06-08 10:55:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.6182540364763963,
+      "reason": "time",
+      "entry_ts": "2026-06-09 04:35:00",
+      "exit_ts": "2026-06-09 05:50:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.1524855567138261,
+      "reason": "time",
+      "entry_ts": "2026-06-10 12:35:00",
+      "exit_ts": "2026-06-10 13:50:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.2315457312220597,
+      "reason": "time",
+      "entry_ts": "2026-06-11 04:00:00",
+      "exit_ts": "2026-06-11 05:15:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.3194296037103541,
+      "reason": "time",
+      "entry_ts": "2026-06-11 17:30:00",
+      "exit_ts": "2026-06-11 18:45:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.1715816516853255,
+      "reason": "time",
+      "entry_ts": "2026-06-11 19:35:00",
+      "exit_ts": "2026-06-11 20:50:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.5504835759043651,
+      "reason": "time",
+      "entry_ts": "2026-06-12 14:55:00",
+      "exit_ts": "2026-06-12 16:10:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.10206331919943362,
+      "reason": "time",
+      "entry_ts": "2026-06-12 16:15:00",
+      "exit_ts": "2026-06-12 17:30:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 2.079314370736273,
+      "reason": "time",
+      "entry_ts": "2026-06-14 21:20:00",
+      "exit_ts": "2026-06-14 22:35:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.1507185981912214,
+      "reason": "time",
+      "entry_ts": "2026-06-15 10:55:00",
+      "exit_ts": "2026-06-15 12:10:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.7474558825903108,
+      "reason": "time",
+      "entry_ts": "2026-06-16 18:05:00",
+      "exit_ts": "2026-06-16 19:20:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.3176833609313208,
+      "reason": "time",
+      "entry_ts": "2026-06-17 18:10:00",
+      "exit_ts": "2026-06-17 19:25:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.20610810868908575,
+      "reason": "time",
+      "entry_ts": "2026-06-18 17:30:00",
+      "exit_ts": "2026-06-18 18:45:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.6564226585815248,
+      "reason": "time",
+      "entry_ts": "2026-06-19 12:55:00",
+      "exit_ts": "2026-06-19 14:10:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.4397282911930505,
+      "reason": "time",
+      "entry_ts": "2026-06-19 18:45:00",
+      "exit_ts": "2026-06-19 20:00:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 3.3876072212624573,
+      "reason": "time",
+      "entry_ts": "2026-06-20 07:00:00",
+      "exit_ts": "2026-06-20 08:15:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.609135656082391,
+      "reason": "time",
+      "entry_ts": "2026-06-20 13:35:00",
+      "exit_ts": "2026-06-20 14:50:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.4267483730596646,
+      "reason": "time",
+      "entry_ts": "2026-06-21 14:25:00",
+      "exit_ts": "2026-06-21 15:40:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.7935692569504345,
+      "reason": "time",
+      "entry_ts": "2026-06-22 01:30:00",
+      "exit_ts": "2026-06-22 02:45:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.09519060901537499,
+      "reason": "time",
+      "entry_ts": "2026-06-22 06:10:00",
+      "exit_ts": "2026-06-22 07:25:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.7160806805385015,
+      "reason": "time",
+      "entry_ts": "2026-06-23 13:35:00",
+      "exit_ts": "2026-06-23 14:50:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.3282550933656656,
+      "reason": "time",
+      "entry_ts": "2026-06-23 20:10:00",
+      "exit_ts": "2026-06-23 21:25:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.5292016197687057,
+      "reason": "time",
+      "entry_ts": "2026-06-24 11:50:00",
+      "exit_ts": "2026-06-24 13:05:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.4098407799276148,
+      "reason": "time",
+      "entry_ts": "2026-06-24 13:20:00",
+      "exit_ts": "2026-06-24 14:35:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.7385267211260134,
+      "reason": "time",
+      "entry_ts": "2026-06-24 16:55:00",
+      "exit_ts": "2026-06-24 18:10:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 2.5057032014947622,
+      "reason": "time",
+      "entry_ts": "2026-06-24 20:05:00",
+      "exit_ts": "2026-06-24 21:20:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -4.138585153346849,
+      "reason": "time",
+      "entry_ts": "2026-06-25 12:35:00",
+      "exit_ts": "2026-06-25 13:50:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.4420813529292267,
+      "reason": "time",
+      "entry_ts": "2026-06-25 14:00:00",
+      "exit_ts": "2026-06-25 15:15:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.4986923436430129,
+      "reason": "time",
+      "entry_ts": "2026-06-26 16:05:00",
+      "exit_ts": "2026-06-26 17:20:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.7749295953951952,
+      "reason": "time",
+      "entry_ts": "2026-06-26 17:25:00",
+      "exit_ts": "2026-06-26 18:40:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.5149432764207839,
+      "reason": "time",
+      "entry_ts": "2026-06-26 19:10:00",
+      "exit_ts": "2026-06-26 20:25:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 2.045329981654296,
+      "reason": "time",
+      "entry_ts": "2026-06-26 22:35:00",
+      "exit_ts": "2026-06-26 23:50:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -1.4516263188494174,
+      "reason": "time",
+      "entry_ts": "2026-06-27 00:00:00",
+      "exit_ts": "2026-06-27 01:15:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.4581457154021336,
+      "reason": "time",
+      "entry_ts": "2026-06-27 11:40:00",
+      "exit_ts": "2026-06-27 12:55:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.5158921161980735,
+      "reason": "time",
+      "entry_ts": "2026-06-28 22:05:00",
+      "exit_ts": "2026-06-28 23:20:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.3446428379627082,
+      "reason": "time",
+      "entry_ts": "2026-06-29 04:55:00",
+      "exit_ts": "2026-06-29 06:10:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -2.126468892185977,
+      "reason": "time",
+      "entry_ts": "2026-06-29 12:15:00",
+      "exit_ts": "2026-06-29 13:30:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.22799768981295226,
+      "reason": "time",
+      "entry_ts": "2026-06-29 17:10:00",
+      "exit_ts": "2026-06-29 18:25:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.25799925018856196,
+      "reason": "time",
+      "entry_ts": "2026-07-01 15:25:00",
+      "exit_ts": "2026-07-01 16:40:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.32341728380422313,
+      "reason": "time",
+      "entry_ts": "2026-07-02 03:30:00",
+      "exit_ts": "2026-07-02 04:45:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.32290859399946514,
+      "reason": "time",
+      "entry_ts": "2026-07-04 15:10:00",
+      "exit_ts": "2026-07-04 16:25:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.10982748922640537,
+      "reason": "time",
+      "entry_ts": "2026-07-05 10:55:00",
+      "exit_ts": "2026-07-05 12:10:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.6048176981336887,
+      "reason": "time",
+      "entry_ts": "2026-07-06 21:10:00",
+      "exit_ts": "2026-07-06 22:25:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.6390480798665781,
+      "reason": "time",
+      "entry_ts": "2026-07-08 11:45:00",
+      "exit_ts": "2026-07-08 13:00:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.8133260457284892,
+      "reason": "time",
+      "entry_ts": "2026-07-09 01:10:00",
+      "exit_ts": "2026-07-09 02:25:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.29175829668134384,
+      "reason": "time",
+      "entry_ts": "2026-07-09 06:40:00",
+      "exit_ts": "2026-07-09 07:55:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.359526341134867,
+      "reason": "time",
+      "entry_ts": "2026-07-10 01:50:00",
+      "exit_ts": "2026-07-10 03:05:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.3959331753822029,
+      "reason": "time",
+      "entry_ts": "2026-07-13 09:05:00",
+      "exit_ts": "2026-07-13 10:20:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 1.962350145234673,
+      "reason": "time",
+      "entry_ts": "2026-07-14 12:35:00",
+      "exit_ts": "2026-07-14 13:50:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.92637042374312,
+      "reason": "time",
+      "entry_ts": "2026-07-15 00:05:00",
+      "exit_ts": "2026-07-15 01:20:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 2.085095813584156,
+      "reason": "time",
+      "entry_ts": "2026-07-25 13:45:00",
+      "exit_ts": "2026-07-25 15:00:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.43190197177120965,
+      "reason": "time",
+      "entry_ts": "2026-07-25 16:05:00",
+      "exit_ts": "2026-07-25 17:20:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.4669315705670495,
+      "reason": "time",
+      "entry_ts": "2026-07-25 21:10:00",
+      "exit_ts": "2026-07-25 22:25:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.128384749764087,
+      "reason": "time",
+      "entry_ts": "2026-07-26 22:05:00",
+      "exit_ts": "2026-07-26 23:20:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.928159886568323,
+      "reason": "time",
+      "entry_ts": "2026-07-27 14:35:00",
+      "exit_ts": "2026-07-27 15:50:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.6359372788751351,
+      "reason": "time",
+      "entry_ts": "2026-07-29 18:05:00",
+      "exit_ts": "2026-07-29 19:20:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.8598186741563599,
+      "reason": "time",
+      "entry_ts": "2026-08-02 02:10:00",
+      "exit_ts": "2026-08-02 03:25:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 0.65428819286738,
+      "reason": "time",
+      "entry_ts": "2026-08-02 04:55:00",
+      "exit_ts": "2026-08-02 06:10:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": 2.5180413873747556,
+      "reason": "time",
+      "entry_ts": "2026-08-04 01:35:00",
+      "exit_ts": "2026-08-04 02:50:00"
+    },
+    {
+      "symbol": "AVAXUSDT",
+      "source": "bn_alt_volume_burst_pos_continuation_long",
+      "side": "long",
+      "ret": -0.4532101556264667,
+      "reason": "time",
+      "entry_ts": "2026-08-12 12:30:00",
+      "exit_ts": "2026-08-12 13:45:00"
+    }
+  ]
+}
