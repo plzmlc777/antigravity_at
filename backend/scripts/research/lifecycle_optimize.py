@@ -80,6 +80,19 @@ AXIS_ALIAS = {
     "window": "source.entry_window_days",
 }
 
+# 별칭과 정식 경로를 **같은 축**으로 본다.
+#
+# 2026-08-14: `--axis policy.sl_pct=...` 를 주면 기본 축 `sl` 이 그대로 남아
+# 두 축이 **같은 스펙 경로에 두 번** 쓰였다. 조합이 3배로 불어나고(120 → 360)
+# `sl` 열은 뒤에 쓰인 값에 덮여 의미를 잃는다. 축 이름을 정규화해 막는다.
+ALIAS_OF = {v: k for k, v in AXIS_ALIAS.items()}
+
+
+def canon_axis(name: str) -> str:
+    """`policy.sl_pct` → `sl`. 별칭이 없으면 그대로."""
+    return ALIAS_OF.get(name, name)
+
+
 def alias_value(axis: str, v):
     """별칭 축의 값 변환. `tp=30` 은 30% 를 뜻하므로 0.30 으로, `none` 은
     1.0(=tp_price 0.0, 커널이 비활성으로 읽음)으로 바꾼다."""
@@ -144,7 +157,10 @@ def run_combo(sym: str, ld, kw: dict, bars_daily):
     for ax, v in kw.items():
         if ax == "variant":
             continue
-        inject[AXIS_ALIAS.get(ax, ax)] = alias_value(ax, v)
+        path = AXIS_ALIAS.get(ax, ax)
+        if path in inject:           # 정규화가 뚫렸다면 여기서 잡는다
+            raise SystemExit(f"축 충돌 — `{path}` 에 두 축이 쓰려 한다: {sorted(kw)}")
+        inject[path] = alias_value(ax, v)
     ps = apply_all(spec["pipeline_spec"], inject)
 
     ctx = SourceContext(symbol=sym,
@@ -212,7 +228,7 @@ def main() -> int:
     for spec in a.axis:
         from research.sweep_engine import parse_axis
         k, v = parse_axis(spec)
-        axes[k] = v
+        axes[canon_axis(k)] = v      # 별칭 정규화 — 같은 경로에 두 번 쓰지 않는다
     for v in axes.get("variant", []):
         if v not in VARIANT_SPEC:
             raise SystemExit(f"모르는 변형: {v}. 가능: {sorted(VARIANT_SPEC)}")
