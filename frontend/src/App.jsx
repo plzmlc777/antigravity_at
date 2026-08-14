@@ -9,6 +9,7 @@ import KnowledgeBase from './views/KnowledgeBase';
 import Audition from './views/Audition';
 import Workflow from './views/Workflow';
 import Calibration from './views/Calibration';
+import ParamSweepHeatmap from './components/ParamSweepHeatmap';
 import ManualTrading from './views/ManualTrading';
 import StatusCard from './components/StatusCard';
 import KpiGoalHeader from './components/KpiGoalHeader';
@@ -126,6 +127,7 @@ function AppContent() {
                     <Route path="/audition" element={<Audition />} />
                     <Route path="/workflow" element={<Workflow />} />
                     <Route path="/calibration" element={<Calibration />} />
+                    <Route path="/sweep" element={<ParamSweepHeatmap />} />
                     <Route path="/manual" element={<RequireAuth><ManualTrading /></RequireAuth>} />
                     <Route path="/settings" element={<RequireAuth><Settings /></RequireAuth>} />
                     <Route path="/admin" element={<RequireAdmin><AdminView /></RequireAdmin>} />

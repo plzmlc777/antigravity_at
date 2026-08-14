@@ -140,11 +140,18 @@ def grid(path: str | Path, *, x: str, y: str, metric: str,
     xs = sorted({r.get(x) for r in recs}, key=lambda v: (v is None, _num(v), str(v)))
     ys = sorted({r.get(y) for r in recs}, key=lambda v: (v is None, _num(v), str(v)))
     cells: list[list] = [[None] * len(xs) for _ in ys]
+    # 셀별 **전체 지표**. 툴팁이 t·n·se 를 항상 숫자로 보여야 하기 때문이다(§7) —
+    # 색만으로 판단하지 않게 하는 것이 요구사항이고, 지표 하나만 내보내면
+    # 프론트가 그걸 못 지킨다.
+    records: list[list] = [[None] * len(xs) for _ in ys]
     for r in recs:
         v = r.get(metric)
         if v is None:
             continue
         i, j = ys.index(r.get(y)), xs.index(r.get(x))
+        if records[i][j] is None:
+            records[i][j] = {k: r.get(k) for k in r
+                             if not isinstance(r.get(k), (dict, list))}
         cur = cells[i][j]
         if cur is None:
             cells[i][j] = v
@@ -159,7 +166,7 @@ def grid(path: str | Path, *, x: str, y: str, metric: str,
 
     return {
         "x": x, "y": y, "metric": metric, "metric_kind": metric_kind(metric),
-        "x_values": xs, "y_values": ys, "cells": cells,
+        "x_values": xs, "y_values": ys, "cells": cells, "records": records,
         "agg": agg, "split": split, "fix": fix or {},
         # 결측과 정확히 0 은 다르다 — 발산 램프에서 둘 다 중립색이라
         # 프론트가 반드시 구분해 그려야 한다 (설계 §10.3)
