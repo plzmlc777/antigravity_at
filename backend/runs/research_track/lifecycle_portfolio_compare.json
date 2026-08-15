@@ -1,0 +1,109 @@
+{
+  "params": {
+    "cap": 0.2,
+    "out": "/home/mint/auto_trading/backend/runs/research_track/lifecycle_portfolio_compare.json"
+  },
+  "results": {
+    "종전 실거래  SL50/익절없음/d7": {
+      "sl": 0.5,
+      "tp": null,
+      "check_day": 7,
+      "n_listings": 124,
+      "taken": 96,
+      "starved": 28,
+      "capture_pct": 77.41935483870968,
+      "final_equity": 303.6195880941958,
+      "total_pnl": -289.8204119058043,
+      "mdd_pct": -61.204803861368795,
+      "worst_trade": -61.895080602715694,
+      "best_trade": 50.55737300584584,
+      "win_pct": 51.041666666666664,
+      "exit_reasons": {
+        "early": 43,
+        "sl": 35,
+        "time": 18
+      }
+    },
+    "신규 커밋    SL20/익절50/d7": {
+      "sl": 0.2,
+      "tp": 0.5,
+      "check_day": 7,
+      "n_listings": 124,
+      "taken": 116,
+      "starved": 8,
+      "capture_pct": 93.54838709677419,
+      "final_equity": 905.4285937203744,
+      "total_pnl": 311.9885937203746,
+      "mdd_pct": -51.899667401334895,
+      "worst_trade": -42.429310483891804,
+      "best_trade": 96.63811574349269,
+      "win_pct": 40.51724137931034,
+      "exit_reasons": {
+        "early": 28,
+        "sl": 64,
+        "tp": 20,
+        "time": 4
+      }
+    },
+    "신규+base    SL20/익절50/없음": {
+      "sl": 0.2,
+      "tp": 0.5,
+      "check_day": null,
+      "n_listings": 124,
+      "taken": 105,
+      "starved": 19,
+      "capture_pct": 84.6774193548387,
+      "final_equity": 1127.1779888550368,
+      "total_pnl": 533.7379888550373,
+      "mdd_pct": -43.75586598547233,
+      "worst_trade": -62.430547740497005,
+      "best_trade": 124.58935574788119,
+      "win_pct": 39.04761904761905,
+      "exit_reasons": {
+        "sl": 63,
+        "tp": 36,
+        "time": 6
+      }
+    },
+    "base 종전    SL50/익절없음/없음": {
+      "sl": 0.5,
+      "tp": null,
+      "check_day": null,
+      "n_listings": 124,
+      "taken": 75,
+      "starved": 49,
+      "capture_pct": 60.483870967741936,
+      "final_equity": 334.0882633182319,
+      "total_pnl": -259.351736681768,
+      "mdd_pct": -49.49003205422113,
+      "worst_trade": -59.43895040000001,
+      "best_trade": 72.20403259103362,
+      "win_pct": 46.666666666666664,
+      "exit_reasons": {
+        "sl": 37,
+        "time": 38
+      }
+    },
+    "신규+d14     SL20/익절50/d14": {
+      "sl": 0.2,
+      "tp": 0.5,
+      "check_day": 14,
+      "n_listings": 124,
+      "taken": 114,
+      "starved": 10,
+      "capture_pct": 91.93548387096774,
+      "final_equity": 1170.4748574692317,
+      "total_pnl": 577.034857469232,
+      "mdd_pct": -35.56460576064093,
+      "worst_trade": -59.00354626979143,
+      "best_trade": 125.42856539488989,
+      "win_pct": 39.473684210526315,
+      "exit_reasons": {
+        "sl": 67,
+        "tp": 31,
+        "early": 12,
+        "time": 4
+      }
+    }
+  }
+}
