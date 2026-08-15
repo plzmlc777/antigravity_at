@@ -657,7 +657,26 @@ class LiveTradingEngine:
         Save 1-minute candle to OHLCV table.
         """
         with db_scope(commit=True) as db:
+            # ⚠ DB 는 **UTC** 로 저장한다 (2026-08-15 수정)
+            #
+            # `_update_internals` 가 틱 시각을 KST 로 정규화한다 — 원래 의도는
+            # "차트 표시를 시간대에 관계없이 일관되게" 였고 프론트엔드에는 그게
+            # 맞다. 그런데 그 KST **벽시계**가 캔들 라벨을 거쳐 naive TIMESTAMP
+            # 컬럼에 그대로 들어갔다. 컬럼을 UTC 로 읽는 나머지 전부(백테스트·
+            # 정본 세션·아카이브 대조)와 **9시간 어긋난다.**
+            #
+            # 실측(2026-08-15): 신상저격수 15종목 1분봉 **983,903행**이 밀려
+            # 있었다. 봉 개수 1,440 · 타임스탬프 00:00~23:59 · 값도 진짜 가격이라
+            # 고장 신호가 하나도 없었다. 아카이브와 대조해서야 잡혔다
+            # (오프셋 -540분 일치 88.1%).
+            #
+            # 여기서만 고친다 — `now` 자체를 UTC 로 바꾸면 프론트엔드 표시와
+            # KR 장시간 로직(`context.current_timestamp`)까지 흔든다.
+            # KST 오프셋은 정확히 9시간이라 **분 경계가 같다**. 즉 버킷 집계는
+            # 그대로이고 **라벨만** 옮기면 된다.
             timestamp = datetime.fromisoformat(candle['timestamp'])
+            if timestamp.tzinfo is not None:
+                timestamp = timestamp.astimezone(timezone.utc).replace(tzinfo=None)
 
             # Check exist (Upsert)
             existing = db.query(OHLCV).filter(
