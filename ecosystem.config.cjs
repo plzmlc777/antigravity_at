@@ -220,6 +220,29 @@ const agentApps = [
         restart_delay: 5000
     },
     {
+        // 신상저격수 **1시간 사이클** — 페이퍼 전용 (2026-08-15 신설).
+        //
+        // 정본을 1h 로 평가하려면 시간마다 돌아야 한다. 일봉 사이클(하루 1회)
+        // 로는 1h 세션이 하루 한 번만 전진해 해상도가 무의미해진다.
+        //
+        // ⚠ 실거래를 건드리지 않는다 — `lifecycle_live_signal_driver.py` 를
+        //    부르지 않는다. 실거래는 일봉 사이클이 계속 담당한다.
+        //
+        // 하는 일: ① 1h 봉 수집(REST, **마감된 봉만**) ② 이름에 `_1h` 가 든
+        // 활성 세션만 골라 실행. 1h 세션이 없으면 수집만 하고 정상 종료한다.
+        //
+        // ⚠ PM2 크론은 **UTC** 로 스케줄한다(시스템 TZ 가 KST 여도).
+        //    매시 05분이면 직전 봉이 마감된 직후다.
+        name: "lifecycle-1h-cycle",
+        script: SAS_WRAPPER,
+        args: `'5 * * * *' ./backend/scripts/binance/run_lifecycle_1h_cycle.sh`,
+        interpreter: "bash",
+        cwd: ".",
+        autorestart: true,
+        max_restarts: 10,
+        restart_delay: 5000
+    },
+    {
         // 텔레그램 Q&A 봇 — 리포트 그룹에서 @coinAtsProject_bot 멘션/답장 질문에
         // 즉답 (참가자 전원, 조회 전용, 도구 전면 차단 + 사전수집 컨텍스트).
         // 상주 long-polling 데몬 (cron 아님). 2026-07-11 구축.
