@@ -212,9 +212,25 @@ def main() -> int:
     #   해상도 효과만 분리하려면 일봉판과 **같은 48h** 로 맞춰야 한다.
     p.add_argument("--entry-offset-h", type=int, default=48)
     p.add_argument("--only", default="", help="쉼표 구분 종목 제한")
+    p.add_argument("--grid", action="store_true", help="손절×익절 격자")
+    p.add_argument("--grid-sl", default="0.08,0.10,0.15,0.20,0.30,0.50")
+    p.add_argument("--grid-tp", default="none,0.30,0.50")
     p.add_argument("--splits", type=int, default=3)
     p.add_argument("--out", default=str(OUT))
     a = p.parse_args()
+
+
+    # ⚠ 격자 모드 — 같은 코호트·같은 진입 시각에서 손절×익절을 훑는다.
+    #   "최고순익" 비교는 **포트폴리오**로 해야 한다(거래당 ≠ 포트폴리오).
+    if a.grid:
+        sls = [float(x) for x in a.grid_sl.split(",")]
+        tps = [None if x.strip().lower() == "none" else float(x)
+               for x in a.grid_tp.split(",")]
+        CONFIGS.clear()
+        for sl in sls:
+            for tp in tps:
+                lab = f"SL{sl:.0%}/{'없음' if tp is None else f'TP{tp:.0%}'}/d7"
+                CONFIGS.append((lab, sl, tp, 7))
 
     from app.db.session import engine
     with engine.connect() as conn:

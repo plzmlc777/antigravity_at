@@ -11,9 +11,13 @@
 #     패턴 매칭으로 프로세스 생사를 판정하지 마라. **작업이 스스로 완료를
 #     남기게** 하고 그 표식만 본다.
 #
-# ⚠ 명령은 **서브셸** `( ... )` 로 감싼다 — `{ ... }` 로 감싸면 명령 안의
-#   `exit` 가 래퍼까지 죽여 완료 표식을 못 남긴다(자체 시험에서 걸렸다:
-#   `exit 3` 짜리 작업이 영원히 '진행 중'으로 남았다).
+# 만들면서 자체 시험에 세 번 더 걸렸다 — 전부 조용히 실패하는 종류다:
+#   ① `{ ... }` 로 감싸면 명령 안의 `exit` 가 래퍼까지 죽여 완료 표식을
+#      못 남긴다 → **서브셸** `( ... )` 로 감싼다
+#   ② `sh` 는 민트에서 dash 라 `source` 가 없어 **rc=127** 로 죽는다
+#      → `bash` 로 실행한다
+#   ③ 명령에 작은따옴표가 들어가면 `bash -c '...'` 인용이 깨진다
+#      → **base64 로 감싸** 인용 문제를 원천 차단한다
 #
 # 사용:
 #   source scripts/lib/remote_job.sh
@@ -26,22 +30,24 @@ REMOTE_STATE_DIR=${REMOTE_STATE_DIR:-/tmp/remote_jobs}
 
 # remote_launch <host> <workdir> <name> <command>
 remote_launch() {
-    local host=$1 wd=$2 name=$3 cmd=$4
-    ssh -o ConnectTimeout=30 "$host" "mkdir -p $REMOTE_STATE_DIR && \
-        rm -f $REMOTE_STATE_DIR/$name.done $REMOTE_STATE_DIR/$name.rc && \
-        cd $wd && nohup sh -c '( $cmd ) > $REMOTE_STATE_DIR/$name.log 2>&1; \
-        echo \$? > $REMOTE_STATE_DIR/$name.rc; \
-        touch $REMOTE_STATE_DIR/$name.done' > /dev/null 2>&1 &
-        sleep 1; echo launched:$name"
+    local host=$1 wd=$2 name=$3 cmd=$4 b64
+    # ⚠ base64 — 명령 안의 따옴표·개행이 인용을 깨뜨리지 못하게 한다
+    b64=$(printf '%s' "$cmd" | base64 -w0)
+    ssh -o ConnectTimeout=30 "$host" \
+        "D=$REMOTE_STATE_DIR; N=$name; mkdir -p \$D; \
+         rm -f \$D/\$N.done \$D/\$N.rc; cd $wd || exit 1; \
+         echo $b64 | base64 -d > \$D/\$N.cmd; \
+         nohup bash -c '( bash '\$D'/'\$N'.cmd ) > '\$D'/'\$N'.log 2>&1; \
+           echo \$? > '\$D'/'\$N'.rc; touch '\$D'/'\$N'.done' >/dev/null 2>&1 & \
+         sleep 1; echo launched:$name"
 }
 
 # remote_wait <host> <name> [max_polls] — 완료 표식만 본다(패턴 매칭 없음)
 remote_wait() {
-    local host=$1 name=$2 max=${3:-240} i
+    local host=$1 name=$2 max=${3:-240} i rc
     for ((i = 0; i < max; i++)); do
         if ssh -o ConnectTimeout=20 "$host" \
                "test -f $REMOTE_STATE_DIR/$name.done" 2>/dev/null; then
-            local rc
             rc=$(ssh -o ConnectTimeout=20 "$host" \
                  "cat $REMOTE_STATE_DIR/$name.rc 2>/dev/null" || echo "?")
             echo "done:$name rc=$rc"

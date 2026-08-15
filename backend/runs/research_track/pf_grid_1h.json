@@ -1,0 +1,369 @@
+{
+  "params": {
+    "cap": 0.2,
+    "since": "2025-01-01",
+    "entry_offset_h": 48,
+    "only": "0GUSDT,2ZUSDT,4USDT,ACUUSDT,AIAUSDT,AIGENSYNUSDT,AKEUSDT,ALLOUSDT,APRUSDT,ARIAUSDT,ASTERUSDT,ATUSDT,AVNTUSDT,AZTECUSDT,BARDUSDT,BASEDUSDT,BASUSDT,BEATUSDT,BILLUSDT,BIRBUSDT,BLESSUSDT,BLUAIUSDT,BREVUSDT,BSBUSDT,BTRUSDT,BTWUSDT,CAPUSDT,CCUSDT,CFGUSDT,CHIPUSDT,CLANKERUSDT,CLOUSDT,COAIUSDT,COLLECTUSDT,CYSUSDT,EDENUSDT,EDGEUSDT,ELSAUSDT,ENSOUSDT,ESPUSDT,EULUSDT,EVAAUSDT,FFUSDT,FIGHTUSDT,FLOCKUSDT,FLUIDUSDT,FOGOUSDT,FOLKSUSDT,FRAXUSDT,GIGGLEUSDT,GUAUSDT,GWEIUSDT,HANAUSDT,HEMIUSDT,HOLOUSDT,INXUSDT,IRYSUSDT,JCTUSDT,KATUSDT,KGENUSDT,KITEUSDT,LABUSDT,LIGHTUSDT,LINEAUSDT,LITUSDT,LYNUSDT,MAGMAUSDT,MANTRAUSDT,MEGAUSDT,METUSDT,MIRAUSDT,MITOUSDT,MMTUSDT,MONUSDT,NIGHTUSDT,NOMUSDT,ONUSDT,OPENUSDT,OPNUSDT,ORDERUSDT,OUSDT,PIEVERSEUSDT,POWERUSDT,PRLUSDT,PTBUSDT,QUSDT,RAVEUSDT,RECALLUSDT,REUSDT,RIVERUSDT,ROBOUSDT,SAPIENUSDT,SENTUSDT,SKRUSDT,SKYUSDT,SLXUSDT,SOMIUSDT,SPACEUSDT,SPORTFUNUSDT,STABLEUSDT,STBLUSDT,TAKEUSDT,TOSHIUSDT,TRADOORUSDT,TRIAUSDT,TRUSTUSDT,TRUTHUSDT,TURTLEUSDT,UAIUSDT,UBUSDT,USELESSUSDT,USUSDT,WETUSDT,WLFIUSDT,XANUSDT,XAUTUSDT,XPINUSDT,XPLUSDT,YBUSDT,ZAMAUSDT,ZBTUSDT,ZKCUSDT,ZKPUSDT,龙虾USDT",
+    "grid": true,
+    "grid_sl": "0.08,0.10,0.15,0.20,0.30,0.50",
+    "grid_tp": "none,0.30,0.50",
+    "splits": 1,
+    "out": "runs/research_track/pf_grid_1h.json"
+  },
+  "results": {
+    "SL8%/없음/d7": {
+      "sl": 0.08,
+      "tp": null,
+      "check_day": 7,
+      "n_listings": 123,
+      "taken": 118,
+      "starved": 5,
+      "capture_pct": 95.9349593495935,
+      "final_equity": 610.3611222736519,
+      "total_pnl": 17.243913808941986,
+      "mdd_pct": -27.524518434465918,
+      "worst_trade": -12.664129570473655,
+      "win_pct": 19.491525423728813,
+      "exit_reasons": {
+        "early": 16,
+        "sl": 93,
+        "time": 8
+      }
+    },
+    "SL8%/TP30%/d7": {
+      "sl": 0.08,
+      "tp": 0.3,
+      "check_day": 7,
+      "n_listings": 123,
+      "taken": 123,
+      "starved": 0,
+      "capture_pct": 100.0,
+      "final_equity": 529.6733336721666,
+      "total_pnl": -63.48654680131305,
+      "mdd_pct": -31.912340274878293,
+      "worst_trade": -10.163855425536017,
+      "win_pct": 21.951219512195124,
+      "exit_reasons": {
+        "tp": 21,
+        "sl": 94,
+        "early": 6,
+        "time": 1
+      }
+    },
+    "SL8%/TP50%/d7": {
+      "sl": 0.08,
+      "tp": 0.5,
+      "check_day": 7,
+      "n_listings": 123,
+      "taken": 120,
+      "starved": 3,
+      "capture_pct": 97.5609756097561,
+      "final_equity": 623.7791877519338,
+      "total_pnl": 30.66907547634484,
+      "mdd_pct": -27.60574843054483,
+      "worst_trade": -12.96271285366349,
+      "win_pct": 20.0,
+      "exit_reasons": {
+        "early": 15,
+        "sl": 94,
+        "tp": 9,
+        "time": 1
+      }
+    },
+    "SL10%/없음/d7": {
+      "sl": 0.1,
+      "tp": null,
+      "check_day": 7,
+      "n_listings": 123,
+      "taken": 116,
+      "starved": 7,
+      "capture_pct": 94.3089430894309,
+      "final_equity": 600.3587034306386,
+      "total_pnl": 4.794034860493653,
+      "mdd_pct": -30.553914546282186,
+      "worst_trade": -13.054938558866423,
+      "win_pct": 22.413793103448278,
+      "exit_reasons": {
+        "early": 18,
+        "sl": 88,
+        "time": 9
+      }
+    },
+    "SL10%/TP30%/d7": {
+      "sl": 0.1,
+      "tp": 0.3,
+      "check_day": 7,
+      "n_listings": 123,
+      "taken": 123,
+      "starved": 0,
+      "capture_pct": 100.0,
+      "final_equity": 623.4805143713256,
+      "total_pnl": 27.83401774620363,
+      "mdd_pct": -31.781647508372462,
+      "worst_trade": -12.78258103135561,
+      "win_pct": 27.64227642276423,
+      "exit_reasons": {
+        "tp": 28,
+        "sl": 87,
+        "early": 6,
+        "time": 1
+      }
+    },
+    "SL10%/TP50%/d7": {
+      "sl": 0.1,
+      "tp": 0.5,
+      "check_day": 7,
+      "n_listings": 123,
+      "taken": 119,
+      "starved": 4,
+      "capture_pct": 96.7479674796748,
+      "final_equity": 606.1792127380302,
+      "total_pnl": 10.593945393991174,
+      "mdd_pct": -30.553914546282186,
+      "worst_trade": -13.305015062687145,
+      "win_pct": 22.689075630252102,
+      "exit_reasons": {
+        "early": 16,
+        "sl": 90,
+        "tp": 11,
+        "time": 1
+      }
+    },
+    "SL15%/없음/d7": {
+      "sl": 0.15,
+      "tp": null,
+      "check_day": 7,
+      "n_listings": 123,
+      "taken": 110,
+      "starved": 13,
+      "capture_pct": 89.4308943089431,
+      "final_equity": 422.65713604507374,
+      "total_pnl": -170.7828639549266,
+      "mdd_pct": -43.47464587736956,
+      "worst_trade": -19.246185253062816,
+      "win_pct": 28.18181818181818,
+      "exit_reasons": {
+        "early": 24,
+        "sl": 77,
+        "time": 9
+      }
+    },
+    "SL15%/TP30%/d7": {
+      "sl": 0.15,
+      "tp": 0.3,
+      "check_day": 7,
+      "n_listings": 123,
+      "taken": 123,
+      "starved": 0,
+      "capture_pct": 100.0,
+      "final_equity": 456.5098634981987,
+      "total_pnl": -147.94763903750442,
+      "mdd_pct": -45.960969092253094,
+      "worst_trade": -18.96917571993599,
+      "win_pct": 33.33333333333333,
+      "exit_reasons": {
+        "tp": 33,
+        "sl": 79,
+        "early": 9,
+        "time": 1
+      }
+    },
+    "SL15%/TP50%/d7": {
+      "sl": 0.15,
+      "tp": 0.5,
+      "check_day": 7,
+      "n_listings": 123,
+      "taken": 119,
+      "starved": 4,
+      "capture_pct": 96.7479674796748,
+      "final_equity": 478.1932599542495,
+      "total_pnl": -115.24674004575053,
+      "mdd_pct": -43.47464587736956,
+      "worst_trade": -19.246185253062816,
+      "win_pct": 29.411764705882355,
+      "exit_reasons": {
+        "early": 22,
+        "sl": 82,
+        "tp": 14,
+        "time": 1
+      }
+    },
+    "SL20%/없음/d7": {
+      "sl": 0.2,
+      "tp": null,
+      "check_day": 7,
+      "n_listings": 123,
+      "taken": 108,
+      "starved": 15,
+      "capture_pct": 87.8048780487805,
+      "final_equity": 697.2454425624702,
+      "total_pnl": 103.8054425624698,
+      "mdd_pct": -46.28422488200899,
+      "worst_trade": -32.28551146798823,
+      "win_pct": 40.74074074074074,
+      "exit_reasons": {
+        "early": 36,
+        "sl": 60,
+        "time": 12
+      }
+    },
+    "SL20%/TP30%/d7": {
+      "sl": 0.2,
+      "tp": 0.3,
+      "check_day": 7,
+      "n_listings": 123,
+      "taken": 120,
+      "starved": 3,
+      "capture_pct": 97.5609756097561,
+      "final_equity": 836.6634492126876,
+      "total_pnl": 243.22344921268763,
+      "mdd_pct": -45.79708279566342,
+      "worst_trade": -35.851527211730755,
+      "win_pct": 45.83333333333333,
+      "exit_reasons": {
+        "tp": 44,
+        "sl": 61,
+        "early": 14,
+        "time": 1
+      }
+    },
+    "SL20%/TP50%/d7": {
+      "sl": 0.2,
+      "tp": 0.5,
+      "check_day": 7,
+      "n_listings": 123,
+      "taken": 118,
+      "starved": 5,
+      "capture_pct": 95.9349593495935,
+      "final_equity": 1024.2822148720552,
+      "total_pnl": 430.84221487205525,
+      "mdd_pct": -46.28422488200899,
+      "worst_trade": -47.365682349324665,
+      "win_pct": 42.3728813559322,
+      "exit_reasons": {
+        "early": 34,
+        "sl": 64,
+        "tp": 19,
+        "time": 1
+      }
+    },
+    "SL30%/없음/d7": {
+      "sl": 0.3,
+      "tp": null,
+      "check_day": 7,
+      "n_listings": 123,
+      "taken": 103,
+      "starved": 20,
+      "capture_pct": 83.73983739837398,
+      "final_equity": 769.6657080594327,
+      "total_pnl": 176.22570805943295,
+      "mdd_pct": -38.346250516000566,
+      "worst_trade": -57.13058135076602,
+      "win_pct": 52.42718446601942,
+      "exit_reasons": {
+        "early": 44,
+        "sl": 44,
+        "time": 15
+      }
+    },
+    "SL30%/TP30%/d7": {
+      "sl": 0.3,
+      "tp": 0.3,
+      "check_day": 7,
+      "n_listings": 123,
+      "taken": 117,
+      "starved": 6,
+      "capture_pct": 95.1219512195122,
+      "final_equity": 980.5179085310824,
+      "total_pnl": 387.0779085310828,
+      "mdd_pct": -50.79009342093826,
+      "worst_trade": -62.763829350985176,
+      "win_pct": 57.26495726495726,
+      "exit_reasons": {
+        "tp": 49,
+        "sl": 45,
+        "early": 21,
+        "time": 2
+      }
+    },
+    "SL30%/TP50%/d7": {
+      "sl": 0.3,
+      "tp": 0.5,
+      "check_day": 7,
+      "n_listings": 123,
+      "taken": 115,
+      "starved": 8,
+      "capture_pct": 93.4959349593496,
+      "final_equity": 1240.8471651172974,
+      "total_pnl": 647.4071651172978,
+      "mdd_pct": -49.1813560975948,
+      "worst_trade": -92.35799027811257,
+      "win_pct": 54.78260869565217,
+      "exit_reasons": {
+        "early": 41,
+        "sl": 47,
+        "tp": 25,
+        "time": 2
+      }
+    },
+    "SL50%/없음/d7": {
+      "sl": 0.5,
+      "tp": null,
+      "check_day": 7,
+      "n_listings": 123,
+      "taken": 97,
+      "starved": 26,
+      "capture_pct": 78.86178861788618,
+      "final_equity": 541.9769078688589,
+      "total_pnl": -51.46309213114071,
+      "mdd_pct": -42.731343215929265,
+      "worst_trade": -75.92609205139794,
+      "win_pct": 60.824742268041234,
+      "exit_reasons": {
+        "early": 50,
+        "sl": 29,
+        "time": 18
+      }
+    },
+    "SL50%/TP30%/d7": {
+      "sl": 0.5,
+      "tp": 0.3,
+      "check_day": 7,
+      "n_listings": 123,
+      "taken": 115,
+      "starved": 8,
+      "capture_pct": 93.4959349593496,
+      "final_equity": 1106.671807239129,
+      "total_pnl": 513.2318072391286,
+      "mdd_pct": -38.69622839731046,
+      "worst_trade": -121.72241865670654,
+      "win_pct": 67.82608695652173,
+      "exit_reasons": {
+        "tp": 52,
+        "early": 34,
+        "sl": 27,
+        "time": 2
+      }
+    },
+    "SL50%/TP50%/d7": {
+      "sl": 0.5,
+      "tp": 0.5,
+      "check_day": 7,
+      "n_listings": 123,
+      "taken": 109,
+      "starved": 14,
+      "capture_pct": 88.6178861788618,
+      "final_equity": 1306.7179259787924,
+      "total_pnl": 713.2779259787927,
+      "mdd_pct": -42.91811799219965,
+      "worst_trade": -183.6584127785525,
+      "win_pct": 64.22018348623854,
+      "exit_reasons": {
+        "early": 51,
+        "sl": 29,
+        "tp": 26,
+        "time": 3
+      }
+    }
+  }
+}

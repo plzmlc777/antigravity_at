@@ -1,0 +1,247 @@
+{
+  "params": {
+    "cap": 0.2,
+    "since": "2025-01-01",
+    "entry_offset_h": 48,
+    "only": "0GUSDT,2ZUSDT,4USDT,ACUUSDT,AIAUSDT,AIGENSYNUSDT,AKEUSDT,ALLOUSDT,APRUSDT,ARIAUSDT,ASTERUSDT,ATUSDT,AVNTUSDT,AZTECUSDT,BARDUSDT,BASEDUSDT,BASUSDT,BEATUSDT,BILLUSDT,BIRBUSDT,BLESSUSDT,BLUAIUSDT,BREVUSDT,BSBUSDT,BTRUSDT,BTWUSDT,CAPUSDT,CCUSDT,CFGUSDT,CHIPUSDT,CLANKERUSDT,CLOUSDT,COAIUSDT,COLLECTUSDT,CYSUSDT,EDENUSDT,EDGEUSDT,ELSAUSDT,ENSOUSDT,ESPUSDT,EULUSDT,EVAAUSDT,FFUSDT,FIGHTUSDT,FLOCKUSDT,FLUIDUSDT,FOGOUSDT,FOLKSUSDT,FRAXUSDT,GIGGLEUSDT,GUAUSDT,GWEIUSDT,HANAUSDT,HEMIUSDT,HOLOUSDT,INXUSDT,IRYSUSDT,JCTUSDT,KATUSDT,KGENUSDT,KITEUSDT,LABUSDT,LIGHTUSDT,LINEAUSDT,LITUSDT,LYNUSDT,MAGMAUSDT,MANTRAUSDT,MEGAUSDT,METUSDT,MIRAUSDT,MITOUSDT,MMTUSDT,MONUSDT,NIGHTUSDT,NOMUSDT,ONUSDT,OPENUSDT,OPNUSDT,ORDERUSDT,OUSDT,PIEVERSEUSDT,POWERUSDT,PRLUSDT,PTBUSDT,QUSDT,RAVEUSDT,RECALLUSDT,REUSDT,RIVERUSDT,ROBOUSDT,SAPIENUSDT,SENTUSDT,SKRUSDT,SKYUSDT,SLXUSDT,SOMIUSDT,SPACEUSDT,SPORTFUNUSDT,STABLEUSDT,STBLUSDT,TAKEUSDT,TOSHIUSDT,TRADOORUSDT,TRIAUSDT,TRUSTUSDT,TRUTHUSDT,TURTLEUSDT,UAIUSDT,UBUSDT,USELESSUSDT,USUSDT,WETUSDT,WLFIUSDT,XANUSDT,XAUTUSDT,XPINUSDT,XPLUSDT,YBUSDT,ZAMAUSDT,ZBTUSDT,ZKCUSDT,ZKPUSDT,龙虾USDT",
+    "grid": true,
+    "grid_sl": "0.20,0.30,0.50",
+    "grid_tp": "none,0.30,0.50",
+    "splits": 3,
+    "out": "runs/research_track/pf_grid_1h_split.json"
+  },
+  "results": {
+    "SL20%/없음/d7": {
+      "sl": 0.2,
+      "tp": null,
+      "check_day": 7,
+      "n_listings": 123,
+      "taken": 108,
+      "starved": 15,
+      "capture_pct": 87.8048780487805,
+      "final_equity": 697.2454425624702,
+      "total_pnl": 103.8054425624698,
+      "mdd_pct": -46.28422488200899,
+      "worst_trade": -32.28551146798823,
+      "win_pct": 40.74074074074074,
+      "exit_reasons": {
+        "early": 36,
+        "sl": 60,
+        "time": 12
+      }
+    },
+    "SL20%/TP30%/d7": {
+      "sl": 0.2,
+      "tp": 0.3,
+      "check_day": 7,
+      "n_listings": 123,
+      "taken": 120,
+      "starved": 3,
+      "capture_pct": 97.5609756097561,
+      "final_equity": 836.6634492126876,
+      "total_pnl": 243.22344921268763,
+      "mdd_pct": -45.79708279566342,
+      "worst_trade": -35.851527211730755,
+      "win_pct": 45.83333333333333,
+      "exit_reasons": {
+        "tp": 44,
+        "sl": 61,
+        "early": 14,
+        "time": 1
+      }
+    },
+    "SL20%/TP50%/d7": {
+      "sl": 0.2,
+      "tp": 0.5,
+      "check_day": 7,
+      "n_listings": 123,
+      "taken": 118,
+      "starved": 5,
+      "capture_pct": 95.9349593495935,
+      "final_equity": 1024.2822148720552,
+      "total_pnl": 430.84221487205525,
+      "mdd_pct": -46.28422488200899,
+      "worst_trade": -47.365682349324665,
+      "win_pct": 42.3728813559322,
+      "exit_reasons": {
+        "early": 34,
+        "sl": 64,
+        "tp": 19,
+        "time": 1
+      }
+    },
+    "SL30%/없음/d7": {
+      "sl": 0.3,
+      "tp": null,
+      "check_day": 7,
+      "n_listings": 123,
+      "taken": 103,
+      "starved": 20,
+      "capture_pct": 83.73983739837398,
+      "final_equity": 769.6657080594327,
+      "total_pnl": 176.22570805943295,
+      "mdd_pct": -38.346250516000566,
+      "worst_trade": -57.13058135076602,
+      "win_pct": 52.42718446601942,
+      "exit_reasons": {
+        "early": 44,
+        "sl": 44,
+        "time": 15
+      }
+    },
+    "SL30%/TP30%/d7": {
+      "sl": 0.3,
+      "tp": 0.3,
+      "check_day": 7,
+      "n_listings": 123,
+      "taken": 117,
+      "starved": 6,
+      "capture_pct": 95.1219512195122,
+      "final_equity": 980.5179085310824,
+      "total_pnl": 387.0779085310828,
+      "mdd_pct": -50.79009342093826,
+      "worst_trade": -62.763829350985176,
+      "win_pct": 57.26495726495726,
+      "exit_reasons": {
+        "tp": 49,
+        "sl": 45,
+        "early": 21,
+        "time": 2
+      }
+    },
+    "SL30%/TP50%/d7": {
+      "sl": 0.3,
+      "tp": 0.5,
+      "check_day": 7,
+      "n_listings": 123,
+      "taken": 115,
+      "starved": 8,
+      "capture_pct": 93.4959349593496,
+      "final_equity": 1240.8471651172974,
+      "total_pnl": 647.4071651172978,
+      "mdd_pct": -49.1813560975948,
+      "worst_trade": -92.35799027811257,
+      "win_pct": 54.78260869565217,
+      "exit_reasons": {
+        "early": 41,
+        "sl": 47,
+        "tp": 25,
+        "time": 2
+      }
+    },
+    "SL50%/없음/d7": {
+      "sl": 0.5,
+      "tp": null,
+      "check_day": 7,
+      "n_listings": 123,
+      "taken": 97,
+      "starved": 26,
+      "capture_pct": 78.86178861788618,
+      "final_equity": 541.9769078688589,
+      "total_pnl": -51.46309213114071,
+      "mdd_pct": -42.731343215929265,
+      "worst_trade": -75.92609205139794,
+      "win_pct": 60.824742268041234,
+      "exit_reasons": {
+        "early": 50,
+        "sl": 29,
+        "time": 18
+      }
+    },
+    "SL50%/TP30%/d7": {
+      "sl": 0.5,
+      "tp": 0.3,
+      "check_day": 7,
+      "n_listings": 123,
+      "taken": 115,
+      "starved": 8,
+      "capture_pct": 93.4959349593496,
+      "final_equity": 1106.671807239129,
+      "total_pnl": 513.2318072391286,
+      "mdd_pct": -38.69622839731046,
+      "worst_trade": -121.72241865670654,
+      "win_pct": 67.82608695652173,
+      "exit_reasons": {
+        "tp": 52,
+        "early": 34,
+        "sl": 27,
+        "time": 2
+      }
+    },
+    "SL50%/TP50%/d7": {
+      "sl": 0.5,
+      "tp": 0.5,
+      "check_day": 7,
+      "n_listings": 123,
+      "taken": 109,
+      "starved": 14,
+      "capture_pct": 88.6178861788618,
+      "final_equity": 1306.7179259787924,
+      "total_pnl": 713.2779259787927,
+      "mdd_pct": -42.91811799219965,
+      "worst_trade": -183.6584127785525,
+      "win_pct": 64.22018348623854,
+      "exit_reasons": {
+        "early": 51,
+        "sl": 29,
+        "tp": 26,
+        "time": 3
+      }
+    },
+    "_split": {
+      "per_split": {
+        "SL20%/없음/d7": [
+          479.19757155808213,
+          741.7658914922865,
+          709.6029613113475
+        ],
+        "SL20%/TP30%/d7": [
+          423.2466603192966,
+          886.4363786586582,
+          843.3100716179249
+        ],
+        "SL20%/TP50%/d7": [
+          525.6477328158896,
+          1067.3883155072197,
+          704.6836411131302
+        ],
+        "SL30%/없음/d7": [
+          508.6805014890658,
+          842.3237510074158,
+          727.4352398503173
+        ],
+        "SL30%/TP30%/d7": [
+          394.435190981023,
+          1069.4334077583499,
+          890.5446656782447
+        ],
+        "SL30%/TP50%/d7": [
+          524.4841437480017,
+          1311.0136682090326,
+          725.6512985809262
+        ],
+        "SL50%/없음/d7": [
+          560.6301396078553,
+          629.5540813534717,
+          613.448502219925
+        ],
+        "SL50%/TP30%/d7": [
+          507.0072616259106,
+          915.8695081579806,
+          868.5886384614447
+        ],
+        "SL50%/TP50%/d7": [
+          658.8588680690982,
+          1255.8560703250591,
+          603.4675708593496
+        ]
+      },
+      "top": [
+        "SL50%/TP50%/d7",
+        "SL30%/TP50%/d7",
+        "SL30%/TP30%/d7"
+      ],
+      "stable": false
+    }
+  }
+}
