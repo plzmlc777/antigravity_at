@@ -258,6 +258,20 @@ const agentApps = [
         // 3군 디스패치를 대체하는 **일일 1군/2군 리포트** (2026-08-13 대표님 지시).
         // 주간·월간 리포트와 같은 아침 시간대. '15 22 * * *' UTC = 07:15 KST.
         // 읽기 전용 — 계좌 조회 1회 + DB 읽기. 거래하지 않는다.
+        // 호가 수집 — 5분마다. bookTicker 한 요청에 737종목, 가중치 5 라 싸다.
+        // 유동성 통과 190종만 저장한다(교훈 #78).
+        // ⚠ 호가는 지나가면 사라진다. 지금 시작해도 검정 가능한 표본까지
+        //   최소 6개월이다 — 그래서 일찍 시작한다.
+        name: "orderbook-collect",
+        script: SAS_WRAPPER,
+        args: `'*/5 * * * *' ./scripts/binance/run_orderbook_collect.sh`,
+        interpreter: "bash",
+        cwd: ".",
+        autorestart: true,
+        max_restarts: 10,
+        restart_delay: 5000
+    },
+    {
         name: "daily-tier-report",
         script: SAS_WRAPPER,
         args: `'15 22 * * *' ./scripts/binance/run_daily_tier_report.sh`,
