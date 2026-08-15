@@ -48,6 +48,7 @@ No runtime data dependency beyond ohlcv_eval.
 """
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
 
 from app.composer_framework.signal_source import SignalSource, SourceContext
@@ -84,7 +85,29 @@ class BinanceLifecycleDecayEarlyExitSource(SignalSource):
         out = pd.DataFrame(index=idx)
         out["bnldex_signal"] = -1.0  # default: continue short
 
-        vols = df["volume"].astype(float).values
+        vols_raw = df["volume"].astype(float).values
+
+        # ── 해상도 무관화 (2026-08-15) ───────────────────────────────────
+        # 종전에는 `Day N = iloc[N-1]` 로 **봉 개수**를 세었다. 일봉에서는
+        # 맞지만 1시간봉을 주면 d7 이 **7시간**, d14 가 **14시간**이 되어
+        # 조용히 다른 전략이 된다.
+        #
+        # `eval_freq_minutes` 로 하루치 봉 수를 구해 **일 단위로 접는다.**
+        # 일봉(1440)이면 bars_per_day=1 이라 `vols_raw` 그대로 —
+        # **기존 동작이 바뀌지 않는다**(골든 재생으로 확인할 것).
+        #
+        # ⚠ 시각 기준으로 다시 짜지 않는 이유: `ohlcv_daily` 는 상장일
+        #   부분봉을 제외하므로 일봉에서는 `iloc[0]` 이 이미 상장+1일이다.
+        #   시각으로 바꾸면 Day 번호가 하루 밀려 **라이브 동작이 바뀐다.**
+        bars_per_day = max(1, int(round(1440 / max(1, int(
+            getattr(ctx, "eval_freq_minutes", 1440) or 1440)))))
+        if bars_per_day > 1:
+            n_days = len(vols_raw) // bars_per_day
+            vols = np.array([vols_raw[i * bars_per_day:(i + 1) * bars_per_day].sum()
+                             for i in range(n_days)]) if n_days else np.array([])
+        else:
+            vols = vols_raw
+
         if len(vols) == 0 or vols[0] <= 0:
             return out
         day1_vol = float(vols[0])
@@ -111,7 +134,10 @@ class BinanceLifecycleDecayEarlyExitSource(SignalSource):
                     # missed cron tick on Day N still trips the exit on the
                     # next cycle).
                     sig_col = out.columns.get_loc("bnldex_signal")
-                    out.iloc[self.check_day - 1:, sig_col] = 1.0
+                    # ⚠ 위치도 **봉 단위**로 환산한다 — 일 인덱스를 그대로
+                    #   쓰면 1h 에서 Day 7 이 7번째 시간봉이 된다.
+                    first_bar = (self.check_day - 1) * bars_per_day
+                    out.iloc[first_bar:, sig_col] = 1.0
         # 재진입 차단 — **진입 신호만** 창을 닫는다.
         #
         # max_age_days(30) 만으로는 부족하다. 창 안에서도 익절로 나가면 신호가
