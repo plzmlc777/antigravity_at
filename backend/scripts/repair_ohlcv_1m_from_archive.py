@@ -21,10 +21,12 @@
     · 실거래 중인 종목이 포함될 수 있다. 과거 봉을 고치면 다음 사이클의 정본
       판단이 바뀔 수 있다 — 그게 **의도**다(틀린 가격으로 판단하던 것을 멈춤).
 
-⚠ `volume` 은 BIGINT 다
-    아카이브는 실수로 준다. 스키마가 정수라 어차피 잘린다. 그래서 이 도구는
-    **가격만** 비교·수정하고 거래량은 건드리지 않는다(잘림이 불일치로 잡히면
-    가격 결함이 묻힌다).
+⚠ `volume` 도 고친다 (2026-08-15 2차)
+    1차에서는 "BIGINT 라 어차피 잘린다"며 가격만 고쳤다. **그건 틀렸다.**
+    근본 원인이 **KST 9시간 밀림**이라 거래량도 9시간 전 것이 붙어 있었다.
+    가격만 고치면 **가격은 맞고 거래량은 틀린** 더 나쁜 상태가 된다.
+    조기청산(`vol_cliff`)이 거래량으로 판정하므로 반드시 같이 고쳐야 한다.
+    비교는 정수로 반올림해서 한다(스키마가 BIGINT).
 
 사용:
   python3 -m scripts.repair_ohlcv_1m_from_archive --symbols REUSDT          # 점검만
@@ -86,7 +88,8 @@ def _fetch(url: str) -> list[list] | None:
             ts = int(r[0])
             if ts > 10 ** 14:
                 ts //= 1000
-            out.append((ts, float(r[1]), float(r[2]), float(r[3]), float(r[4])))
+            out.append((ts, float(r[1]), float(r[2]), float(r[3]),
+                        float(r[4]), float(r[5])))
         except (ValueError, IndexError):
             continue
     return out
@@ -112,8 +115,8 @@ def archive_1m(sym: str, d0: date, d1: date) -> dict[int, tuple]:
         chunks = list(ex.map(_fetch, jobs))
     out = {}
     for c in chunks:
-        for ts, o, h, l, cl in (c or []):
-            out[ts] = (o, h, l, cl)
+        for ts, o, h, l, cl, v in (c or []):
+            out[ts] = (o, h, l, cl, v)
     return out
 
 
@@ -160,7 +163,7 @@ def main() -> int:
     with engine.connect() as conn:
         for sym in syms:
             rows = conn.execute(text(
-                "SELECT timestamp, open, high, low, close FROM ohlcv "
+                "SELECT timestamp, open, high, low, close, volume FROM ohlcv "
                 "WHERE symbol = :s AND time_frame = '1m' ORDER BY timestamp"),
                 {"s": sym}).fetchall()
             if not rows:
@@ -178,21 +181,23 @@ def main() -> int:
             same = diff = 0
             fixes, backup = [], []
             db_ts = set()
-            for ts_dt, o, h, l, c in rows:
+            for ts_dt, o, h, l, c, v in rows:
                 ms = int(ts_dt.replace(tzinfo=timezone.utc).timestamp() * 1000)
                 db_ts.add(ms)
                 ref = arch.get(ms)
                 if ref is None:
                     continue
-                if all(close_enough(x, y) for x, y in
-                       zip((o, h, l, c), ref)):
+                if (all(close_enough(x, y) for x, y in
+                        zip((o, h, l, c), ref[:4]))
+                        and int(v) == int(round(ref[4]))):
                     same += 1
                     continue
                 diff += 1
                 backup.append({"symbol": sym, "ts": ts_dt.isoformat(),
-                               "old": [o, h, l, c], "new": list(ref)})
+                               "old": [o, h, l, c, v], "new": list(ref)})
                 fixes.append({"s": sym, "t": ts_dt, "o": ref[0], "h": ref[1],
-                              "l": ref[2], "c": ref[3]})
+                              "l": ref[2], "c": ref[3],
+                              "v": int(round(ref[4]))})
             missing_db = len(set(arch) - db_ts)      # 아카이브엔 있고 DB엔 없음
             missing_ar = len(db_ts - set(arch))      # DB엔 있고 아카이브엔 없음
             tot = same + diff
@@ -211,7 +216,8 @@ def main() -> int:
                         f.write(json.dumps(b, ensure_ascii=False) + "\n")
                 for fx in fixes:
                     conn.execute(text(
-                        "UPDATE ohlcv SET open=:o, high=:h, low=:l, close=:c "
+                        "UPDATE ohlcv SET open=:o, high=:h, low=:l, close=:c, "
+                        "volume=:v "
                         "WHERE symbol=:s AND time_frame='1m' AND timestamp=:t"),
                         fx)
                 conn.commit()
