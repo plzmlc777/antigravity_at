@@ -46,6 +46,24 @@ log = logging.getLogger("lifecycle_brackets")
 
 FAPI = "/fapi/v1"
 
+# ⚠ 조건부 주문은 **Algo 엔드포인트**로 옮겨졌다 (2025-12-09, 바이낸스 공식)
+#     USDⓈ-M 선물의 STOP_MARKET / TAKE_PROFIT_MARKET / STOP / TAKE_PROFIT /
+#     TRAILING_STOP_MARKET 이 Algo Service 로 이관됐다. 구 `/fapi/v1/order` 로
+#     보내면 **-4120** ("Order type not supported for this endpoint. Please use
+#     the Algo Order API endpoints instead.") 로 거부된다.
+#
+#     처음에 나는 이 오류를 **계좌 권한 제약**으로 오독했다. API 키 화면에는
+#     조건부 주문 토글이 없고 `Enable Futures` 는 이미 켜져 있었는데도 그렇게
+#     결론냈다. 공식 문서를 안 봤기 때문이다. **오류 메시지가 해법을 그대로
+#     알려주고 있었다.**
+#
+#     문서: developers.binance.com/docs/derivatives/usds-margined-futures/
+#           trade/rest-api/New-Algo-Order
+ALGO_ORDER = "/fapi/v1/algoOrder"
+# ⚠ 조회는 `openAlgoOrders` 다 — 문서의 `algoOpenOrders` 는 DELETE 전용이고
+#   GET 으로 부르면 404(HTML)라 JSON 파싱에서 죽는다. 실측으로 확인했다.
+ALGO_OPEN = "/fapi/v1/openAlgoOrders"
+
 
 def _round_to_tick(price: float, tick: str, *, up: bool) -> str:
     """틱사이즈에 맞춘다. 안 맞으면 -1111 로 거부된다.
@@ -77,11 +95,11 @@ def place_short_brackets(adapter, symbol: str, sl_price: float,
 
     # ── 멱등 — 이미 걸려 있으면 건너뛴다 ──────────────────────────────
     try:
-        existing = run_async(adapter._signed_get(f"{FAPI}/openOrders",
+        existing = run_async(adapter._signed_get(ALGO_OPEN,
                                                  {"symbol": symbol})) or []
     except Exception as exc:
-        log.error("%s 미체결 주문 조회 실패: %s — 브래킷 생략", symbol, exc)
-        out["skipped"] = f"openOrders 조회 실패: {exc}"
+        log.error("%s 미체결 algo 주문 조회 실패: %s — 브래킷 생략", symbol, exc)
+        out["skipped"] = f"algoOpenOrders 조회 실패: {exc}"
         return out
     has_tp = tp_price is not None and tp_price > 0
     kinds = {o.get("type") for o in existing}
@@ -109,18 +127,19 @@ def place_short_brackets(adapter, symbol: str, sl_price: float,
 
     for otype, raw_px, up, key in legs:
         px = _round_to_tick(raw_px, tick, up=up)
-        params = {"symbol": symbol, "side": "BUY", "type": otype,
-                  "stopPrice": px, "closePosition": "true",
+        # ⚠ `stopPrice` 가 아니라 **`triggerPrice`** 다 (Algo API 규약)
+        params = {"algoType": "CONDITIONAL", "symbol": symbol, "side": "BUY",
+                  "type": otype, "triggerPrice": px, "closePosition": "true",
                   "workingType": "CONTRACT_PRICE"}
         if dry_run:
-            log.info("[DRY] %s %s stopPrice=%s closePosition", symbol, otype, px)
-            out[key] = {"dry_run": True, "stopPrice": px}
+            log.info("[DRY] %s %s triggerPrice=%s closePosition", symbol, otype, px)
+            out[key] = {"dry_run": True, "triggerPrice": px}
             continue
         try:
-            res = run_async(adapter._signed_post(f"{FAPI}/order", params))
-            out[key] = {"orderId": (res or {}).get("orderId"), "stopPrice": px}
-            log.info("[SENT] %s %s stopPrice=%s orderId=%s", symbol, otype, px,
-                     (res or {}).get("orderId"))
+            res = run_async(adapter._signed_post(ALGO_ORDER, params))
+            aid = (res or {}).get("algoId") or (res or {}).get("orderId")
+            out[key] = {"algoId": aid, "triggerPrice": px}
+            log.info("[SENT] %s %s triggerPrice=%s algoId=%s", symbol, otype, px, aid)
         except Exception as exc:
             # ⚠ 진입을 되돌리지 않는다 — 브래킷 없으면 종전(일봉 정본 청산)으로
             #   degrade 될 뿐이고, 열린 포지션을 강제로 닫는 쪽이 더 위험하다.
@@ -138,7 +157,7 @@ def cancel_brackets(adapter, symbol: str, *, run_async,
     있을 수 있으므로 명시적으로 한 번 더 지운다. 반환: 취소한 주문 수.
     """
     try:
-        orders = run_async(adapter._signed_get(f"{FAPI}/openOrders",
+        orders = run_async(adapter._signed_get(ALGO_OPEN,
                                                {"symbol": symbol})) or []
     except Exception as exc:
         log.error("%s 미체결 조회 실패: %s", symbol, exc)
@@ -148,14 +167,15 @@ def cancel_brackets(adapter, symbol: str, *, run_async,
         if o.get("type") not in ("STOP_MARKET", "TAKE_PROFIT_MARKET"):
             continue
         if dry_run:
-            log.info("[DRY] %s 취소 대상 orderId=%s %s", symbol,
-                     o.get("orderId"), o.get("type"))
+            log.info("[DRY] %s 취소 대상 algoId=%s %s", symbol,
+                     o.get("algoId") or o.get("orderId"), o.get("type"))
             n += 1
             continue
         try:
-            run_async(adapter._signed_delete(f"{FAPI}/order",
+            run_async(adapter._signed_delete(ALGO_ORDER,
                                              {"symbol": symbol,
-                                              "orderId": o.get("orderId")}))
+                                              "algoId": o.get("algoId")
+                                                        or o.get("orderId")}))
             n += 1
         except Exception as exc:
             log.warning("%s 주문 %s 취소 실패: %s", symbol, o.get("orderId"), exc)
