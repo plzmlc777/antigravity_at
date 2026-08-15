@@ -157,7 +157,7 @@ const agentApps = [
         // minutes before binance-paper-cycle so the cycle sees fresh candles.
         name: "binance-ohlcv-backfill",
         script: SAS_WRAPPER,
-        args: `'0 2 * * *' ./scripts/binance/run_binance_ohlcv_backfill.sh`,
+        args: `'5 9 * * *' ./scripts/binance/run_binance_ohlcv_backfill.sh`,
         interpreter: "bash",
         cwd: ".",
         autorestart: true,
@@ -175,7 +175,7 @@ const agentApps = [
         // were last updated 2026-05-03/04).
         name: "binance-joblib-refresh",
         script: SAS_WRAPPER,
-        args: `'15 2 * * *' ./scripts/binance/run_binance_joblib_refresh.sh`,
+        args: `'20 9 * * *' ./scripts/binance/run_binance_joblib_refresh.sh`,
         interpreter: "bash",
         cwd: ".",
         autorestart: true,
@@ -192,7 +192,7 @@ const agentApps = [
         // Initial seeds: SOL S+T+B, HBAR S+P, AXS V (all 5/5 PERFECT robustness).
         name: "binance-paper-cycle",
         script: SAS_WRAPPER,
-        args: `'30 2 * * *' ./scripts/binance/run_binance_paper_cycle.sh`,
+        args: `'35 9 * * *' ./scripts/binance/run_binance_paper_cycle.sh`,
         interpreter: "bash",
         cwd: ".",
         autorestart: true,
@@ -212,7 +212,7 @@ const agentApps = [
         // creates session via paper_session_cli.
         name: "lifecycle-spawner-daily",
         script: SAS_WRAPPER,
-        args: `'0 3 * * *' ./scripts/research/run_lifecycle_spawner.sh`,
+        args: `'0 10 * * *' ./scripts/research/run_lifecycle_spawner.sh`,
         interpreter: "bash",
         cwd: ".",
         autorestart: true,
@@ -478,7 +478,7 @@ const agentApps = [
     {
         name: "tier-governor",
         script: SAS_WRAPPER,
-        args: `'40 3 * * *' ./scripts/binance/run_tier_governor.sh`,
+        args: `'40 10 * * *' ./scripts/binance/run_tier_governor.sh`,
         interpreter: "bash",
         cwd: ".",
         autorestart: true,
