@@ -279,7 +279,7 @@ def main() -> int:
         res["_split_stability"] = {"per_split": per, "top": top, "stable": stable}
 
     print("\n  청산 사유:")
-    for name in res:
+    for name in [n for n, *_ in CONFIGS]:   # `_split_stability` 항목 제외
         print(f"    {name:<30} {res[name]['exit_reasons']}")
 
     Path(a.out).parent.mkdir(parents=True, exist_ok=True)
