@@ -210,6 +210,7 @@ def session_exists_for(
     policy_variant: str = POLICY_BASELINE,
     check_day: int | None = None,
     baseline_hold_days: int | None = None,
+    eval_freq_minutes: int = 1440,
 ) -> bool:
     """Check existing paper sessions for symbol + variant name suffix.
 
@@ -223,6 +224,10 @@ def session_exists_for(
     sessions_dir = ROOT / "runs" / "paper_sessions"
     if not sessions_dir.exists():
         return False
+    # ⚠ 해상도가 다르면 **다른 세션**이다. `_1h` 를 구분하지 않으면
+    #   `lifecycle_earlyexit_d7_1h_...` 가 `earlyexit_d7` 을 포함하므로
+    #   서로를 "이미 존재"로 보고 1h 세션이 영영 안 생긴다.
+    want_1h = int(eval_freq_minutes) != 1440
     target_ee_tag = f"earlyexit_d{int(check_day)}" if check_day is not None else "earlyexit"
     is_default_hold = baseline_hold_days is None or int(baseline_hold_days) == 30
     target_hold_tag = None if is_default_hold else f"_h{int(baseline_hold_days)}_"
@@ -237,6 +242,8 @@ def session_exists_for(
             n = (d.get("name", "")).lower()
             if "lifecycle" not in n:
                 continue
+            if ("_1h_" in n) != want_1h:
+                continue          # 해상도가 다르면 별개 세션
             has_ee = "earlyexit" in n
             has_bs = "bearskip" in n
             if policy_variant == POLICY_EARLY_EXIT and has_ee:
@@ -455,6 +462,16 @@ def build_session_spec(
         "initial_capital": 1000000,
         "fee_rate": 0.0004,
         "refit_interval_days": 30,
+        # ⚠ 1h 세션은 **상장 시점부터 재생**해야 한다.
+        #   기본값 1(최신 바만)이면 진입창이 이미 닫힌 뒤부터 시작해
+        #   **영원히 진입하지 않는다**(실측: DOSUSDT 1h 세션이 flat 으로만 남았다).
+        #   일봉은 스포너가 상장 다음날 만들어 1 바로도 창 안에 들어가므로
+        #   **건드리지 않는다** — 라이브 동작을 바꾸지 않기 위해서다.
+        **({} if _bars_per_day == 1 else {
+            "fresh_start_bars": max(
+                1, (date.today() - datetime.strptime(
+                    listing_date, "%Y-%m-%d").date()).days * _bars_per_day
+                + _bars_per_day)}),
         "notes": notes,
         "pipeline_spec": {
             "sources": sources,
@@ -538,6 +555,10 @@ def spawn_session(
 
 def main() -> int:
     p = argparse.ArgumentParser()
+    # 1h 대응 세션을 함께 만든다. 기본은 실거래가 쓰는 early_exit 만 —
+    # 전 변형을 켜면 상장당 세션이 두 배가 된다. 빈 문자열이면 끈다.
+    p.add_argument("--with-1h", default="early_exit",
+                   help="1h 세션을 만들 변형 (쉼표 구분, 빈 값이면 끔)")
     p.add_argument("--dry-run", action="store_true")
     p.add_argument("--symbol", default=None, help="Spawn only this symbol")
     p.add_argument("--refresh-listings", action="store_true",
@@ -686,11 +707,37 @@ def main() -> int:
                     suffix_tag = "" if int(axis_val) == 30 else f"_h{int(axis_val)}"
                     tag = f"{sym}/{variant}{suffix_tag}"
                     cd_arg, hold_arg = None, int(axis_val)
+                # ── 1h 대응 세션 (일봉과 **독립** 판정) ──────────────
+                # 일봉 존재 검사 **앞**에 둔다. 뒤에 두면 일봉이 이미 있는
+                # 기존 종목은 `continue` 로 빠져 1h 세션을 영영 못 받는다.
+                # 두 해상도는 서로의 존재와 무관하게 각자 판정한다.
+                _w1h = [x.strip() for x in (args.with_1h or "").split(",")
+                        if x.strip()]
+                if variant in _w1h and not session_exists_for(
+                        sym, policy_variant=variant, check_day=cd_arg,
+                        baseline_hold_days=hold_arg, eval_freq_minutes=60):
+                    if spawn_session(
+                            sym, meta["onboard_date"],
+                            policy_variant=variant,
+                            early_exit_check_day=(cd_arg if cd_arg is not None
+                                                  else 14),
+                            early_exit_vc_threshold=args.early_exit_vc_threshold,
+                            baseline_hold_days=hold_arg,
+                            bear_skip_btc_30d_pre_ret=bear_skip_pre_ret,
+                            bear_skip_threshold=args.bear_skip_threshold,
+                            eval_freq_minutes=60,
+                            dry_run=args.dry_run):
+                        spawned += 1
+                        log.info("[%s] 1h 대응 세션 생성", tag)
+                    else:
+                        skipped.append((tag + "/1h", "spawn failed"))
+
                 if session_exists_for(
                     sym,
                     policy_variant=variant,
                     check_day=cd_arg,
                     baseline_hold_days=hold_arg,
+                    eval_freq_minutes=1440,
                 ):
                     skipped.append((tag, "session already exists"))
                     continue
@@ -709,6 +756,7 @@ def main() -> int:
                     skipped.append((tag, "spawn failed"))
                     continue
                 spawned += 1
+
 
     log.info("\n=== SUMMARY ===")
     log.info("spawned: %d", spawned)

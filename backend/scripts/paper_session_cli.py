@@ -405,6 +405,11 @@ def cmd_create(args) -> int:
         pipeline_spec=spec,
         initial_capital=float(full_config.get("initial_capital", 1_000_000)),
         refit_interval_days=int(full_config.get("refit_interval_days", 30)),
+        # ⚠ 스펙이 주면 존중한다. **기본은 종전과 같은 1** 이라 이 키가 없는
+        #   기존 스펙(일봉·KR·US 전부)은 동작이 바뀌지 않는다.
+        #   1h 세션은 상장 시점부터 재생해야 진입창 안에 들어간다 —
+        #   1 로 시작하면 창이 닫힌 뒤라 **영원히 진입하지 않는다**.
+        fresh_start_bars=int(full_config.get("fresh_start_bars", 1)),
         fee_rate=float(full_config.get("fee_rate", 0.00015)),
         notes=full_config.get("notes", ""),
     )
