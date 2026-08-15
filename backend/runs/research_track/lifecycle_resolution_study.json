@@ -1,0 +1,39 @@
+{
+  "params": {
+    "since": "2025-08-01",
+    "limit": 60,
+    "out": "/home/mint/auto_trading/backend/runs/research_track/lifecycle_resolution_study.json"
+  },
+  "n": 60,
+  "day1_range_pct": {
+    "p50": 32.72351371386212,
+    "p75": 55.805563661668316,
+    "p90": 116.60877737273682
+  },
+  "results": {
+    "sl_0.02": {
+      "daily_dead_pct": 88.33333333333333,
+      "h1_dead_pct": 70.0
+    },
+    "sl_0.05": {
+      "daily_dead_pct": 81.66666666666667,
+      "h1_dead_pct": 36.666666666666664
+    },
+    "sl_0.1": {
+      "daily_dead_pct": 75.0,
+      "h1_dead_pct": 16.666666666666664
+    },
+    "sl_0.2": {
+      "daily_dead_pct": 60.0,
+      "h1_dead_pct": 3.3333333333333335
+    },
+    "sl_0.3": {
+      "daily_dead_pct": 51.66666666666667,
+      "h1_dead_pct": 1.6666666666666667
+    },
+    "sl_0.5": {
+      "daily_dead_pct": 30.0,
+      "h1_dead_pct": 1.6666666666666667
+    }
+  }
+}
