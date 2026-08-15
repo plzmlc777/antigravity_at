@@ -95,6 +95,19 @@ BEAR_THRESHOLD = -0.05
 TP_SWEEP_DEFAULT = "none,5,10,15,20,30,50"
 
 
+
+EXEC_LAG_BARS = 2
+"""집행 지연 포함 신호 지연 (기본).
+
+`1` 은 **정본 장부** 규약이다 — 바 N 신호를 바 N+1 **시가**에 체결로 적는다.
+그런데 정본이 그 거래를 기록하려면 바 N+1 이 마감돼야 하므로, 실거래는
+바 N+2 에서야 움직인다. 실측(DOSUSDT): 장부 0.3800 vs 집행가능 0.3281,
+**-13.7%**.
+
+그래서 연구 기본값은 **2** 다. 낙관적인 쪽을 기본으로 두면 안 된다.
+정본 장부와 맞춰 보려면 `--exec-lag 1` 을 준다.
+"""
+
 def tp_kwarg(tp: str | float) -> float:
     """스윕 값 → 정책 `tp_pct`. `none` 은 1.0(비활성)."""
     if isinstance(tp, str) and tp.lower() in ("none", "off", ""):
@@ -206,7 +219,8 @@ def run_one(sym: str, ld, variant: str, hold: int, early, policy_variant,
     )
     # 규칙 기반 전용 경로. `run_static` 은 학습/시험 분할이 상장일 진입을 잘라
     # 거래 0건을 만든다 — CANON 의 no-fit 경로와 같은 `run_rule_based` 를 쓴다.
-    kpis = bt.run_rule_based(pipeline=pipeline, ctx=ctx)
+    kpis = bt.run_rule_based(pipeline=pipeline, ctx=ctx,
+                             signal_lag_bars=EXEC_LAG_BARS)
     return kpis.trades
 
 

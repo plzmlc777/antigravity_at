@@ -123,6 +123,20 @@ AXIS_ALIAS = {
 ALIAS_OF = {v: k for k, v in AXIS_ALIAS.items()}
 
 
+
+EXEC_LAG_BARS = 2
+_EXEC_LAG = [EXEC_LAG_BARS]
+"""집행 지연 포함 신호 지연 (기본).
+
+`1` 은 **정본 장부** 규약이다 — 바 N 신호를 바 N+1 **시가**에 체결로 적는다.
+그런데 정본이 그 거래를 기록하려면 바 N+1 이 마감돼야 하므로, 실거래는
+바 N+2 에서야 움직인다. 실측(DOSUSDT): 장부 0.3800 vs 집행가능 0.3281,
+**-13.7%**.
+
+그래서 연구 기본값은 **2** 다. 낙관적인 쪽을 기본으로 두면 안 된다.
+정본 장부와 맞춰 보려면 `--exec-lag 1` 을 준다.
+"""
+
 def canon_axis(name: str) -> str:
     """`policy.sl_pct` → `sl`. 별칭이 없으면 그대로."""
     return ALIAS_OF.get(name, name)
@@ -207,7 +221,7 @@ def run_combo(sym: str, ld, kw: dict, bars_daily):
     # signal_lag_bars=1 — 신상저격수 소스는 달력 규칙이라 밀어야 Day-1 종가에
     # 들어간다. 안 밀면 상장가에 들어가 t 1.64 가 -0.12 가 된다(교훈 #90)
     return bt.run_rule_based(pipeline=build_pipeline(ps, {}), ctx=ctx,
-                             signal_lag_bars=1).trades
+                             signal_lag_bars=_EXEC_LAG[0]).trades
 
 
 def stats(a: np.ndarray) -> dict:
@@ -235,6 +249,9 @@ def main() -> int:
                    help="표본 안/밖 분할 상장일 (필수). 이 날 **이후** 상장이 표본 밖")
     p.add_argument("--axis", action="append", default=[],
                    help="축 선언. 예 sl=0.3,0.5,0.7 · 반복 가능")
+    # ⚠ 기본 2 = **집행 가능** 규약. 1 은 정본 장부 규약(낙관적)이다.
+    p.add_argument("--exec-lag", type=int, default=EXEC_LAG_BARS,
+                   help="집행 지연 봉 수 (2=집행가능 · 1=정본장부)")
     p.add_argument("--out", default=str(OUT))
     p.add_argument("--limit", type=int, default=0, help="앞에서 N 사건만")
     p.add_argument("--allow-thin-sl", action="store_true",
@@ -246,6 +263,7 @@ def main() -> int:
     p.add_argument("--list-axes", action="store_true",
                    help="이 계열에서 스윕 가능한 축을 출력하고 종료")
     a = p.parse_args()
+    _EXEC_LAG[0] = int(a.exec_lag)
 
     from research.lifecycle_canon_backtest import (  # noqa: E402
         LISTINGS, MIN_DAILY_BARS, WINDOW_DAYS, daily_bars,
