@@ -316,6 +316,7 @@ def build_session_spec(
     baseline_hold_days: int = 30,
     bear_skip_btc_30d_pre_ret: float | None = None,
     bear_skip_threshold: float = -0.05,
+    eval_freq_minutes: int = 1440,
 ) -> dict:
     """Build a paper-session spec for one of two lifecycle policy variants.
 
@@ -329,6 +330,17 @@ def build_session_spec(
     The variants share entry semantics so parallel sessions on the same
     listing measure the hold-horizon / early-exit edge cleanly.
     """
+    # 하루치 봉 수 — 1h 세션의 보유·창을 봉 단위로 환산하는 데 쓴다
+    _bars_per_day = max(1, int(round(1440 / max(1, int(eval_freq_minutes)))))
+    # 세션 이름에 붙일 해상도 태그. 일봉이면 빈 문자열(기존 이름 유지).
+    # ⚠ 이름이 겹치면 1h 세션이 일봉 세션과 **같은 세션으로 취급**된다.
+    if _bars_per_day == 1:
+        _res_tag = ""
+    elif _bars_per_day == 24:
+        _res_tag = "_1h"
+    else:
+        _res_tag = f"_{int(1440 // _bars_per_day)}m"
+
     if policy_variant == POLICY_BASELINE:
         hold_days = int(baseline_hold_days)
         name_suffix = "" if hold_days == 30 else f"_h{hold_days}"
@@ -348,7 +360,7 @@ def build_session_spec(
                 "entry_threshold": 0.5,
                 "sl_pct": 0.50,
                 "tp_pct": 0.50,
-                "max_hold_bars": hold_days,
+                "max_hold_bars": hold_days * _bars_per_day,
             },
         }
         notes = (
@@ -378,7 +390,7 @@ def build_session_spec(
                 "exit_signal_threshold": 0.5,
                 "sl_pct": 0.50,
                 "tp_pct": 0.50,
-                "max_hold_bars": 30,
+                "max_hold_bars": 30 * _bars_per_day,
             },
         }
         notes = (
@@ -415,7 +427,7 @@ def build_session_spec(
                 "entry_threshold": 0.5,
                 "sl_pct": 0.50,
                 "tp_pct": 0.50,
-                "max_hold_bars": 30,
+                "max_hold_bars": 30 * _bars_per_day,
             },
         }
         regime_label = "BEAR_SKIP" if pre_ret <= thr else "ACTIVE"
@@ -437,7 +449,7 @@ def build_session_spec(
         int(baseline_hold_days) if policy_variant == POLICY_BASELINE else 30
     )
     return {
-        "name": f"lifecycle{name_suffix}_{symbol}_{listing_date}",
+        "name": f"lifecycle{name_suffix}{_res_tag}_{symbol}_{listing_date}",
         "symbol": symbol,
         "mode": "paper",
         "initial_capital": 1000000,
@@ -449,8 +461,11 @@ def build_session_spec(
             "composer": composer,
             "policy": policy,
             "config": {
-                "eval_freq_minutes": 1440,
-                "forward_bars": forward_bars,
+                # ⚠ 해상도. 1440=일봉(기본) · 60=1시간봉.
+                #   1h 세션은 **보유 기간을 봉 단위로 환산**해야 한다 —
+                #   30 을 그대로 두면 30시간 만에 청산된다.
+                "eval_freq_minutes": int(eval_freq_minutes),
+                "forward_bars": forward_bars * _bars_per_day,
             },
         },
     }
@@ -466,6 +481,9 @@ def spawn_session(
     baseline_hold_days: int = 30,
     bear_skip_btc_30d_pre_ret: float | None = None,
     bear_skip_threshold: float = -0.05,
+    # ⚠ 1440=일봉(기본) · 60=1시간봉. 1h 세션은 이름에 `_1h` 가 붙어
+    #   `run_lifecycle_1h_cycle.sh` 가 골라 돌린다(페이퍼 전용).
+    eval_freq_minutes: int = 1440,
     dry_run: bool = False,
 ) -> bool:
     SESSIONS_CONFIG_DIR.mkdir(parents=True, exist_ok=True)
@@ -477,7 +495,13 @@ def spawn_session(
         suffix = "_bearskip"
     else:
         raise ValueError(f"Unknown policy_variant: {policy_variant!r}")
-    spec_path = SESSIONS_CONFIG_DIR / f"{symbol}_lifecycle{suffix}_{listing_date}.json"
+    # ⚠ 파일 경로에도 해상도 태그가 필요하다 — 없으면 1h 스펙이 **일봉 스펙을
+    #   덮어쓴다**(세션 이름만 다르고 파일은 같아진다).
+    _rtag = "" if int(eval_freq_minutes) == 1440 else (
+        "_1h" if int(eval_freq_minutes) == 60
+        else f"_{int(eval_freq_minutes)}m")
+    spec_path = (SESSIONS_CONFIG_DIR /
+                 f"{symbol}_lifecycle{suffix}{_rtag}_{listing_date}.json")
     spec = build_session_spec(
         symbol,
         listing_date,
@@ -487,6 +511,7 @@ def spawn_session(
         bear_skip_btc_30d_pre_ret=bear_skip_btc_30d_pre_ret,
         bear_skip_threshold=bear_skip_threshold,
         early_exit_vc_threshold=early_exit_vc_threshold,
+        eval_freq_minutes=eval_freq_minutes,
     )
     if dry_run:
         log.info("[%s] [%s] [dry-run] would write spec: %s",
