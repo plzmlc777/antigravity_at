@@ -337,6 +337,10 @@ def build_session_spec(
     The variants share entry semantics so parallel sessions on the same
     listing measure the hold-horizon / early-exit edge cleanly.
     """
+    # ⚠ 진입 **시작** 시각. 일봉은 0(종전 동일) — `ohlcv_daily` 가 상장일
+    #   부분봉을 빼서 이미 상장+1일부터 시작한다. 1h 는 창이 상장 즉시 열려
+    #   **상장가에 진입**하므로 24시간을 명시해야 "Day-1 종가"가 된다.
+    _entry_start_h = 0 if int(eval_freq_minutes) == 1440 else 24
     # 하루치 봉 수 — 1h 세션의 보유·창을 봉 단위로 환산하는 데 쓴다
     _bars_per_day = max(1, int(round(1440 / max(1, int(eval_freq_minutes)))))
     # 세션 이름에 붙일 해상도 태그. 일봉이면 빈 문자열(기존 이름 유지).
@@ -358,7 +362,8 @@ def build_session_spec(
         sources = [{"type": "bn_lifecycle_decay",
                     "kwargs": {"listing_date": str(listing_date),
                                "max_age_days": hold_days,
-                               "entry_window_days": 1}}]
+                               "entry_window_days": 1,
+                               "entry_start_hours": _entry_start_h}}]
         composer = {"type": "passthrough",
                     "kwargs": {"feature_col": "bnld_signal", "scale": 1.0}}
         policy = {
@@ -386,6 +391,7 @@ def build_session_spec(
                 "listing_date": str(listing_date),
                 "max_age_days": 30,
                 "entry_window_days": 1,
+                "entry_start_hours": _entry_start_h,
             },
         }]
         composer = {"type": "passthrough",
@@ -424,6 +430,7 @@ def build_session_spec(
                 "listing_date": str(listing_date),
                 "max_age_days": 30,
                 "entry_window_days": 1,
+                "entry_start_hours": _entry_start_h,
             },
         }]
         composer = {"type": "passthrough",
