@@ -1,0 +1,108 @@
+{
+  "params": {
+    "cap": 0.2,
+    "since": "2025-01-01",
+    "entry_offset_h": 48,
+    "only": "0GUSDT,2ZUSDT,4USDT,ACUUSDT,AIAUSDT,AIGENSYNUSDT,AKEUSDT,ALLOUSDT,APRUSDT,ARIAUSDT,ASTERUSDT,ATUSDT,AVNTUSDT,AZTECUSDT,BARDUSDT,BASEDUSDT,BASUSDT,BEATUSDT,BILLUSDT,BIRBUSDT,BLESSUSDT,BLUAIUSDT,BREVUSDT,BSBUSDT,BTRUSDT,BTWUSDT,CAPUSDT,CCUSDT,CFGUSDT,CHIPUSDT,CLANKERUSDT,CLOUSDT,COAIUSDT,COLLECTUSDT,CYSUSDT,EDENUSDT,EDGEUSDT,ELSAUSDT,ENSOUSDT,ESPUSDT,EULUSDT,EVAAUSDT,FFUSDT,FIGHTUSDT,FLOCKUSDT,FLUIDUSDT,FOGOUSDT,FOLKSUSDT,FRAXUSDT,GIGGLEUSDT,GUAUSDT,GWEIUSDT,HANAUSDT,HEMIUSDT,HOLOUSDT,INXUSDT,IRYSUSDT,JCTUSDT,KATUSDT,KGENUSDT,KITEUSDT,LABUSDT,LIGHTUSDT,LINEAUSDT,LITUSDT,LYNUSDT,MAGMAUSDT,MANTRAUSDT,MEGAUSDT,METUSDT,MIRAUSDT,MITOUSDT,MMTUSDT,MONUSDT,NIGHTUSDT,NOMUSDT,ONUSDT,OPENUSDT,OPNUSDT,ORDERUSDT,OUSDT,PIEVERSEUSDT,POWERUSDT,PRLUSDT,PTBUSDT,QUSDT,RAVEUSDT,RECALLUSDT,REUSDT,RIVERUSDT,ROBOUSDT,SAPIENUSDT,SENTUSDT,SKRUSDT,SKYUSDT,SLXUSDT,SOMIUSDT,SPACEUSDT,SPORTFUNUSDT,STABLEUSDT,STBLUSDT,TAKEUSDT,TOSHIUSDT,TRADOORUSDT,TRIAUSDT,TRUSTUSDT,TRUTHUSDT,TURTLEUSDT,UAIUSDT,UBUSDT,USELESSUSDT,USUSDT,WETUSDT,WLFIUSDT,XANUSDT,XAUTUSDT,XPINUSDT,XPLUSDT,YBUSDT,ZAMAUSDT,ZBTUSDT,ZKCUSDT,ZKPUSDT,龙虾USDT",
+    "splits": 1,
+    "out": "runs/research_track/lifecycle_portfolio_1h_48h.json"
+  },
+  "results": {
+    "종전 실거래  SL50/익절없음/d7": {
+      "sl": 0.5,
+      "tp": null,
+      "check_day": 7,
+      "n_listings": 123,
+      "taken": 97,
+      "starved": 26,
+      "capture_pct": 78.86178861788618,
+      "final_equity": 541.9769078688589,
+      "total_pnl": -51.46309213114071,
+      "mdd_pct": -42.731343215929265,
+      "worst_trade": -75.92609205139794,
+      "win_pct": 60.824742268041234,
+      "exit_reasons": {
+        "early": 50,
+        "sl": 29,
+        "time": 18
+      }
+    },
+    "신규 커밋    SL20/익절50/d7": {
+      "sl": 0.2,
+      "tp": 0.5,
+      "check_day": 7,
+      "n_listings": 123,
+      "taken": 118,
+      "starved": 5,
+      "capture_pct": 95.9349593495935,
+      "final_equity": 1024.2822148720552,
+      "total_pnl": 430.84221487205525,
+      "mdd_pct": -46.28422488200899,
+      "worst_trade": -47.365682349324665,
+      "win_pct": 42.3728813559322,
+      "exit_reasons": {
+        "early": 34,
+        "sl": 64,
+        "tp": 19,
+        "time": 1
+      }
+    },
+    "신규+base    SL20/익절50/없음": {
+      "sl": 0.2,
+      "tp": 0.5,
+      "check_day": null,
+      "n_listings": 123,
+      "taken": 107,
+      "starved": 16,
+      "capture_pct": 86.99186991869918,
+      "final_equity": 1100.434902976411,
+      "total_pnl": 506.9949029764112,
+      "mdd_pct": -44.423856018232854,
+      "worst_trade": -58.67769154942469,
+      "win_pct": 37.38317757009346,
+      "exit_reasons": {
+        "sl": 66,
+        "tp": 35,
+        "time": 6
+      }
+    },
+    "base 종전    SL50/익절없음/없음": {
+      "sl": 0.5,
+      "tp": null,
+      "check_day": null,
+      "n_listings": 123,
+      "taken": 72,
+      "starved": 51,
+      "capture_pct": 58.53658536585366,
+      "final_equity": 278.0809757628858,
+      "total_pnl": -315.3590242371143,
+      "mdd_pct": -60.73488247889056,
+      "worst_trade": -59.43895040000001,
+      "win_pct": 47.22222222222222,
+      "exit_reasons": {
+        "sl": 34,
+        "time": 38
+      }
+    },
+    "신규+d14     SL20/익절50/d14": {
+      "sl": 0.2,
+      "tp": 0.5,
+      "check_day": 14,
+      "n_listings": 123,
+      "taken": 112,
+      "starved": 11,
+      "capture_pct": 91.0569105691057,
+      "final_equity": 1230.9529208798333,
+      "total_pnl": 637.512920879833,
+      "mdd_pct": -38.80691211715305,
+      "worst_trade": -65.32145388135028,
+      "win_pct": 41.964285714285715,
+      "exit_reasons": {
+        "sl": 64,
+        "early": 12,
+        "tp": 33,
+        "time": 3
+      }
+    }
+  }
+}

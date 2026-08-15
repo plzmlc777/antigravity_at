@@ -219,6 +219,8 @@ def main() -> int:
     # ⚠ 단일 경로 · 중첩이 심하다. 원본 도구 주석이 경고한 그대로다 —
     #   "수익 기준 최적이 분할마다 100%/30%/25% 로 뒤집힌다".
     #   그래서 **분할마다 순위가 유지되는지**를 함께 낸다.
+    p.add_argument("--only", default="", help="쉼표 구분 종목 제한")
+    p.add_argument("--dump-symbols", default="", help="코호트 종목을 파일로")
     p.add_argument("--splits", type=int, default=2, help="상장일 기준 균등 분할 수")
     p.add_argument("--out", default=str(OUT))
     a = p.parse_args()
@@ -226,6 +228,14 @@ def main() -> int:
     from app.db.session import engine
     with engine.connect() as conn:
         cohort = load_cohort(conn)
+    if a.only:
+        keep = {x.strip().upper() for x in a.only.split(",") if x.strip()}
+        cohort = [c for c in cohort if c["symbol"] in keep]
+    if a.dump_symbols:
+        Path(a.dump_symbols).write_text(
+            ",".join(sorted(c["symbol"] for c in cohort)))
+        print(f"코호트 {len(cohort)}종목 → {a.dump_symbols}")
+        return 0
     if not cohort:
         raise SystemExit("코호트가 비었다 — listing_dates.json / ohlcv_daily 확인")
     log.info("코호트 %d상장 · %s ~ %s", len(cohort),
