@@ -1,0 +1,158 @@
+{
+  "paradigm_name": "dart_h2_guidance_amend_30pct_kr_equity_mean_reversion_long_60d_extended_hold",
+  "paradigm_counter_status": "inventory_halt_no_increment",
+  "paradigm_counter_proposed": 133,
+  "verdict": "INVENTORY_HALT_FAMILY_DISTINCT_FAIL_LESSON_26_AUTO_FAIL_PRECONDITION",
+  "halt_phase": "R-0_inventory_prescreen",
+  "halt_at": "lesson_44_amendment_15th_xref_distinct_failure_plus_lesson_26_amendment_n_measurable_quarters_lt_4",
+  "dispatch_date_kst": "2026-05-21T10:29:47+09:00",
+  "dispatch_context": {
+    "policy": "continuous-parallel (feedback_paradigm_campaign_continuous_parallel)",
+    "streak_position": "5-streak non-PASS threshold candidate after paradigm 129/130/131/132",
+    "path": "Path C — DART KR equity mean-reversion direction (family-distinct exception)",
+    "rationale": "paradigm 93 B mirror neg×LONG side discovery formal validation via 60d hold extension"
+  },
+  "hypothesis": "EARNINGS_GUIDANCE_AMEND (가이던스 ±30% 변경) + pre_ret_5d < -3% filter × LONG mean-reversion, hold=60d (extension from paradigm 93 5d, paradigm 100 5d/10d/20d/30d). 4-quadrant SNT: A focus oversold MR, A mirror oversold continuation, B focus overbought MR (SHORT), B mirror overbought continuation (LONG).",
+
+  "family_distinct_check": {
+    "directional_momentum_family_retire_check": {
+      "status": "PASSED — mean-reversion direction is family-distinct, explicitly allowed per feedback_family_retire_kr_post_earnings"
+    },
+    "lesson_44_amendment_15th_xref_check": {
+      "status": "FAILED",
+      "blocking_paradigm": "paradigm 100 dart_h2_guidance_amend_30pct_kr_equity_mean_reversion_neg_long_20d (graveyard 2026-05-19)",
+      "graveyard_path": "backend/runs/research_track/graveyard__dart_h2_guidance_amend_30pct_kr_equity_mean_reversion_neg_long_20d.md",
+      "blocking_paradigm_dna": {
+        "trigger": "EARNINGS_GUIDANCE_AMEND ±30%",
+        "direction": "LONG mean-reversion",
+        "filter_observable": "pre_ret_5d ≤ -3%",
+        "universe": "KOSPI200+KOSDAQ150",
+        "hold_sweep": "5d/10d/20d/30d",
+        "substrate": "DART AMEND events 2.4yr cache"
+      },
+      "candidate_dna": {
+        "trigger": "EARNINGS_GUIDANCE_AMEND ±30% (IDENTICAL)",
+        "direction": "LONG mean-reversion (IDENTICAL)",
+        "filter": "pre_ret_5d < -3% (SUBSET of paradigm 100 observable track)",
+        "universe": "KOSPI200+KOSDAQ150 (IDENTICAL)",
+        "hold": "60d (extension only — paradigm 100 swept 5d/10d/20d/30d explicitly)",
+        "substrate": "DART AMEND events 2.4yr cache (IDENTICAL)"
+      },
+      "dna_overlap_dim_count": "6/6 (only hold horizon differs by extension)",
+      "distinct_proof_attempt_60d_hold_extension": {
+        "claim": "60d hold extension distinct from paradigm 100 5d/10d/20d/30d sweep",
+        "graveyard_explicit_refutation_quote": "Hold horizon 5d → 10d → 20d → 30d 확장은 temporal independence를 추가하지 않는다 — events는 여전히 Q1-clustered이고 hold만 길어진다 (graveyard paradigm 100 §30)",
+        "claim_status": "REFUTED — paradigm 100 graveyard already covers hold extension class, explicit prohibition for hold-extension/threshold-tweak: 'Same-substrate hold-extension/threshold-tweak도 동일 temporal-concentration defect 적용' (paradigm 100 §87)"
+      }
+    }
+  },
+
+  "lesson_26_amendment_auto_fail_precondition_recheck": {
+    "rule": "n_measurable_quarters >= 4 required for valid TS-CV; <4 → auto-FAIL precondition before R-1 dispatch",
+    "substrate_inherited": "DART AMEND events 2.4yr (paradigm 93 cache h2_guidance_events_ret_cache.joblib)",
+    "n_measurable_quarters_obs_track_pre_ret_5d_le_minus_3pct": 3,
+    "quarterly_distribution_recap": {
+      "2024Q1": 75,
+      "2025Q1": 88,
+      "2025Q2": 1,
+      "2026Q1": 95,
+      "_concentration_q1": "99.6%"
+    },
+    "hold_extension_5d_to_60d_quarter_count_delta": 0,
+    "verdict": "AUTO_FAIL precondition reaffirmed — 60d hold extension does NOT add quarter count"
+  },
+
+  "lesson_46_refinement_8th_stratified_n50_x_4q_sign_flip_check": {
+    "applicability": "would apply if R-0 family-distinct passed and substrate had 4+ quarters",
+    "status": "N/A_BLOCKED — paradigm cannot reach this gate due to family-distinct fail + lesson #26 auto-fail",
+    "note": "would have been 8th dogfood opportunity"
+  },
+
+  "life_changing_4dim_eyeball_60d_hold": {
+    "n_events_observable_neg": 259,
+    "window_years": 2.4,
+    "nominal_trades_per_year": 108,
+    "q1_concentration": 0.996,
+    "events_per_q1_avg": 86,
+    "hold_horizon_days": 60,
+    "trading_days_per_q1": 60,
+    "concurrent_overlap_q1_pct": 1.0,
+    "effective_independent_positions_per_q1": "1-2 (full Q1 overlap)",
+    "effective_trades_per_year": "3-6 (1-2 per Q1 × 3 Q1s)",
+    "trades_per_yr_threshold": 12,
+    "verdict": "DECISIVE FAIL — 60d hold extension worsens overlap from paradigm 100 5d/20d marginal 9-15 to decisive 3-6, life-changing 4-dim categorically fails"
+  },
+
+  "lesson_21_axis_stacking_individual_vs_joint_sigex_check": {
+    "applicability": "would apply at R-1 if dispatched — AMEND alone vs AMEND + pre_ret_5d filter",
+    "status": "N/A_BLOCKED",
+    "paradigm_93_baseline_reference": {
+      "B_mirror_obs_track_pre_ret_5d_le_minus_3pct_neg_long_5d": {
+        "n": 259,
+        "gross_bp": 159.66,
+        "net_bp": 109.66,
+        "sigex": 1.10,
+        "ci_lower_bp": 9.24,
+        "pass_three_gate": false
+      },
+      "note": "Observable filter already applied in paradigm 93 yielded sigex 1.10 sub-grade at 5d. 60d hold extension on Q1-clustered substrate cannot rescue."
+    }
+  },
+
+  "decision_rationale": "Three independent blockers reaffirm HALT_BEFORE_R1: (1) Lesson #44 amendment 15th xref dogfood detects paradigm 100 graveyard with 6/6 DNA overlap (only hold differs); distinct proof attempt via 60d hold extension explicitly refuted by paradigm 100 graveyard §30 + §87 which already prohibit hold-extension/threshold-tweak class. (2) Lesson #26 amendment auto-FAIL precondition (n_measurable_quarters=3<4) inherited from same substrate; hold extension adds zero quarter count. (3) Life-changing 4-dim 60d hold catastrophically worsens overlap (~3-6 trades/yr vs paradigm 100 9-15 marginal), categorical fail. Counter NOT incremented (inventory-halt sub-class per paradigm 97 candidate dogfood pattern).",
+
+  "counter_increment_decision": {
+    "increment": false,
+    "rationale": "inventory-halt category (DNA duplicate detected at R-0, R-1 not dispatched). Pattern matches paradigm 97 candidate funding_dispersion inventory-halt (paradigm_97_funding_dispersion_inventory_halt_dogfood). paradigm 133 counter remains reserved for next ad-hoc R-1 dispatch.",
+    "paradigm_133_counter_status": "reserved for next valid dispatch"
+  },
+
+  "lesson_dogfood_summary": {
+    "lesson_44_amendment_15th_xref_dogfood": "SUCCESS (15th confirmed — first DART KR equity family-distinct fail at R-0)",
+    "lesson_26_amendment_dogfood_count": "4th success (paradigm 87 R-2 + paradigm 88 R-0 + paradigm 90 R-0 + paradigm 100 R-0 + this R-0 = 5 total)",
+    "lesson_30_data_window_ratio": "PASS (1.0, cache reuse)",
+    "lesson_11_sample_density": "would PASS but blocked by structural prior gates",
+    "lesson_19_snt": "infrastructure ready in paradigm 93 code but N/A blocked"
+  },
+
+  "next_candidate_recommendations": [
+    {
+      "rank": 1,
+      "candidate": "분기보고서 quarterly report YoY OP surprise × KR equity directional 5d/20d",
+      "rationale": "Q1+Q2+Q3+Q4 4x/yr distribution structurally bypasses Lesson #26 amendment auto-FAIL. KR DART quarterly reports filed 45-60d post quarter-end. Family-distinct concern: directional momentum family Tier 4 retire applies — must be either mean-reversion OR non-directional event paradigm to pass.",
+      "concern": "directional momentum family retire blocks. Mean-reversion variant inherits paradigm 100 caution. Non-directional event vol expansion variant inherits paradigm 95 NARROW_SCOPE_LIFE_CHANGING_FAIL caution. PATH C-1 inherits prior caution.",
+      "verdict_pre_dispatch": "advisory caution — substrate available but mechanism path constrained"
+    },
+    {
+      "rank": 2,
+      "candidate": "단일판매·공급계약체결 large supply contracts year-round filing distribution × KR equity vol expansion 5d",
+      "rationale": "Year-round filing distribution (year-round, not Q1-clustered) bypasses Lesson #26. Non-directional vol expansion (volatility paradigm) family-distinct from directional momentum.",
+      "concern": "paradigm dart_supply_contract_announce_kr_equity_vol_expansion_5d ALREADY GRAVEYARD (verified backend/runs/research_track/graveyard__dart_supply_contract_announce_kr_equity_vol_expansion_5d.md). Lesson #44 amendment 16th xref would block. Need distinct variant (different filter / different vol window) — distinct burden high.",
+      "verdict_pre_dispatch": "INVENTORY_HALT_likely"
+    },
+    {
+      "rank": 3,
+      "candidate": "Path A binance non-DART continuous-parallel (different family entirely)",
+      "rationale": "5-streak non-PASS DART/KR side accumulating — switch family entirely. Binance Futures perp universe ~250 active. Possible candidates from PARADIGM_QUEUE_2026Q3 §6.x untried trigger axes.",
+      "concern": "DART KR side path A/B 사실상 소진. continuous-parallel policy requires alternate-family rotation to avoid family-fatigue.",
+      "verdict_pre_dispatch": "RECOMMENDED — rotate to binance side for paradigm 133 (counter still reserved)"
+    }
+  ],
+
+  "campaign_state_snapshot": {
+    "graveyards_cumulative": 132,
+    "graveyards_after_this_halt": 132,
+    "counter_133_status": "reserved (not assigned, inventory-halt sub-class)",
+    "r5_seeded_live": 10,
+    "non_pass_streak": 4,
+    "non_pass_streak_after_this_halt": "4 (inventory-halt does not extend streak per paradigm 97 precedent)",
+    "lessons_confirmed": 31,
+    "lessons_candidate": 5,
+    "d_day_kst": "2026-06-03 (D-13)"
+  },
+
+  "output_paths": {
+    "metrics": "backend/runs/research_track/dart_h2_guidance_amend_30pct_kr_equity_mean_reversion_long_60d_extended_hold/r0_prescreen.json",
+    "graveyard": "backend/runs/research_track/graveyard__dart_h2_guidance_amend_30pct_kr_equity_mean_reversion_long_60d_extended_hold.md"
+  }
+}

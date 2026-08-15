@@ -1,0 +1,138 @@
+{
+  "paradigm_name": "binance_bybit_okx_delisting_announce_short_alt_universe_expanded_n_gte_300_1d_hold",
+  "paradigm_counter": 191,
+  "phase": "R-0_PRESCREEN_HALT",
+  "verdict": "HALT_SUBSTRATE_PARTIAL_PLUS_PARADIGM_CLASS_MISMATCH",
+  "generated_at_kst": "2026-05-22T12:35:00+09:00",
+  "wall_clock_minutes": 12,
+  "dispatch_decision": "HALT_BEFORE_R1_EXECUTION",
+  "lesson_69_5item_template": {
+    "item_1_slug_grep": {
+      "verdict": "PASS",
+      "evidence": "ls grep delisting/multi_venue/universe_expand → only 2 paradigm 87/190 (Binance) precedents; multi-venue slug unique"
+    },
+    "item_2_substrate_shape_audit": {
+      "verdict": "MARGINAL_PARTIAL_FAIL",
+      "evidence": {
+        "binance": "FULL — n=57 events cached + r1.py reusable + delisting_events.csv ready (paradigm 87 artifact)",
+        "bybit": "PARTIAL — announcements API public free 229 Derivatives delisting articles, public.bybit.com/trading/{SYM}/ tick archive RETAINED post-delist (AVL Feb-2025 archive verified), BUT REST kline API returns 0 bars post-delist (must use public archive bulk download)",
+        "okx": "UNAVAILABLE — REST history-candles returns 51001 'doesn't exist' for delisted DEGEN/UXLINK/KITE, www.okx.com/cdn/okex/traderecords/ returns NoSuchKey for SWAP paths, no public archive substrate for delisted OKX perps"
+      }
+    },
+    "item_3_sample_density_lesson_11": {
+      "verdict": "PASS_in_expansion_path_modulo_substrate",
+      "evidence": {
+        "binance_only_baseline": "n=57 (paradigm 87 cached)",
+        "bybit_perp_events_2024-01_to_2026-05": "n≈249 (page 1-8 cumulative, 229 Derivatives-tagged + multi-perp batch syms)",
+        "combined_n_target": "~306 (5.3x paradigm 87 baseline)",
+        "okx_contribution": "0 (substrate unavailable)",
+        "binance_bybit_only_n_target": "~306 → meets ≥300 cutoff",
+        "per_quarter_distribution": "Binance 5 quarters (6/8/18/13/12); Bybit expected ~80/yr × 2.4yr = 192 across ~9 quarters; combined per-quarter expected 18-40 events PASS"
+      }
+    },
+    "item_4_dna_4dim_distinctness_lesson_62": {
+      "verdict": "MARGINAL_FAMILY_PROXY_CONCERN",
+      "evidence": "vs paradigm 87: 3/5 strict distinct (mechanism + direction + hold all same, universe + sample-density refinement). Lesson #70 corollary scope verdict (below) overrides; if scope verdict PASS, distinctness MARGINAL acceptable"
+    },
+    "item_5_family_proxy": {
+      "verdict": "FAIL_PARADIGM_87_FAMILY_RETIRED",
+      "evidence": "[[feedback-family-retire-kr-post-earnings]] 패턴: paradigm 87 (R-1 PASS_R1_FULL → R-2 FRAGILE_TEMPORAL_WF_FAIL) + paradigm 190 (fine-hold-sweep) + paradigm 88 (token_unlock_cliff exit-side mechanism HALT) cumulative Category A exit-side mechanism scope already 3-paradigm dogfooded with FRAGILE temporal decay + small-sample blind spot. Per R-2 report §3 explicit observation: '2026 들어 alpha 감쇠 확연 — 시장 참여자들이 이 패턴을 학습/선반영하기 시작했을 가능성 (delisting 사전 leak / informed selling acceleration)' = ALPHA DECAY paradigm class, NOT small-sample paradigm class"
+    }
+  },
+  "lesson_70_corollary_scope_verdict": {
+    "scope_question": "Is paradigm 191 (a) Lesson #70 corollary scope (R-5 LIVE survivor narrow-cohort spec-adaptive expansion) OR (b) R-1 PASS follow-up sample-density refinement?",
+    "verdict": "scope_(b)_R1_PASS_followup_sample_density_refinement",
+    "evidence": [
+      "paradigm 87 phase = graveyard (R-2 FRAGILE_TEMPORAL_WF_FAIL), NOT R-5_LIVE",
+      "Lesson #70 CONFIRMED scope explicitly = R-5 LIVE survivor (paradigm 22 R-5 + paradigm 24 R-5 dogfoods)",
+      "Universe expansion at same spec = mechanism class-preserved sample boost, NOT per-sym parameter optimization",
+      "Lesson #70 corollary candidate (1st dogfood paradigm 176) scope = spec-adaptive (per-sym parameter optimization) — explicitly DIFFERENT from universe expansion"
+    ],
+    "lesson_70_blocking": "NOT_BLOCKING",
+    "but_separate_blocking_concern": "R-2 FRAGILE_TEMPORAL_WF_FAIL root cause = ALPHA DECAY (2026 alpha 감쇠), NOT small-sample blind spot per se. Universe expansion does NOT fix temporal drift — adds spatial events but same-period decay continues"
+  },
+  "substrate_verification_results": {
+    "binance": {
+      "events_csv_cached": true,
+      "ohlcv_joblib_cached": true,
+      "n_events_available": 57,
+      "freemium_check": "PASS — Binance public CMS announcement API"
+    },
+    "bybit": {
+      "announcements_api_v5_free": true,
+      "n_perp_delisting_events_2024_2026": 249,
+      "rest_kline_post_delist": "0 bars (UNAVAILABLE)",
+      "public_archive_tick_csv_gz": "AVAILABLE (public.bybit.com/trading/{SYM}/)",
+      "freemium_check": "PASS — no signup, no trial-to-paid, fully public",
+      "backfill_cost_estimate": "tick CSV.gz × 249 syms × ~5-13d window each = ~3-8 GB download + 1m kline reconstruction needed (NOT pre-computed kline available post-delist)"
+    },
+    "okx": {
+      "announcements_api_v5_free": true,
+      "n_announcements_available": "high (50+ per page, paginated)",
+      "rest_history_candles_post_delist": "51001 doesn't exist (UNAVAILABLE)",
+      "public_archive_cdn": "NoSuchKey errors (UNAVAILABLE)",
+      "freemium_check": "PASS for announcements, BUT OHLCV substrate UNAVAILABLE",
+      "verdict": "HALT_SUBSTRATE_UNAVAILABLE — OKX cannot contribute to OHLCV-dependent measurement"
+    }
+  },
+  "paradigm_87_baseline_direct_comparison": {
+    "n_events": 57,
+    "sigex": 2.23,
+    "median_ret_pct": 14.6,
+    "win_rate": 0.719,
+    "sharpe": 6.49,
+    "trades_per_year": 40.5,
+    "capital_utilization_pct": 36.65,
+    "4dim_verdict": "PASS",
+    "r2_walk_forward_verdict": "FRAGILE_TEMPORAL_WF_FAIL",
+    "r2_drift_ratio": 0.47,
+    "r2_oos_sigex": 0.18,
+    "r2_fold_pass_count": "1/5 (only 2025-Q4 k=3)",
+    "root_cause_r2_failure": "TEMPORAL ALPHA DECAY (per R-2 report §3) — 2024-Q4 +44bp → 2025-Q3 +1986bp → 2025-Q4 +1601bp → 2026-Q1 +1995bp → 2026-Q2 +650bp; not n=57 small-sample blind spot"
+  },
+  "4dim_audit_estimate_for_expanded_universe": {
+    "trades_per_year_estimate": "~110/yr (binance 40.5 + bybit ~70/yr × 2.4yr proportional)",
+    "per_trade_net_edge_pct_estimate": "MARGINAL — Bybit single-perp delistings have shorter announce→delist gap (~2-3d vs Binance 3-13d), expected lower per-trade gross magnitude. Conservatively edge ~7-10% (vs Binance 14.6%). Still ≥ 2% cutoff PASS likely",
+    "capital_utilization_pct_estimate": "~35-50% — bybit shorter hold mitigated by higher event frequency",
+    "sharpe_estimate": "~5-7 (similar to paradigm 87 baseline if mechanism preserved)",
+    "verdict_conditional_on_execution": "4-dim PASS LIKELY if Bybit mechanism intact; but R-2 walk-forward alpha decay concern UNRESOLVED by universe expansion alone"
+  },
+  "r2_walk_forward_re_eligibility": {
+    "small_sample_blind_spot_addressed": "PARTIALLY — n=306 (>n=57) increases per-fold n from 11 to ~60, statistical power restored",
+    "temporal_alpha_decay_addressed": "NO — 2026 alpha 감쇠 mechanism persists; multi-venue events in 2026 likely show same decay pattern (market participants learn cross-venue delisting patterns simultaneously)",
+    "predicted_r2_outcome": "STILL_FRAGILE_TEMPORAL_WF_FAIL probability ≥ 60% — universe expansion is wrong intervention; correct intervention = regime stratification (pre-2026 vs 2026+) or alpha-decay-aware position sizing",
+    "verdict": "R-2 ELIGIBILITY MARGINAL — does not address root cause"
+  },
+  "lesson_30_candidate_3rd_dogfood": {
+    "data_window_ratio": "n=57 / n=306 = 18.6% (≤ 30% threshold)",
+    "advisory_only_classification": "PASS — paradigm 87 was full-Binance window (2024-01 to 2026-05), but RELATIVE to multi-venue expanded universe, it represents 18.6% slice",
+    "full_window_re_execution_obligation": "TRIGGERED — paradigm 87 verdict (R-1 PASS_R1_FULL, R-2 FRAGILE) advisory only relative to multi-venue expanded scope",
+    "dogfood_chain": [
+      "1st: paradigm 94 local 72d vs Mint 845d (8.5% slice)",
+      "2nd: paradigm 95 (similar)",
+      "3rd: paradigm 191 (Binance n=57 vs multi-venue n=306, 18.6% slice)"
+    ],
+    "formal_confirmed_eligibility": "3 dogfoods cumulative → Lesson #30 formal CONFIRMED 자격 ACHIEVED at paradigm 191 prescreen-only (no execution required; prescreen verdict establishes 3rd dogfood)",
+    "lesson_30_formal_promotion_action": "Lesson #30 candidate → formal CONFIRMED 정식 at paradigm-architect skill update (next paradigm 192 dispatch)"
+  },
+  "per_venue_contribution_estimate": {
+    "binance": "n=57 (18.6%)",
+    "bybit": "n~249 (81.4%)",
+    "okx": "n=0 (UNAVAILABLE)"
+  },
+  "halt_reason_classification": "HALT_SUBSTRATE_PARTIAL_PLUS_PARADIGM_CLASS_MISMATCH",
+  "halt_reason_detailed": [
+    "(1) OKX OHLCV substrate UNAVAILABLE post-delist — eliminates OKX contribution entirely (target was 3-venue, achievable is 2-venue Binance+Bybit only)",
+    "(2) Bybit backfill cost MODERATE — public.bybit.com tick CSV.gz × 249 syms × 5-13d windows = ~3-8 GB + 1m kline reconstruction (NOT pre-computed) = 30-90min backfill + custom Bybit fetch script needed",
+    "(3) ROOT CAUSE MISMATCH — paradigm 87 R-2 FRAGILE_TEMPORAL_WF_FAIL is ALPHA DECAY (per R-2 report §3 explicit observation), NOT small-sample blind spot. Universe expansion is wrong intervention for alpha-decay paradigm class",
+    "(4) PARADIGM 87 R-2 quarterly breakdown shows 2026-Q2 already at +650bp (vs 2025-Q3-Q4 ~+1600-2000bp) = clear monotonic decay trajectory. Bybit 2026-Q1/Q2 events expected to show same decay pattern (market-wide informational learning, not Binance-specific)",
+    "(5) Even with n=306, R-2 walk-forward predicted outcome STILL_FRAGILE_TEMPORAL_WF_FAIL ≥ 60% probability — does not address temporal drift mechanism"
+  ],
+  "correct_intervention_recommendations": {
+    "alternative_path_1": "REGIME-STRATIFIED R-2: split paradigm 87 cohort by year (2024-2025 strong-alpha cohort vs 2026 decay-cohort), test if alpha persists conditioning on pre-2026 announce_ts. If pre-2026 subset alpha intact → permanent paradigm class with conservative scope restriction (do not enter post-2026 events)",
+    "alternative_path_2": "DELISTING-LEAK detection feature: pre-announce drift screen — measure -7d to -1d cumulative return vs market; if leak observable, screen IN/OUT events by pre-announce drift sign. Tests whether 2026 decay is from informed selling absorption",
+    "alternative_path_3": "Forward-collection paradigm: forward-only Bybit + Binance delisting events from 2026-05-22+, paper-track 60+d to validate post-decay alpha regime"
+  },
+  "next_action_recommendation": "paradigm 192 = new DNA dispatch per [[feedback-paradigm-campaign-continuous-parallel]] + [[feedback-persistence-over-efficiency]]. Universe expansion path for paradigm 87 is structurally wrong intervention; recommended path = alternative_path_1 (regime-stratified R-2 retest) at separate paradigm 193 if user explicitly opts. paradigm 191 counter consumes via R-0 substantive halt (paradigm 88/89/90/97-c/159/176 precedent).",
+  "verdict_final": "HALT_SUBSTRATE_PARTIAL_PLUS_PARADIGM_CLASS_MISMATCH (R-1 NOT DISPATCHED)"
+}

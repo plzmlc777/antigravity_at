@@ -1,0 +1,192 @@
+{
+  "paradigm": "funding_boundary_x_oi_direction_x_funding_magnitude_triple_confirm_alt_directional_4h",
+  "paradigm_num": 132,
+  "phase": "R-0_prescreen",
+  "evaluated_at_kst": "2026-05-21 10:16:48",
+  "cohort_size": 13,
+  "cohort": [
+    "AVAXUSDT",
+    "AXSUSDT",
+    "COMPUSDT",
+    "DOGEUSDT",
+    "ETCUSDT",
+    "HBARUSDT",
+    "ICPUSDT",
+    "LDOUSDT",
+    "LINKUSDT",
+    "SOLUSDT",
+    "UNIUSDT",
+    "WLDUSDT",
+    "1000LUNCUSDT"
+  ],
+  "per_sym_n_funding": {
+    "AVAXUSDT": 1005,
+    "AXSUSDT": 1090,
+    "COMPUSDT": 1090,
+    "DOGEUSDT": 1005,
+    "ETCUSDT": 1090,
+    "HBARUSDT": 1090,
+    "ICPUSDT": 1090,
+    "LDOUSDT": 1090,
+    "LINKUSDT": 1005,
+    "SOLUSDT": 1089,
+    "UNIUSDT": 1090,
+    "WLDUSDT": 1090,
+    "1000LUNCUSDT": 1090
+  },
+  "n_triggers_post_debounce": 1176,
+  "n_per_quadrant": {
+    "A_pos_long_MR": 370,
+    "B_neg_short_MR": 806
+  },
+  "lesson_11_per_quarter_measurable_30": {
+    "A_pos_long_MR": 4,
+    "B_neg_short_MR": 4
+  },
+  "lesson_34_funding_abs_per_sym": {
+    "AVAXUSDT": {
+      "p50": 9.192e-05,
+      "p70": 0.0001,
+      "p90": 0.000165706,
+      "p99": 0.0004054832000000003,
+      "max": 0.0006628
+    },
+    "AXSUSDT": {
+      "p50": 0.0001,
+      "p70": 0.00021388699999999998,
+      "p90": 0.000896711,
+      "p99": 0.006704706899999977,
+      "max": 0.02
+    },
+    "COMPUSDT": {
+      "p50": 0.0001,
+      "p70": 0.0001,
+      "p90": 0.00033865300000000007,
+      "p99": 0.00349038589999999,
+      "max": 0.0147177
+    },
+    "DOGEUSDT": {
+      "p50": 6.498e-05,
+      "p70": 9.682799999999999e-05,
+      "p90": 0.0001,
+      "p99": 0.0001462108000000002,
+      "max": 0.00045253
+    },
+    "ETCUSDT": {
+      "p50": 8.6155e-05,
+      "p70": 0.0001,
+      "p90": 0.0001,
+      "p99": 0.0002497209999999994,
+      "max": 0.00088868
+    },
+    "HBARUSDT": {
+      "p50": 7.5195e-05,
+      "p70": 0.0001,
+      "p90": 0.000107122,
+      "p99": 0.0002738449999999998,
+      "max": 0.00048138
+    },
+    "ICPUSDT": {
+      "p50": 9.666e-05,
+      "p70": 0.0001,
+      "p90": 0.00029057000000000003,
+      "p99": 0.0010890190999999986,
+      "max": 0.00740802
+    },
+    "LDOUSDT": {
+      "p50": 6.45e-05,
+      "p70": 0.0001,
+      "p90": 0.0001,
+      "p99": 0.0001371144999999981,
+      "max": 0.00034421
+    },
+    "LINKUSDT": {
+      "p50": 7.771e-05,
+      "p70": 0.0001,
+      "p90": 0.0001,
+      "p99": 0.00017071800000000037,
+      "max": 0.00030062
+    },
+    "SOLUSDT": {
+      "p50": 6.405e-05,
+      "p70": 9.9338e-05,
+      "p90": 0.00010357200000000003,
+      "p99": 0.00047771199999999337,
+      "max": 0.00302761
+    },
+    "UNIUSDT": {
+      "p50": 7.638999999999999e-05,
+      "p70": 0.0001,
+      "p90": 0.0001,
+      "p99": 0.0001529266,
+      "max": 0.00031086
+    },
+    "WLDUSDT": {
+      "p50": 0.0001,
+      "p70": 0.0001,
+      "p90": 0.00018936900000000005,
+      "p99": 0.0008435340999999871,
+      "max": 0.00126628
+    },
+    "1000LUNCUSDT": {
+      "p50": 0.0001,
+      "p70": 0.0001,
+      "p90": 0.000309173,
+      "p99": 0.000870365399999997,
+      "max": 0.00262916
+    }
+  },
+  "lesson_46_stratified_n50x4q": {
+    "A_pos_long_MR": [
+      {
+        "q": "2025Q3",
+        "n": 64,
+        "gross_bp": 7.904001827371281
+      },
+      {
+        "q": "2025Q4",
+        "n": 119,
+        "gross_bp": -14.488840989662338
+      },
+      {
+        "q": "2026Q1",
+        "n": 130,
+        "gross_bp": -34.10039148689265
+      },
+      {
+        "q": "2026Q2",
+        "n": 30,
+        "gross_bp": -20.41107191292484
+      }
+    ],
+    "B_neg_short_MR": [
+      {
+        "q": "2025Q3",
+        "n": 47,
+        "gross_bp": -20.78973483297614
+      },
+      {
+        "q": "2025Q4",
+        "n": 255,
+        "gross_bp": -19.240747751809547
+      },
+      {
+        "q": "2026Q1",
+        "n": 323,
+        "gross_bp": -18.753872016679754
+      },
+      {
+        "q": "2026Q2",
+        "n": 95,
+        "gross_bp": 14.013981365464668
+      }
+    ]
+  },
+  "lesson_46_sign_flips": {
+    "A_pos_long_MR": 1,
+    "B_neg_short_MR": 1
+  },
+  "lesson_30_data_window_ratio_funding": 0.5,
+  "lesson_30_data_window_ratio_oi": 1.1,
+  "lesson_44_funding_family_tier4_concern": "paradigm 132 claims paradigm 22 R-5 family-slice exemption; however paradigm 22 mechanism (continuous 15-day funding-z MR) vs paradigm 132 mechanism (event-anchored 4h directional triple-confirm) are structurally distinct. paradigm 132 is more accurately a NEW funding-family sub-variant for which Tier 4 retire of funding family fully applies (6 sub-class graveyards 73/79/96/97/98/99). User directive: dispatch R-1 with explicit Lesson #21 individual-vs-joint decisive test; if joint > paradigm 22 R-1 sigex \u00d7 1.2 AND 3-gate PASS then mechanism-distinct exemption EARNED."
+}

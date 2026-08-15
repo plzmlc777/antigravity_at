@@ -1,0 +1,2428 @@
+{
+  "paradigm_name": "binance_delisting_announce_short_alt_fine_hold_sweep_plateau_identification_post_announce",
+  "paradigm_counter": 190,
+  "generated_at": "2026-05-22T03:16:41.221322+00:00",
+  "n_events": 57,
+  "fee_baseline_per_trade": 0.0008,
+  "fee_stress_per_trade": 0.0025,
+  "entry_offset_min": 5,
+  "hold_horizons_min": [
+    60,
+    120,
+    240,
+    480,
+    720,
+    1440,
+    2880
+  ],
+  "hold_labels": [
+    "1h",
+    "2h",
+    "4h",
+    "8h",
+    "12h",
+    "24h",
+    "48h"
+  ],
+  "oos_days": 513.3022168518519,
+  "lesson_70_corollary_scope_verdict": "PROCEED_R1_PASS_FOLLOWUP_HOLD_REFINEMENT_NOT_SPEC_ADAPTIVE",
+  "lesson_11_sample_density_verdict": "PASS_n57_per_hold_within_paradigm_parameter_sweep",
+  "paradigm_87_baseline_reference": {
+    "spec": "announce+5min -> delist-24h (~3.3d avg hold)",
+    "side": "short",
+    "n_obs": 57,
+    "fee_baseline": {
+      "signal_t_excess": 2.233462446711633,
+      "perm_p_two_sided": 0.062,
+      "ci_lower_bp": 781.9055597691789,
+      "obs_mean_bp": 1380.8157486482387,
+      "obs_win_rate": 0.7192982456140351,
+      "three_gate_pass": true
+    },
+    "concentration": {
+      "quarter_pos_t_ratio": 1.0,
+      "n_quarters_measurable": 3,
+      "sign_ratio_positive": 0.7192982456140351,
+      "overall_pass": true
+    },
+    "frequency_first_gate_baseline": {
+      "trades_per_year": 40.4901110129015,
+      "per_trade_net_edge_pct": 14.631786636076852,
+      "capital_utilization_pct": 36.654665271909984,
+      "single_trade_sharpe_annualized": 6.486942037287733,
+      "gate_verdict": "PASS"
+    },
+    "r2_outcome": "FRAGILE_TEMPORAL_WF_FAIL (TS-CV 1/5 PASS, Q4-2025 single-quarter outlier)"
+  },
+  "cells": {
+    "1h_short": {
+      "hold_label": "1h",
+      "hold_min": 60,
+      "side": "short",
+      "n_obs": 57,
+      "n_skipped": 0,
+      "fee_baseline": {
+        "label": "1h_short_fee_baseline",
+        "fee_per_trade": 0.0008,
+        "n_obs": 57,
+        "obs_mean_bp": 432.1635233374168,
+        "obs_median_bp": 323.9209039548021,
+        "obs_win_rate": 0.7017543859649122,
+        "obs_t": 2.0085821999695392,
+        "null_mean_t": 0.15298305747905863,
+        "signal_t_excess": 1.8555991424904805,
+        "perm_p_two_sided": 0.039,
+        "ci_lower_bp": -46.701871926887364,
+        "ci_upper_bp": 804.8973058271253,
+        "prob_positive": 0.9635,
+        "n_candidate_pool": 31509,
+        "gate_a_sigex_pass": false,
+        "gate_b_ci_pass": false,
+        "gate_c_perm_p_pass": true,
+        "three_gate_pass": false
+      },
+      "fee_stress": {
+        "label": "1h_short_fee_stress",
+        "fee_per_trade": 0.0025,
+        "n_obs": 57,
+        "obs_mean_bp": 415.16352333741673,
+        "obs_median_bp": 306.92090395480216,
+        "obs_win_rate": 0.7017543859649122,
+        "obs_t": 1.929570678738437,
+        "null_mean_t": -0.2992048675596543,
+        "signal_t_excess": 2.2287755462980914,
+        "perm_p_two_sided": 0.058,
+        "ci_lower_bp": -63.70187192688723,
+        "ci_upper_bp": 787.8973058271256,
+        "prob_positive": 0.9575,
+        "n_candidate_pool": 31509,
+        "gate_a_sigex_pass": true,
+        "gate_b_ci_pass": false,
+        "gate_c_perm_p_pass": true,
+        "three_gate_pass": false
+      },
+      "concentration_baseline": {
+        "side": "short",
+        "per_quarter_t_stats": [
+          {
+            "quarter": "2024Q4",
+            "n_trades": 6,
+            "mean_bp": -324.08446344230504,
+            "t_stat": -3.268875166948441
+          },
+          {
+            "quarter": "2025Q3",
+            "n_trades": 8,
+            "mean_bp": 1383.3404555145335,
+            "t_stat": 4.042005220112448
+          },
+          {
+            "quarter": "2025Q4",
+            "n_trades": 18,
+            "mean_bp": 1.4509526579377838,
+            "t_stat": 0.0025022759064129863
+          },
+          {
+            "quarter": "2026Q1",
+            "n_trades": 13,
+            "mean_bp": 979.2477532719181,
+            "t_stat": 3.2438219493881375
+          },
+          {
+            "quarter": "2026Q2",
+            "n_trades": 12,
+            "mean_bp": 229.56383553270882,
+            "t_stat": 1.1330287661080005
+          }
+        ],
+        "n_quarters_measurable": 3,
+        "n_quarters_pos_t": 3,
+        "quarter_pos_t_ratio": 1.0,
+        "n_pos": 40,
+        "n_neg": 17,
+        "sign_ratio_positive": 0.7017543859649122,
+        "top3_abs_concentration_pct": 26.261597645370564,
+        "concentration_gate": {
+          "quarter_pass": true,
+          "sign_pass": true,
+          "blowup_pass": "True",
+          "overall_pass": "True"
+        }
+      },
+      "frequency_first_gate_baseline": {
+        "side": "short",
+        "fee_per_trade": 0.0008,
+        "oos_days": 513.3022168518519,
+        "n_events": 57,
+        "trades_per_year": 40.55943909162739,
+        "per_trade_net_edge_pct": 4.321635233374168,
+        "capital_utilization_pct": 0.4626903843443689,
+        "mean_hold_days": 0.04166666666666666,
+        "single_trade_sharpe_annualized": 24.908806274814722,
+        "cutoffs": {
+          "trades_per_year": 12,
+          "per_trade_net_edge_pct": 2.0,
+          "capital_utilization_pct": 30.0,
+          "single_trade_sharpe": 1.5
+        },
+        "gate_verdict": "FAIL",
+        "fail_dims": [
+          "capital_utilization_pct=0.46<30.0"
+        ]
+      },
+      "frequency_first_gate_stress": {
+        "side": "short",
+        "fee_per_trade": 0.0025,
+        "oos_days": 513.3022168518519,
+        "n_events": 57,
+        "trades_per_year": 40.55943909162739,
+        "per_trade_net_edge_pct": 4.151635233374167,
+        "capital_utilization_pct": 0.4626903843443689,
+        "mean_hold_days": 0.04166666666666666,
+        "single_trade_sharpe_annualized": 23.9289695144104,
+        "cutoffs": {
+          "trades_per_year": 12,
+          "per_trade_net_edge_pct": 2.0,
+          "capital_utilization_pct": 30.0,
+          "single_trade_sharpe": 1.5
+        },
+        "gate_verdict": "FAIL",
+        "fail_dims": [
+          "capital_utilization_pct=0.46<30.0"
+        ]
+      },
+      "three_gate_verdict": "FAIL",
+      "concentration_gate_overall_pass": "True",
+      "frequency_gate_baseline_verdict": "FAIL",
+      "frequency_gate_stress_verdict": "FAIL"
+    },
+    "1h_long": {
+      "hold_label": "1h",
+      "hold_min": 60,
+      "side": "long",
+      "n_obs": 57,
+      "n_skipped": 0,
+      "fee_baseline": {
+        "label": "1h_long_fee_baseline",
+        "fee_per_trade": 0.0008,
+        "n_obs": 57,
+        "obs_mean_bp": -448.1635233374168,
+        "obs_median_bp": -339.92090395480216,
+        "obs_win_rate": 0.2807017543859649,
+        "obs_t": -2.082945984657635,
+        "null_mean_t": -0.5785716928096116,
+        "signal_t_excess": -1.5043742918480234,
+        "perm_p_two_sided": 0.082,
+        "ci_lower_bp": -820.8973058271256,
+        "ci_upper_bp": 30.701871926886586,
+        "prob_positive": 0.0325,
+        "n_candidate_pool": 31509,
+        "gate_a_sigex_pass": false,
+        "gate_b_ci_pass": false,
+        "gate_c_perm_p_pass": true,
+        "three_gate_pass": false
+      },
+      "fee_stress": {
+        "label": "1h_long_fee_stress",
+        "fee_per_trade": 0.0025,
+        "n_obs": 57,
+        "obs_mean_bp": -465.1635233374168,
+        "obs_median_bp": -356.92090395480216,
+        "obs_win_rate": 0.2807017543859649,
+        "obs_t": -2.1619575058887373,
+        "null_mean_t": -1.0307596178483245,
+        "signal_t_excess": -1.1311978880404128,
+        "perm_p_two_sided": 0.166,
+        "ci_lower_bp": -837.8973058271255,
+        "ci_upper_bp": 13.701871926886716,
+        "prob_positive": 0.027,
+        "n_candidate_pool": 31509,
+        "gate_a_sigex_pass": false,
+        "gate_b_ci_pass": false,
+        "gate_c_perm_p_pass": false,
+        "three_gate_pass": false
+      },
+      "concentration_baseline": {
+        "side": "long",
+        "per_quarter_t_stats": [
+          {
+            "quarter": "2024Q4",
+            "n_trades": 6,
+            "mean_bp": 308.0844634423051,
+            "t_stat": 3.107491303878788
+          },
+          {
+            "quarter": "2025Q3",
+            "n_trades": 8,
+            "mean_bp": -1399.3404555145332,
+            "t_stat": -4.088755883164332
+          },
+          {
+            "quarter": "2025Q4",
+            "n_trades": 18,
+            "mean_bp": -17.450952657937748,
+            "t_stat": -0.030095467375189658
+          },
+          {
+            "quarter": "2026Q1",
+            "n_trades": 13,
+            "mean_bp": -995.2477532719175,
+            "t_stat": -3.296822991276458
+          },
+          {
+            "quarter": "2026Q2",
+            "n_trades": 12,
+            "mean_bp": -245.56383553270888,
+            "t_stat": -1.2119979130368301
+          }
+        ],
+        "n_quarters_measurable": 3,
+        "n_quarters_pos_t": 0,
+        "quarter_pos_t_ratio": 0.0,
+        "n_pos": 16,
+        "n_neg": 41,
+        "sign_ratio_positive": 0.2807017543859649,
+        "top3_abs_concentration_pct": 26.11059889383324,
+        "concentration_gate": {
+          "quarter_pass": false,
+          "sign_pass": false,
+          "blowup_pass": "True",
+          "overall_pass": false
+        }
+      },
+      "frequency_first_gate_baseline": {
+        "side": "long",
+        "fee_per_trade": 0.0008,
+        "oos_days": 513.3022168518519,
+        "n_events": 57,
+        "trades_per_year": 40.55943909162739,
+        "per_trade_net_edge_pct": -4.481635233374168,
+        "capital_utilization_pct": 0.4626903843443689,
+        "mean_hold_days": 0.04166666666666666,
+        "single_trade_sharpe_annualized": -25.831005578724668,
+        "cutoffs": {
+          "trades_per_year": 12,
+          "per_trade_net_edge_pct": 2.0,
+          "capital_utilization_pct": 30.0,
+          "single_trade_sharpe": 1.5
+        },
+        "gate_verdict": "FAIL",
+        "fail_dims": [
+          "per_trade_net_edge_pct=-4.48<2.0",
+          "capital_utilization_pct=0.46<30.0",
+          "single_trade_sharpe=-25.83<1.5"
+        ]
+      },
+      "frequency_first_gate_stress": {
+        "side": "long",
+        "fee_per_trade": 0.0025,
+        "oos_days": 513.3022168518519,
+        "n_events": 57,
+        "trades_per_year": 40.55943909162739,
+        "per_trade_net_edge_pct": -4.651635233374168,
+        "capital_utilization_pct": 0.4626903843443689,
+        "mean_hold_days": 0.04166666666666666,
+        "single_trade_sharpe_annualized": -26.810842339128982,
+        "cutoffs": {
+          "trades_per_year": 12,
+          "per_trade_net_edge_pct": 2.0,
+          "capital_utilization_pct": 30.0,
+          "single_trade_sharpe": 1.5
+        },
+        "gate_verdict": "FAIL",
+        "fail_dims": [
+          "per_trade_net_edge_pct=-4.65<2.0",
+          "capital_utilization_pct=0.46<30.0",
+          "single_trade_sharpe=-26.81<1.5"
+        ]
+      },
+      "three_gate_verdict": "FAIL",
+      "concentration_gate_overall_pass": false,
+      "frequency_gate_baseline_verdict": "FAIL",
+      "frequency_gate_stress_verdict": "FAIL"
+    },
+    "2h_short": {
+      "hold_label": "2h",
+      "hold_min": 120,
+      "side": "short",
+      "n_obs": 57,
+      "n_skipped": 0,
+      "fee_baseline": {
+        "label": "2h_short_fee_baseline",
+        "fee_per_trade": 0.0008,
+        "n_obs": 57,
+        "obs_mean_bp": 215.0536764176688,
+        "obs_median_bp": 509.1556439582292,
+        "obs_win_rate": 0.7017543859649122,
+        "obs_t": 0.4323362960115258,
+        "null_mean_t": 0.4581302341555979,
+        "signal_t_excess": -0.025793938144072104,
+        "perm_p_two_sided": 0.741,
+        "ci_lower_bp": -887.9454711845465,
+        "ci_upper_bp": 885.1128078794554,
+        "prob_positive": 0.7135,
+        "n_candidate_pool": 15669,
+        "gate_a_sigex_pass": false,
+        "gate_b_ci_pass": false,
+        "gate_c_perm_p_pass": false,
+        "three_gate_pass": false
+      },
+      "fee_stress": {
+        "label": "2h_short_fee_stress",
+        "fee_per_trade": 0.0025,
+        "n_obs": 57,
+        "obs_mean_bp": 198.05367641766873,
+        "obs_median_bp": 492.1556439582292,
+        "obs_win_rate": 0.7017543859649122,
+        "obs_t": 0.3981600979821481,
+        "null_mean_t": 0.15591092730697279,
+        "signal_t_excess": 0.2422491706751753,
+        "perm_p_two_sided": 0.758,
+        "ci_lower_bp": -904.9454711845465,
+        "ci_upper_bp": 868.1128078794553,
+        "prob_positive": 0.7075,
+        "n_candidate_pool": 15669,
+        "gate_a_sigex_pass": false,
+        "gate_b_ci_pass": false,
+        "gate_c_perm_p_pass": false,
+        "three_gate_pass": false
+      },
+      "concentration_baseline": {
+        "side": "short",
+        "per_quarter_t_stats": [
+          {
+            "quarter": "2024Q4",
+            "n_trades": 6,
+            "mean_bp": -239.9721131756097,
+            "t_stat": -2.1222506278286932
+          },
+          {
+            "quarter": "2025Q3",
+            "n_trades": 8,
+            "mean_bp": 1437.166730078518,
+            "t_stat": 3.891585800602343
+          },
+          {
+            "quarter": "2025Q4",
+            "n_trades": 18,
+            "mean_bp": -910.2233303006313,
+            "t_stat": -0.5960828675734252
+          },
+          {
+            "quarter": "2026Q1",
+            "n_trades": 13,
+            "mean_bp": 1001.6436150097004,
+            "t_stat": 3.0209367349535223
+          },
+          {
+            "quarter": "2026Q2",
+            "n_trades": 12,
+            "mean_bp": 463.60094537649115,
+            "t_stat": 2.115842031700664
+          }
+        ],
+        "n_quarters_measurable": 3,
+        "n_quarters_pos_t": 2,
+        "quarter_pos_t_ratio": 0.6666666666666666,
+        "n_pos": 40,
+        "n_neg": 17,
+        "sign_ratio_positive": 0.7017543859649122,
+        "top3_abs_concentration_pct": 42.77417333452745,
+        "concentration_gate": {
+          "quarter_pass": true,
+          "sign_pass": true,
+          "blowup_pass": "True",
+          "overall_pass": "True"
+        }
+      },
+      "frequency_first_gate_baseline": {
+        "side": "short",
+        "fee_per_trade": 0.0008,
+        "oos_days": 513.3022168518519,
+        "n_events": 57,
+        "trades_per_year": 40.55943909162739,
+        "per_trade_net_edge_pct": 2.150536764176688,
+        "capital_utilization_pct": 0.9253807686887378,
+        "mean_hold_days": 0.08333333333333331,
+        "single_trade_sharpe_annualized": 3.7911415933263966,
+        "cutoffs": {
+          "trades_per_year": 12,
+          "per_trade_net_edge_pct": 2.0,
+          "capital_utilization_pct": 30.0,
+          "single_trade_sharpe": 1.5
+        },
+        "gate_verdict": "FAIL",
+        "fail_dims": [
+          "capital_utilization_pct=0.93<30.0"
+        ]
+      },
+      "frequency_first_gate_stress": {
+        "side": "short",
+        "fee_per_trade": 0.0025,
+        "oos_days": 513.3022168518519,
+        "n_events": 57,
+        "trades_per_year": 40.55943909162739,
+        "per_trade_net_edge_pct": 1.9805367641766873,
+        "capital_utilization_pct": 0.9253807686887378,
+        "mean_hold_days": 0.08333333333333331,
+        "single_trade_sharpe_annualized": 3.491451729102091,
+        "cutoffs": {
+          "trades_per_year": 12,
+          "per_trade_net_edge_pct": 2.0,
+          "capital_utilization_pct": 30.0,
+          "single_trade_sharpe": 1.5
+        },
+        "gate_verdict": "FAIL",
+        "fail_dims": [
+          "per_trade_net_edge_pct=1.98<2.0",
+          "capital_utilization_pct=0.93<30.0"
+        ]
+      },
+      "three_gate_verdict": "FAIL",
+      "concentration_gate_overall_pass": "True",
+      "frequency_gate_baseline_verdict": "FAIL",
+      "frequency_gate_stress_verdict": "FAIL"
+    },
+    "2h_long": {
+      "hold_label": "2h",
+      "hold_min": 120,
+      "side": "long",
+      "n_obs": 57,
+      "n_skipped": 0,
+      "fee_baseline": {
+        "label": "2h_long_fee_baseline",
+        "fee_per_trade": 0.0008,
+        "n_obs": 57,
+        "obs_mean_bp": -231.05367641766884,
+        "obs_median_bp": -525.1556439582292,
+        "obs_win_rate": 0.2982456140350877,
+        "obs_t": -0.46450212945094005,
+        "null_mean_t": -0.7425719347190094,
+        "signal_t_excess": 0.27806980526806935,
+        "perm_p_two_sided": 0.758,
+        "ci_lower_bp": -901.1128078794562,
+        "ci_upper_bp": 871.9454711845453,
+        "prob_positive": 0.2815,
+        "n_candidate_pool": 15669,
+        "gate_a_sigex_pass": false,
+        "gate_b_ci_pass": false,
+        "gate_c_perm_p_pass": false,
+        "three_gate_pass": false
+      },
+      "fee_stress": {
+        "label": "2h_long_fee_stress",
+        "fee_per_trade": 0.0025,
+        "n_obs": 57,
+        "obs_mean_bp": -248.0536764176688,
+        "obs_median_bp": -542.1556439582292,
+        "obs_win_rate": 0.2982456140350877,
+        "obs_t": -0.4986783274803176,
+        "null_mean_t": -1.0447912415676346,
+        "signal_t_excess": 0.546112914087317,
+        "perm_p_two_sided": 0.754,
+        "ci_lower_bp": -918.1128078794562,
+        "ci_upper_bp": 854.9454711845452,
+        "prob_positive": 0.276,
+        "n_candidate_pool": 15669,
+        "gate_a_sigex_pass": false,
+        "gate_b_ci_pass": false,
+        "gate_c_perm_p_pass": false,
+        "three_gate_pass": false
+      },
+      "concentration_baseline": {
+        "side": "long",
+        "per_quarter_t_stats": [
+          {
+            "quarter": "2024Q4",
+            "n_trades": 6,
+            "mean_bp": 223.97211317560973,
+            "t_stat": 1.980750811054524
+          },
+          {
+            "quarter": "2025Q3",
+            "n_trades": 8,
+            "mean_bp": -1453.1667300785184,
+            "t_stat": -3.934910887042548
+          },
+          {
+            "quarter": "2025Q4",
+            "n_trades": 18,
+            "mean_bp": 894.2233303006313,
+            "t_stat": 0.5856048611724854
+          },
+          {
+            "quarter": "2026Q1",
+            "n_trades": 13,
+            "mean_bp": -1017.6436150097003,
+            "t_stat": -3.0691924089626736
+          },
+          {
+            "quarter": "2026Q2",
+            "n_trades": 12,
+            "mean_bp": -479.60094537649127,
+            "t_stat": -2.1888649037306562
+          }
+        ],
+        "n_quarters_measurable": 3,
+        "n_quarters_pos_t": 1,
+        "quarter_pos_t_ratio": 0.3333333333333333,
+        "n_pos": 17,
+        "n_neg": 40,
+        "sign_ratio_positive": 0.2982456140350877,
+        "top3_abs_concentration_pct": 42.59114760332089,
+        "concentration_gate": {
+          "quarter_pass": false,
+          "sign_pass": false,
+          "blowup_pass": "True",
+          "overall_pass": false
+        }
+      },
+      "frequency_first_gate_baseline": {
+        "side": "long",
+        "fee_per_trade": 0.0008,
+        "oos_days": 513.3022168518519,
+        "n_events": 57,
+        "trades_per_year": 40.55943909162739,
+        "per_trade_net_edge_pct": -2.3105367641766885,
+        "capital_utilization_pct": 0.9253807686887378,
+        "mean_hold_days": 0.08333333333333331,
+        "single_trade_sharpe_annualized": -4.073202642008097,
+        "cutoffs": {
+          "trades_per_year": 12,
+          "per_trade_net_edge_pct": 2.0,
+          "capital_utilization_pct": 30.0,
+          "single_trade_sharpe": 1.5
+        },
+        "gate_verdict": "FAIL",
+        "fail_dims": [
+          "per_trade_net_edge_pct=-2.31<2.0",
+          "capital_utilization_pct=0.93<30.0",
+          "single_trade_sharpe=-4.07<1.5"
+        ]
+      },
+      "frequency_first_gate_stress": {
+        "side": "long",
+        "fee_per_trade": 0.0025,
+        "oos_days": 513.3022168518519,
+        "n_events": 57,
+        "trades_per_year": 40.55943909162739,
+        "per_trade_net_edge_pct": -2.480536764176688,
+        "capital_utilization_pct": 0.9253807686887378,
+        "mean_hold_days": 0.08333333333333331,
+        "single_trade_sharpe_annualized": -4.372892506232401,
+        "cutoffs": {
+          "trades_per_year": 12,
+          "per_trade_net_edge_pct": 2.0,
+          "capital_utilization_pct": 30.0,
+          "single_trade_sharpe": 1.5
+        },
+        "gate_verdict": "FAIL",
+        "fail_dims": [
+          "per_trade_net_edge_pct=-2.48<2.0",
+          "capital_utilization_pct=0.93<30.0",
+          "single_trade_sharpe=-4.37<1.5"
+        ]
+      },
+      "three_gate_verdict": "FAIL",
+      "concentration_gate_overall_pass": false,
+      "frequency_gate_baseline_verdict": "FAIL",
+      "frequency_gate_stress_verdict": "FAIL"
+    },
+    "4h_short": {
+      "hold_label": "4h",
+      "hold_min": 240,
+      "side": "short",
+      "n_obs": 57,
+      "n_skipped": 0,
+      "fee_baseline": {
+        "label": "4h_short_fee_baseline",
+        "fee_per_trade": 0.0008,
+        "n_obs": 57,
+        "obs_mean_bp": 148.04458306037236,
+        "obs_median_bp": 464.40179015415214,
+        "obs_win_rate": 0.7543859649122807,
+        "obs_t": 0.20106779992887033,
+        "null_mean_t": 0.7103026407135828,
+        "signal_t_excess": -0.5092348407847125,
+        "perm_p_two_sided": 0.881,
+        "ci_lower_bp": -1511.6737299406116,
+        "ci_upper_bp": 1095.222829383133,
+        "prob_positive": 0.6615,
+        "n_candidate_pool": 7749,
+        "gate_a_sigex_pass": false,
+        "gate_b_ci_pass": false,
+        "gate_c_perm_p_pass": false,
+        "three_gate_pass": false
+      },
+      "fee_stress": {
+        "label": "4h_short_fee_stress",
+        "fee_per_trade": 0.0025,
+        "n_obs": 57,
+        "obs_mean_bp": 131.04458306037236,
+        "obs_median_bp": 447.40179015415214,
+        "obs_win_rate": 0.7543859649122807,
+        "obs_t": 0.1779791294207648,
+        "null_mean_t": 0.5013892776307408,
+        "signal_t_excess": -0.32341014820997604,
+        "perm_p_two_sided": 0.9,
+        "ci_lower_bp": -1528.6737299406122,
+        "ci_upper_bp": 1078.2228293831333,
+        "prob_positive": 0.6485,
+        "n_candidate_pool": 7749,
+        "gate_a_sigex_pass": false,
+        "gate_b_ci_pass": false,
+        "gate_c_perm_p_pass": false,
+        "three_gate_pass": false
+      },
+      "concentration_baseline": {
+        "side": "short",
+        "per_quarter_t_stats": [
+          {
+            "quarter": "2024Q4",
+            "n_trades": 6,
+            "mean_bp": -75.54692522904766,
+            "t_stat": -0.6097615629789651
+          },
+          {
+            "quarter": "2025Q3",
+            "n_trades": 8,
+            "mean_bp": 1915.6086723340618,
+            "t_stat": 3.747646871188246
+          },
+          {
+            "quarter": "2025Q4",
+            "n_trades": 18,
+            "mean_bp": -1569.5674552711614,
+            "t_stat": -0.6883435314897199
+          },
+          {
+            "quarter": "2026Q1",
+            "n_trades": 13,
+            "mean_bp": 1318.4908151159598,
+            "t_stat": 3.8422363928637036
+          },
+          {
+            "quarter": "2026Q2",
+            "n_trades": 12,
+            "mean_bp": 389.8989171263705,
+            "t_stat": 1.4856493821734251
+          }
+        ],
+        "n_quarters_measurable": 3,
+        "n_quarters_pos_t": 2,
+        "quarter_pos_t_ratio": 0.6666666666666666,
+        "n_pos": 43,
+        "n_neg": 14,
+        "sign_ratio_positive": 0.7543859649122807,
+        "top3_abs_concentration_pct": 47.30836340620843,
+        "concentration_gate": {
+          "quarter_pass": true,
+          "sign_pass": true,
+          "blowup_pass": "True",
+          "overall_pass": "True"
+        }
+      },
+      "frequency_first_gate_baseline": {
+        "side": "short",
+        "fee_per_trade": 0.0008,
+        "oos_days": 513.3022168518519,
+        "n_events": 57,
+        "trades_per_year": 40.55943909162739,
+        "per_trade_net_edge_pct": 1.4804458306037236,
+        "capital_utilization_pct": 1.8507615373774755,
+        "mean_hold_days": 0.16666666666666663,
+        "single_trade_sharpe_annualized": 1.2467398338508102,
+        "cutoffs": {
+          "trades_per_year": 12,
+          "per_trade_net_edge_pct": 2.0,
+          "capital_utilization_pct": 30.0,
+          "single_trade_sharpe": 1.5
+        },
+        "gate_verdict": "FAIL",
+        "fail_dims": [
+          "per_trade_net_edge_pct=1.48<2.0",
+          "capital_utilization_pct=1.85<30.0",
+          "single_trade_sharpe=1.25<1.5"
+        ]
+      },
+      "frequency_first_gate_stress": {
+        "side": "short",
+        "fee_per_trade": 0.0025,
+        "oos_days": 513.3022168518519,
+        "n_events": 57,
+        "trades_per_year": 40.55943909162739,
+        "per_trade_net_edge_pct": 1.3104458306037234,
+        "capital_utilization_pct": 1.8507615373774755,
+        "mean_hold_days": 0.16666666666666663,
+        "single_trade_sharpe_annualized": 1.1035763574349207,
+        "cutoffs": {
+          "trades_per_year": 12,
+          "per_trade_net_edge_pct": 2.0,
+          "capital_utilization_pct": 30.0,
+          "single_trade_sharpe": 1.5
+        },
+        "gate_verdict": "FAIL",
+        "fail_dims": [
+          "per_trade_net_edge_pct=1.31<2.0",
+          "capital_utilization_pct=1.85<30.0",
+          "single_trade_sharpe=1.10<1.5"
+        ]
+      },
+      "three_gate_verdict": "FAIL",
+      "concentration_gate_overall_pass": "True",
+      "frequency_gate_baseline_verdict": "FAIL",
+      "frequency_gate_stress_verdict": "FAIL"
+    },
+    "4h_long": {
+      "hold_label": "4h",
+      "hold_min": 240,
+      "side": "long",
+      "n_obs": 57,
+      "n_skipped": 0,
+      "fee_baseline": {
+        "label": "4h_long_fee_baseline",
+        "fee_per_trade": 0.0008,
+        "n_obs": 57,
+        "obs_mean_bp": -164.0445830603725,
+        "obs_median_bp": -480.4017901541522,
+        "obs_win_rate": 0.22807017543859648,
+        "obs_t": -0.22279831334826394,
+        "null_mean_t": -0.9069269824386103,
+        "signal_t_excess": 0.6841286690903463,
+        "perm_p_two_sided": 0.883,
+        "ci_lower_bp": -1111.222829383133,
+        "ci_upper_bp": 1495.673729940611,
+        "prob_positive": 0.3285,
+        "n_candidate_pool": 7749,
+        "gate_a_sigex_pass": false,
+        "gate_b_ci_pass": false,
+        "gate_c_perm_p_pass": false,
+        "three_gate_pass": false
+      },
+      "fee_stress": {
+        "label": "4h_long_fee_stress",
+        "fee_per_trade": 0.0025,
+        "n_obs": 57,
+        "obs_mean_bp": -181.0445830603725,
+        "obs_median_bp": -497.4017901541522,
+        "obs_win_rate": 0.22807017543859648,
+        "obs_t": -0.24588698385636945,
+        "null_mean_t": -1.1158403455214523,
+        "signal_t_excess": 0.8699533616650829,
+        "perm_p_two_sided": 0.885,
+        "ci_lower_bp": -1128.2228293831333,
+        "ci_upper_bp": 1478.6737299406104,
+        "prob_positive": 0.321,
+        "n_candidate_pool": 7749,
+        "gate_a_sigex_pass": false,
+        "gate_b_ci_pass": false,
+        "gate_c_perm_p_pass": false,
+        "three_gate_pass": false
+      },
+      "concentration_baseline": {
+        "side": "long",
+        "per_quarter_t_stats": [
+          {
+            "quarter": "2024Q4",
+            "n_trades": 6,
+            "mean_bp": 59.546925229047616,
+            "t_stat": 0.48062083384824167
+          },
+          {
+            "quarter": "2025Q3",
+            "n_trades": 8,
+            "mean_bp": -1931.6086723340622,
+            "t_stat": -3.778948854106267
+          },
+          {
+            "quarter": "2025Q4",
+            "n_trades": 18,
+            "mean_bp": 1553.5674552711614,
+            "t_stat": 0.6813266323645194
+          },
+          {
+            "quarter": "2026Q1",
+            "n_trades": 13,
+            "mean_bp": -1334.4908151159595,
+            "t_stat": -3.8888622635796946
+          },
+          {
+            "quarter": "2026Q2",
+            "n_trades": 12,
+            "mean_bp": -405.8989171263706,
+            "t_stat": -1.5466149018777813
+          }
+        ],
+        "n_quarters_measurable": 3,
+        "n_quarters_pos_t": 1,
+        "quarter_pos_t_ratio": 0.3333333333333333,
+        "n_pos": 13,
+        "n_neg": 44,
+        "sign_ratio_positive": 0.22807017543859648,
+        "top3_abs_concentration_pct": 47.098446811841356,
+        "concentration_gate": {
+          "quarter_pass": false,
+          "sign_pass": false,
+          "blowup_pass": "True",
+          "overall_pass": false
+        }
+      },
+      "frequency_first_gate_baseline": {
+        "side": "long",
+        "fee_per_trade": 0.0008,
+        "oos_days": 513.3022168518519,
+        "n_events": 57,
+        "trades_per_year": 40.55943909162739,
+        "per_trade_net_edge_pct": -1.640445830603725,
+        "capital_utilization_pct": 1.8507615373774755,
+        "mean_hold_days": 0.16666666666666663,
+        "single_trade_sharpe_annualized": -1.38148192930106,
+        "cutoffs": {
+          "trades_per_year": 12,
+          "per_trade_net_edge_pct": 2.0,
+          "capital_utilization_pct": 30.0,
+          "single_trade_sharpe": 1.5
+        },
+        "gate_verdict": "FAIL",
+        "fail_dims": [
+          "per_trade_net_edge_pct=-1.64<2.0",
+          "capital_utilization_pct=1.85<30.0",
+          "single_trade_sharpe=-1.38<1.5"
+        ]
+      },
+      "frequency_first_gate_stress": {
+        "side": "long",
+        "fee_per_trade": 0.0025,
+        "oos_days": 513.3022168518519,
+        "n_events": 57,
+        "trades_per_year": 40.55943909162739,
+        "per_trade_net_edge_pct": -1.8104458306037252,
+        "capital_utilization_pct": 1.8507615373774755,
+        "mean_hold_days": 0.16666666666666663,
+        "single_trade_sharpe_annualized": -1.5246454057169494,
+        "cutoffs": {
+          "trades_per_year": 12,
+          "per_trade_net_edge_pct": 2.0,
+          "capital_utilization_pct": 30.0,
+          "single_trade_sharpe": 1.5
+        },
+        "gate_verdict": "FAIL",
+        "fail_dims": [
+          "per_trade_net_edge_pct=-1.81<2.0",
+          "capital_utilization_pct=1.85<30.0",
+          "single_trade_sharpe=-1.52<1.5"
+        ]
+      },
+      "three_gate_verdict": "FAIL",
+      "concentration_gate_overall_pass": false,
+      "frequency_gate_baseline_verdict": "FAIL",
+      "frequency_gate_stress_verdict": "FAIL"
+    },
+    "8h_short": {
+      "hold_label": "8h",
+      "hold_min": 480,
+      "side": "short",
+      "n_obs": 57,
+      "n_skipped": 0,
+      "fee_baseline": {
+        "label": "8h_short_fee_baseline",
+        "fee_per_trade": 0.0008,
+        "n_obs": 57,
+        "obs_mean_bp": 772.6502635154731,
+        "obs_median_bp": 697.6043214044572,
+        "obs_win_rate": 0.7192982456140351,
+        "obs_t": 3.151601978529989,
+        "null_mean_t": 0.9169949896274059,
+        "signal_t_excess": 2.2346069889025832,
+        "perm_p_two_sided": 0.032,
+        "ci_lower_bp": 263.4131787077738,
+        "ci_upper_bp": 1231.7681690551506,
+        "prob_positive": 0.9985,
+        "n_candidate_pool": 3789,
+        "gate_a_sigex_pass": true,
+        "gate_b_ci_pass": true,
+        "gate_c_perm_p_pass": true,
+        "three_gate_pass": true
+      },
+      "fee_stress": {
+        "label": "8h_short_fee_stress",
+        "fee_per_trade": 0.0025,
+        "n_obs": 57,
+        "obs_mean_bp": 755.6502635154734,
+        "obs_median_bp": 680.6043214044571,
+        "obs_win_rate": 0.7017543859649122,
+        "obs_t": 3.0822598244339843,
+        "null_mean_t": 0.780878485335437,
+        "signal_t_excess": 2.301381339098547,
+        "perm_p_two_sided": 0.022,
+        "ci_lower_bp": 246.41317870777388,
+        "ci_upper_bp": 1214.7681690551506,
+        "prob_positive": 0.9985,
+        "n_candidate_pool": 3789,
+        "gate_a_sigex_pass": true,
+        "gate_b_ci_pass": true,
+        "gate_c_perm_p_pass": true,
+        "three_gate_pass": true
+      },
+      "concentration_baseline": {
+        "side": "short",
+        "per_quarter_t_stats": [
+          {
+            "quarter": "2024Q4",
+            "n_trades": 6,
+            "mean_bp": -579.7586239566036,
+            "t_stat": -1.3626057575718018
+          },
+          {
+            "quarter": "2025Q3",
+            "n_trades": 8,
+            "mean_bp": 2135.581049521466,
+            "t_stat": 4.137461923094973
+          },
+          {
+            "quarter": "2025Q4",
+            "n_trades": 18,
+            "mean_bp": 744.8738569212887,
+            "t_stat": 1.8127632365963877
+          },
+          {
+            "quarter": "2026Q1",
+            "n_trades": 13,
+            "mean_bp": 1456.3989716112378,
+            "t_stat": 4.2042329218811165
+          },
+          {
+            "quarter": "2026Q2",
+            "n_trades": 12,
+            "mean_bp": -158.8289739649514,
+            "t_stat": -0.23801938037353768
+          }
+        ],
+        "n_quarters_measurable": 3,
+        "n_quarters_pos_t": 2,
+        "quarter_pos_t_ratio": 0.6666666666666666,
+        "n_pos": 41,
+        "n_neg": 16,
+        "sign_ratio_positive": 0.7192982456140351,
+        "top3_abs_concentration_pct": 17.930454805453454,
+        "concentration_gate": {
+          "quarter_pass": true,
+          "sign_pass": true,
+          "blowup_pass": "True",
+          "overall_pass": "True"
+        }
+      },
+      "frequency_first_gate_baseline": {
+        "side": "short",
+        "fee_per_trade": 0.0008,
+        "oos_days": 513.3022168518519,
+        "n_events": 57,
+        "trades_per_year": 40.55943909162739,
+        "per_trade_net_edge_pct": 7.726502635154731,
+        "capital_utilization_pct": 3.701523074754951,
+        "mean_hold_days": 0.33333333333333326,
+        "single_trade_sharpe_annualized": 13.818142793748082,
+        "cutoffs": {
+          "trades_per_year": 12,
+          "per_trade_net_edge_pct": 2.0,
+          "capital_utilization_pct": 30.0,
+          "single_trade_sharpe": 1.5
+        },
+        "gate_verdict": "FAIL",
+        "fail_dims": [
+          "capital_utilization_pct=3.70<30.0"
+        ]
+      },
+      "frequency_first_gate_stress": {
+        "side": "short",
+        "fee_per_trade": 0.0025,
+        "oos_days": 513.3022168518519,
+        "n_events": 57,
+        "trades_per_year": 40.55943909162739,
+        "per_trade_net_edge_pct": 7.556502635154734,
+        "capital_utilization_pct": 3.701523074754951,
+        "mean_hold_days": 0.33333333333333326,
+        "single_trade_sharpe_annualized": 13.514113353021687,
+        "cutoffs": {
+          "trades_per_year": 12,
+          "per_trade_net_edge_pct": 2.0,
+          "capital_utilization_pct": 30.0,
+          "single_trade_sharpe": 1.5
+        },
+        "gate_verdict": "FAIL",
+        "fail_dims": [
+          "capital_utilization_pct=3.70<30.0"
+        ]
+      },
+      "three_gate_verdict": "PASS_both_fee_levels",
+      "concentration_gate_overall_pass": "True",
+      "frequency_gate_baseline_verdict": "FAIL",
+      "frequency_gate_stress_verdict": "FAIL"
+    },
+    "8h_long": {
+      "hold_label": "8h",
+      "hold_min": 480,
+      "side": "long",
+      "n_obs": 57,
+      "n_skipped": 0,
+      "fee_baseline": {
+        "label": "8h_long_fee_baseline",
+        "fee_per_trade": 0.0008,
+        "n_obs": 57,
+        "obs_mean_bp": -788.6502635154735,
+        "obs_median_bp": -713.6043214044571,
+        "obs_win_rate": 0.2807017543859649,
+        "obs_t": -3.216865182385056,
+        "null_mean_t": -1.0451046407257292,
+        "signal_t_excess": -2.1717605416593266,
+        "perm_p_two_sided": 0.041,
+        "ci_lower_bp": -1247.768169055151,
+        "ci_upper_bp": -279.41317870777476,
+        "prob_positive": 0.001,
+        "n_candidate_pool": 3789,
+        "gate_a_sigex_pass": false,
+        "gate_b_ci_pass": false,
+        "gate_c_perm_p_pass": true,
+        "three_gate_pass": false
+      },
+      "fee_stress": {
+        "label": "8h_long_fee_stress",
+        "fee_per_trade": 0.0025,
+        "n_obs": 57,
+        "obs_mean_bp": -805.6502635154733,
+        "obs_median_bp": -730.6043214044572,
+        "obs_win_rate": 0.2807017543859649,
+        "obs_t": -3.286207336481061,
+        "null_mean_t": -1.1812211450176981,
+        "signal_t_excess": -2.1049861914633627,
+        "perm_p_two_sided": 0.049,
+        "ci_lower_bp": -1264.7681690551508,
+        "ci_upper_bp": -296.4131787077747,
+        "prob_positive": 0.001,
+        "n_candidate_pool": 3789,
+        "gate_a_sigex_pass": false,
+        "gate_b_ci_pass": false,
+        "gate_c_perm_p_pass": true,
+        "three_gate_pass": false
+      },
+      "concentration_baseline": {
+        "side": "long",
+        "per_quarter_t_stats": [
+          {
+            "quarter": "2024Q4",
+            "n_trades": 6,
+            "mean_bp": 563.7586239566036,
+            "t_stat": 1.3250009834118908
+          },
+          {
+            "quarter": "2025Q3",
+            "n_trades": 8,
+            "mean_bp": -2151.5810495214664,
+            "t_stat": -4.168460227179171
+          },
+          {
+            "quarter": "2025Q4",
+            "n_trades": 18,
+            "mean_bp": -760.8738569212886,
+            "t_stat": -1.8517016575330847
+          },
+          {
+            "quarter": "2026Q1",
+            "n_trades": 13,
+            "mean_bp": -1472.3989716112378,
+            "t_stat": -4.250420627352837
+          },
+          {
+            "quarter": "2026Q2",
+            "n_trades": 12,
+            "mean_bp": 142.82897396495133,
+            "t_stat": 0.21404195364271345
+          }
+        ],
+        "n_quarters_measurable": 3,
+        "n_quarters_pos_t": 1,
+        "quarter_pos_t_ratio": 0.3333333333333333,
+        "n_pos": 16,
+        "n_neg": 41,
+        "sign_ratio_positive": 0.2807017543859649,
+        "top3_abs_concentration_pct": 17.827370394464953,
+        "concentration_gate": {
+          "quarter_pass": false,
+          "sign_pass": false,
+          "blowup_pass": "True",
+          "overall_pass": false
+        }
+      },
+      "frequency_first_gate_baseline": {
+        "side": "long",
+        "fee_per_trade": 0.0008,
+        "oos_days": 513.3022168518519,
+        "n_events": 57,
+        "trades_per_year": 40.55943909162739,
+        "per_trade_net_edge_pct": -7.886502635154735,
+        "capital_utilization_pct": 3.701523074754951,
+        "mean_hold_days": 0.33333333333333326,
+        "single_trade_sharpe_annualized": -14.104288149725884,
+        "cutoffs": {
+          "trades_per_year": 12,
+          "per_trade_net_edge_pct": 2.0,
+          "capital_utilization_pct": 30.0,
+          "single_trade_sharpe": 1.5
+        },
+        "gate_verdict": "FAIL",
+        "fail_dims": [
+          "per_trade_net_edge_pct=-7.89<2.0",
+          "capital_utilization_pct=3.70<30.0",
+          "single_trade_sharpe=-14.10<1.5"
+        ]
+      },
+      "frequency_first_gate_stress": {
+        "side": "long",
+        "fee_per_trade": 0.0025,
+        "oos_days": 513.3022168518519,
+        "n_events": 57,
+        "trades_per_year": 40.55943909162739,
+        "per_trade_net_edge_pct": -8.056502635154732,
+        "capital_utilization_pct": 3.701523074754951,
+        "mean_hold_days": 0.33333333333333326,
+        "single_trade_sharpe_annualized": -14.408317590452283,
+        "cutoffs": {
+          "trades_per_year": 12,
+          "per_trade_net_edge_pct": 2.0,
+          "capital_utilization_pct": 30.0,
+          "single_trade_sharpe": 1.5
+        },
+        "gate_verdict": "FAIL",
+        "fail_dims": [
+          "per_trade_net_edge_pct=-8.06<2.0",
+          "capital_utilization_pct=3.70<30.0",
+          "single_trade_sharpe=-14.41<1.5"
+        ]
+      },
+      "three_gate_verdict": "FAIL",
+      "concentration_gate_overall_pass": false,
+      "frequency_gate_baseline_verdict": "FAIL",
+      "frequency_gate_stress_verdict": "FAIL"
+    },
+    "12h_short": {
+      "hold_label": "12h",
+      "hold_min": 720,
+      "side": "short",
+      "n_obs": 57,
+      "n_skipped": 0,
+      "fee_baseline": {
+        "label": "12h_short_fee_baseline",
+        "fee_per_trade": 0.0008,
+        "n_obs": 57,
+        "obs_mean_bp": 950.2288478813651,
+        "obs_median_bp": 879.9135719108712,
+        "obs_win_rate": 0.7719298245614035,
+        "obs_t": 4.165010258706191,
+        "null_mean_t": 1.212256306659754,
+        "signal_t_excess": 2.952753952046437,
+        "perm_p_two_sided": 0.005,
+        "ci_lower_bp": 486.66869409339586,
+        "ci_upper_bp": 1386.1974459173457,
+        "prob_positive": 1.0,
+        "n_candidate_pool": 2469,
+        "gate_a_sigex_pass": true,
+        "gate_b_ci_pass": true,
+        "gate_c_perm_p_pass": true,
+        "three_gate_pass": true
+      },
+      "fee_stress": {
+        "label": "12h_short_fee_stress",
+        "fee_per_trade": 0.0025,
+        "n_obs": 57,
+        "obs_mean_bp": 933.2288478813654,
+        "obs_median_bp": 862.913571910871,
+        "obs_win_rate": 0.7719298245614035,
+        "obs_t": 4.090496446001102,
+        "null_mean_t": 1.0996349225457038,
+        "signal_t_excess": 2.990861523455398,
+        "perm_p_two_sided": 0.004,
+        "ci_lower_bp": 469.66869409339597,
+        "ci_upper_bp": 1369.1974459173457,
+        "prob_positive": 1.0,
+        "n_candidate_pool": 2469,
+        "gate_a_sigex_pass": true,
+        "gate_b_ci_pass": true,
+        "gate_c_perm_p_pass": true,
+        "three_gate_pass": true
+      },
+      "concentration_baseline": {
+        "side": "short",
+        "per_quarter_t_stats": [
+          {
+            "quarter": "2024Q4",
+            "n_trades": 6,
+            "mean_bp": -439.50883638277503,
+            "t_stat": -1.514928591662794
+          },
+          {
+            "quarter": "2025Q3",
+            "n_trades": 8,
+            "mean_bp": 1847.082466609482,
+            "t_stat": 2.6264663018469463
+          },
+          {
+            "quarter": "2025Q4",
+            "n_trades": 18,
+            "mean_bp": 876.4002226492108,
+            "t_stat": 2.585103937129878
+          },
+          {
+            "quarter": "2026Q1",
+            "n_trades": 13,
+            "mean_bp": 1640.4577012624443,
+            "t_stat": 4.41930841428524
+          },
+          {
+            "quarter": "2026Q2",
+            "n_trades": 12,
+            "mean_bp": 410.1902908800872,
+            "t_stat": 0.6570572375337798
+          }
+        ],
+        "n_quarters_measurable": 3,
+        "n_quarters_pos_t": 3,
+        "quarter_pos_t_ratio": 1.0,
+        "n_pos": 44,
+        "n_neg": 13,
+        "sign_ratio_positive": 0.7719298245614035,
+        "top3_abs_concentration_pct": 17.4868443068143,
+        "concentration_gate": {
+          "quarter_pass": true,
+          "sign_pass": true,
+          "blowup_pass": "True",
+          "overall_pass": "True"
+        }
+      },
+      "frequency_first_gate_baseline": {
+        "side": "short",
+        "fee_per_trade": 0.0008,
+        "oos_days": 513.3022168518519,
+        "n_events": 57,
+        "trades_per_year": 40.55943909162739,
+        "per_trade_net_edge_pct": 9.502288478813652,
+        "capital_utilization_pct": 5.5522846121324285,
+        "mean_hold_days": 0.5,
+        "single_trade_sharpe_annualized": 14.910381575518416,
+        "cutoffs": {
+          "trades_per_year": 12,
+          "per_trade_net_edge_pct": 2.0,
+          "capital_utilization_pct": 30.0,
+          "single_trade_sharpe": 1.5
+        },
+        "gate_verdict": "FAIL",
+        "fail_dims": [
+          "capital_utilization_pct=5.55<30.0"
+        ]
+      },
+      "frequency_first_gate_stress": {
+        "side": "short",
+        "fee_per_trade": 0.0025,
+        "oos_days": 513.3022168518519,
+        "n_events": 57,
+        "trades_per_year": 40.55943909162739,
+        "per_trade_net_edge_pct": 9.332288478813654,
+        "capital_utilization_pct": 5.5522846121324285,
+        "mean_hold_days": 0.5,
+        "single_trade_sharpe_annualized": 14.643628479831033,
+        "cutoffs": {
+          "trades_per_year": 12,
+          "per_trade_net_edge_pct": 2.0,
+          "capital_utilization_pct": 30.0,
+          "single_trade_sharpe": 1.5
+        },
+        "gate_verdict": "FAIL",
+        "fail_dims": [
+          "capital_utilization_pct=5.55<30.0"
+        ]
+      },
+      "three_gate_verdict": "PASS_both_fee_levels",
+      "concentration_gate_overall_pass": "True",
+      "frequency_gate_baseline_verdict": "FAIL",
+      "frequency_gate_stress_verdict": "FAIL"
+    },
+    "12h_long": {
+      "hold_label": "12h",
+      "hold_min": 720,
+      "side": "long",
+      "n_obs": 57,
+      "n_skipped": 0,
+      "fee_baseline": {
+        "label": "12h_long_fee_baseline",
+        "fee_per_trade": 0.0008,
+        "n_obs": 57,
+        "obs_mean_bp": -966.2288478813655,
+        "obs_median_bp": -895.913571910871,
+        "obs_win_rate": 0.22807017543859648,
+        "obs_t": -4.235140905958042,
+        "null_mean_t": -1.3182529034729782,
+        "signal_t_excess": -2.916888002485064,
+        "perm_p_two_sided": 0.008,
+        "ci_lower_bp": -1402.197445917346,
+        "ci_upper_bp": -502.66869409339614,
+        "prob_positive": 0.0,
+        "n_candidate_pool": 2469,
+        "gate_a_sigex_pass": false,
+        "gate_b_ci_pass": false,
+        "gate_c_perm_p_pass": true,
+        "three_gate_pass": false
+      },
+      "fee_stress": {
+        "label": "12h_long_fee_stress",
+        "fee_per_trade": 0.0025,
+        "n_obs": 57,
+        "obs_mean_bp": -983.2288478813653,
+        "obs_median_bp": -912.913571910871,
+        "obs_win_rate": 0.22807017543859648,
+        "obs_t": -4.309654718663131,
+        "null_mean_t": -1.4308742875870284,
+        "signal_t_excess": -2.8787804310761027,
+        "perm_p_two_sided": 0.009,
+        "ci_lower_bp": -1419.1974459173457,
+        "ci_upper_bp": -519.668694093396,
+        "prob_positive": 0.0,
+        "n_candidate_pool": 2469,
+        "gate_a_sigex_pass": false,
+        "gate_b_ci_pass": false,
+        "gate_c_perm_p_pass": true,
+        "three_gate_pass": false
+      },
+      "concentration_baseline": {
+        "side": "long",
+        "per_quarter_t_stats": [
+          {
+            "quarter": "2024Q4",
+            "n_trades": 6,
+            "mean_bp": 423.5088363827749,
+            "t_stat": 1.4597787164837317
+          },
+          {
+            "quarter": "2025Q3",
+            "n_trades": 8,
+            "mean_bp": -1863.082466609482,
+            "t_stat": -2.6492175658479997
+          },
+          {
+            "quarter": "2025Q4",
+            "n_trades": 18,
+            "mean_bp": -892.4002226492106,
+            "t_stat": -2.6322988851971525
+          },
+          {
+            "quarter": "2026Q1",
+            "n_trades": 13,
+            "mean_bp": -1656.457701262444,
+            "t_stat": -4.462411588828628
+          },
+          {
+            "quarter": "2026Q2",
+            "n_trades": 12,
+            "mean_bp": -426.1902908800875,
+            "t_stat": -0.6826866003789718
+          }
+        ],
+        "n_quarters_measurable": 3,
+        "n_quarters_pos_t": 0,
+        "quarter_pos_t_ratio": 0.0,
+        "n_pos": 13,
+        "n_neg": 44,
+        "sign_ratio_positive": 0.22807017543859648,
+        "top3_abs_concentration_pct": 17.402098140771308,
+        "concentration_gate": {
+          "quarter_pass": false,
+          "sign_pass": false,
+          "blowup_pass": "True",
+          "overall_pass": false
+        }
+      },
+      "frequency_first_gate_baseline": {
+        "side": "long",
+        "fee_per_trade": 0.0008,
+        "oos_days": 513.3022168518519,
+        "n_events": 57,
+        "trades_per_year": 40.55943909162739,
+        "per_trade_net_edge_pct": -9.662288478813656,
+        "capital_utilization_pct": 5.5522846121324285,
+        "mean_hold_days": 0.5,
+        "single_trade_sharpe_annualized": -15.161443312635964,
+        "cutoffs": {
+          "trades_per_year": 12,
+          "per_trade_net_edge_pct": 2.0,
+          "capital_utilization_pct": 30.0,
+          "single_trade_sharpe": 1.5
+        },
+        "gate_verdict": "FAIL",
+        "fail_dims": [
+          "per_trade_net_edge_pct=-9.66<2.0",
+          "capital_utilization_pct=5.55<30.0",
+          "single_trade_sharpe=-15.16<1.5"
+        ]
+      },
+      "frequency_first_gate_stress": {
+        "side": "long",
+        "fee_per_trade": 0.0025,
+        "oos_days": 513.3022168518519,
+        "n_events": 57,
+        "trades_per_year": 40.55943909162739,
+        "per_trade_net_edge_pct": -9.832288478813652,
+        "capital_utilization_pct": 5.5522846121324285,
+        "mean_hold_days": 0.5,
+        "single_trade_sharpe_annualized": -15.428196408323346,
+        "cutoffs": {
+          "trades_per_year": 12,
+          "per_trade_net_edge_pct": 2.0,
+          "capital_utilization_pct": 30.0,
+          "single_trade_sharpe": 1.5
+        },
+        "gate_verdict": "FAIL",
+        "fail_dims": [
+          "per_trade_net_edge_pct=-9.83<2.0",
+          "capital_utilization_pct=5.55<30.0",
+          "single_trade_sharpe=-15.43<1.5"
+        ]
+      },
+      "three_gate_verdict": "FAIL",
+      "concentration_gate_overall_pass": false,
+      "frequency_gate_baseline_verdict": "FAIL",
+      "frequency_gate_stress_verdict": "FAIL"
+    },
+    "24h_short": {
+      "hold_label": "24h",
+      "hold_min": 1440,
+      "side": "short",
+      "n_obs": 57,
+      "n_skipped": 0,
+      "fee_baseline": {
+        "label": "24h_short_fee_baseline",
+        "fee_per_trade": 0.0008,
+        "n_obs": 57,
+        "obs_mean_bp": 906.8668243134406,
+        "obs_median_bp": 949.4468085106381,
+        "obs_win_rate": 0.6842105263157895,
+        "obs_t": 3.3007992120142493,
+        "null_mean_t": 1.56927994608022,
+        "signal_t_excess": 1.7315192659340293,
+        "perm_p_two_sided": 0.111,
+        "ci_lower_bp": 358.44790760710515,
+        "ci_upper_bp": 1426.3196702487935,
+        "prob_positive": 0.9995,
+        "n_candidate_pool": 1149,
+        "gate_a_sigex_pass": false,
+        "gate_b_ci_pass": true,
+        "gate_c_perm_p_pass": false,
+        "three_gate_pass": false
+      },
+      "fee_stress": {
+        "label": "24h_short_fee_stress",
+        "fee_per_trade": 0.0025,
+        "n_obs": 57,
+        "obs_mean_bp": 889.8668243134409,
+        "obs_median_bp": 932.446808510638,
+        "obs_win_rate": 0.6666666666666666,
+        "obs_t": 3.2389228867371362,
+        "null_mean_t": 1.4958560401023064,
+        "signal_t_excess": 1.7430668466348298,
+        "perm_p_two_sided": 0.11,
+        "ci_lower_bp": 341.4479076071052,
+        "ci_upper_bp": 1409.3196702487937,
+        "prob_positive": 0.999,
+        "n_candidate_pool": 1149,
+        "gate_a_sigex_pass": false,
+        "gate_b_ci_pass": true,
+        "gate_c_perm_p_pass": false,
+        "three_gate_pass": false
+      },
+      "concentration_baseline": {
+        "side": "short",
+        "per_quarter_t_stats": [
+          {
+            "quarter": "2024Q4",
+            "n_trades": 6,
+            "mean_bp": -833.2081498298043,
+            "t_stat": -1.7709631955126455
+          },
+          {
+            "quarter": "2025Q3",
+            "n_trades": 8,
+            "mean_bp": 1794.2311066338013,
+            "t_stat": 2.0740251198316777
+          },
+          {
+            "quarter": "2025Q4",
+            "n_trades": 18,
+            "mean_bp": 1221.3159680765953,
+            "t_stat": 3.756205744633213
+          },
+          {
+            "quarter": "2026Q1",
+            "n_trades": 13,
+            "mean_bp": 2000.8411894912203,
+            "t_stat": 5.095545046653576
+          },
+          {
+            "quarter": "2026Q2",
+            "n_trades": 12,
+            "mean_bp": -471.48448808250384,
+            "t_stat": -0.6411368585408902
+          }
+        ],
+        "n_quarters_measurable": 3,
+        "n_quarters_pos_t": 2,
+        "quarter_pos_t_ratio": 0.6666666666666666,
+        "n_pos": 39,
+        "n_neg": 18,
+        "sign_ratio_positive": 0.6842105263157895,
+        "top3_abs_concentration_pct": 16.616228399195464,
+        "concentration_gate": {
+          "quarter_pass": true,
+          "sign_pass": true,
+          "blowup_pass": "True",
+          "overall_pass": "True"
+        }
+      },
+      "frequency_first_gate_baseline": {
+        "side": "short",
+        "fee_per_trade": 0.0008,
+        "oos_days": 513.3022168518519,
+        "n_events": 57,
+        "trades_per_year": 40.55943909162739,
+        "per_trade_net_edge_pct": 9.068668243134406,
+        "capital_utilization_pct": 11.104569224264857,
+        "mean_hold_days": 1.0,
+        "single_trade_sharpe_annualized": 8.355583650219918,
+        "cutoffs": {
+          "trades_per_year": 12,
+          "per_trade_net_edge_pct": 2.0,
+          "capital_utilization_pct": 30.0,
+          "single_trade_sharpe": 1.5
+        },
+        "gate_verdict": "FAIL",
+        "fail_dims": [
+          "capital_utilization_pct=11.10<30.0"
+        ]
+      },
+      "frequency_first_gate_stress": {
+        "side": "short",
+        "fee_per_trade": 0.0025,
+        "oos_days": 513.3022168518519,
+        "n_events": 57,
+        "trades_per_year": 40.55943909162739,
+        "per_trade_net_edge_pct": 8.89866824313441,
+        "capital_utilization_pct": 11.104569224264857,
+        "mean_hold_days": 1.0,
+        "single_trade_sharpe_annualized": 8.198951035324923,
+        "cutoffs": {
+          "trades_per_year": 12,
+          "per_trade_net_edge_pct": 2.0,
+          "capital_utilization_pct": 30.0,
+          "single_trade_sharpe": 1.5
+        },
+        "gate_verdict": "FAIL",
+        "fail_dims": [
+          "capital_utilization_pct=11.10<30.0"
+        ]
+      },
+      "three_gate_verdict": "FAIL",
+      "concentration_gate_overall_pass": "True",
+      "frequency_gate_baseline_verdict": "FAIL",
+      "frequency_gate_stress_verdict": "FAIL"
+    },
+    "24h_long": {
+      "hold_label": "24h",
+      "hold_min": 1440,
+      "side": "long",
+      "n_obs": 57,
+      "n_skipped": 0,
+      "fee_baseline": {
+        "label": "24h_long_fee_baseline",
+        "fee_per_trade": 0.0008,
+        "n_obs": 57,
+        "obs_mean_bp": -922.8668243134408,
+        "obs_median_bp": -965.446808510638,
+        "obs_win_rate": 0.3157894736842105,
+        "obs_t": -3.3590357534515345,
+        "null_mean_t": -1.6383847987653157,
+        "signal_t_excess": -1.7206509546862188,
+        "perm_p_two_sided": 0.117,
+        "ci_lower_bp": -1442.3196702487944,
+        "ci_upper_bp": -374.4479076071056,
+        "prob_positive": 0.0,
+        "n_candidate_pool": 1149,
+        "gate_a_sigex_pass": false,
+        "gate_b_ci_pass": false,
+        "gate_c_perm_p_pass": false,
+        "three_gate_pass": false
+      },
+      "fee_stress": {
+        "label": "24h_long_fee_stress",
+        "fee_per_trade": 0.0025,
+        "n_obs": 57,
+        "obs_mean_bp": -939.8668243134407,
+        "obs_median_bp": -982.446808510638,
+        "obs_win_rate": 0.3157894736842105,
+        "obs_t": -3.4209120787286484,
+        "null_mean_t": -1.711808704743229,
+        "signal_t_excess": -1.7091033739854193,
+        "perm_p_two_sided": 0.119,
+        "ci_lower_bp": -1459.319670248794,
+        "ci_upper_bp": -391.44790760710544,
+        "prob_positive": 0.0,
+        "n_candidate_pool": 1149,
+        "gate_a_sigex_pass": false,
+        "gate_b_ci_pass": false,
+        "gate_c_perm_p_pass": false,
+        "three_gate_pass": false
+      },
+      "concentration_baseline": {
+        "side": "long",
+        "per_quarter_t_stats": [
+          {
+            "quarter": "2024Q4",
+            "n_trades": 6,
+            "mean_bp": 817.208149829804,
+            "t_stat": 1.7369555935298868
+          },
+          {
+            "quarter": "2025Q3",
+            "n_trades": 8,
+            "mean_bp": -1810.2311066338018,
+            "t_stat": -2.092520174228302
+          },
+          {
+            "quarter": "2025Q4",
+            "n_trades": 18,
+            "mean_bp": -1237.3159680765957,
+            "t_stat": -3.805414379814477
+          },
+          {
+            "quarter": "2026Q1",
+            "n_trades": 13,
+            "mean_bp": -2016.8411894912203,
+            "t_stat": -5.136292268959204
+          },
+          {
+            "quarter": "2026Q2",
+            "n_trades": 12,
+            "mean_bp": 455.48448808250373,
+            "t_stat": 0.6193796427767541
+          }
+        ],
+        "n_quarters_measurable": 3,
+        "n_quarters_pos_t": 1,
+        "quarter_pos_t_ratio": 0.3333333333333333,
+        "n_pos": 18,
+        "n_neg": 39,
+        "sign_ratio_positive": 0.3157894736842105,
+        "top3_abs_concentration_pct": 16.575735494978357,
+        "concentration_gate": {
+          "quarter_pass": false,
+          "sign_pass": false,
+          "blowup_pass": "True",
+          "overall_pass": false
+        }
+      },
+      "frequency_first_gate_baseline": {
+        "side": "long",
+        "fee_per_trade": 0.0008,
+        "oos_days": 513.3022168518519,
+        "n_events": 57,
+        "trades_per_year": 40.55943909162739,
+        "per_trade_net_edge_pct": -9.228668243134408,
+        "capital_utilization_pct": 11.104569224264857,
+        "mean_hold_days": 1.0,
+        "single_trade_sharpe_annualized": -8.503002581885802,
+        "cutoffs": {
+          "trades_per_year": 12,
+          "per_trade_net_edge_pct": 2.0,
+          "capital_utilization_pct": 30.0,
+          "single_trade_sharpe": 1.5
+        },
+        "gate_verdict": "FAIL",
+        "fail_dims": [
+          "per_trade_net_edge_pct=-9.23<2.0",
+          "capital_utilization_pct=11.10<30.0",
+          "single_trade_sharpe=-8.50<1.5"
+        ]
+      },
+      "frequency_first_gate_stress": {
+        "side": "long",
+        "fee_per_trade": 0.0025,
+        "oos_days": 513.3022168518519,
+        "n_events": 57,
+        "trades_per_year": 40.55943909162739,
+        "per_trade_net_edge_pct": -9.398668243134408,
+        "capital_utilization_pct": 11.104569224264857,
+        "mean_hold_days": 1.0,
+        "single_trade_sharpe_annualized": -8.659635196780801,
+        "cutoffs": {
+          "trades_per_year": 12,
+          "per_trade_net_edge_pct": 2.0,
+          "capital_utilization_pct": 30.0,
+          "single_trade_sharpe": 1.5
+        },
+        "gate_verdict": "FAIL",
+        "fail_dims": [
+          "per_trade_net_edge_pct=-9.40<2.0",
+          "capital_utilization_pct=11.10<30.0",
+          "single_trade_sharpe=-8.66<1.5"
+        ]
+      },
+      "three_gate_verdict": "FAIL",
+      "concentration_gate_overall_pass": false,
+      "frequency_gate_baseline_verdict": "FAIL",
+      "frequency_gate_stress_verdict": "FAIL"
+    },
+    "48h_short": {
+      "hold_label": "48h",
+      "hold_min": 2880,
+      "side": "short",
+      "n_obs": 57,
+      "n_skipped": 0,
+      "fee_baseline": {
+        "label": "48h_short_fee_baseline",
+        "fee_per_trade": 0.0008,
+        "n_obs": 57,
+        "obs_mean_bp": 1249.0534304618257,
+        "obs_median_bp": 1158.2726556343584,
+        "obs_win_rate": 0.7368421052631579,
+        "obs_t": 4.123565003997713,
+        "null_mean_t": 2.727010409413113,
+        "signal_t_excess": 1.3965545945846003,
+        "perm_p_two_sided": 0.158,
+        "ci_lower_bp": 647.3047708584395,
+        "ci_upper_bp": 1813.3284577573245,
+        "prob_positive": 1.0,
+        "n_candidate_pool": 506,
+        "gate_a_sigex_pass": false,
+        "gate_b_ci_pass": true,
+        "gate_c_perm_p_pass": false,
+        "three_gate_pass": false
+      },
+      "fee_stress": {
+        "label": "48h_short_fee_stress",
+        "fee_per_trade": 0.0025,
+        "n_obs": 57,
+        "obs_mean_bp": 1232.0534304618257,
+        "obs_median_bp": 1141.2726556343582,
+        "obs_win_rate": 0.7192982456140351,
+        "obs_t": 4.0674420204980875,
+        "null_mean_t": 2.66742527223303,
+        "signal_t_excess": 1.4000167482650574,
+        "perm_p_two_sided": 0.155,
+        "ci_lower_bp": 630.3047708584396,
+        "ci_upper_bp": 1796.3284577573243,
+        "prob_positive": 1.0,
+        "n_candidate_pool": 506,
+        "gate_a_sigex_pass": false,
+        "gate_b_ci_pass": true,
+        "gate_c_perm_p_pass": false,
+        "three_gate_pass": false
+      },
+      "concentration_baseline": {
+        "side": "short",
+        "per_quarter_t_stats": [
+          {
+            "quarter": "2024Q4",
+            "n_trades": 6,
+            "mean_bp": -674.1704325511981,
+            "t_stat": -1.2266660940197092
+          },
+          {
+            "quarter": "2025Q3",
+            "n_trades": 8,
+            "mean_bp": 2202.163892638401,
+            "t_stat": 2.313535801093086
+          },
+          {
+            "quarter": "2025Q4",
+            "n_trades": 18,
+            "mean_bp": 1609.8213438758096,
+            "t_stat": 4.492708088926571
+          },
+          {
+            "quarter": "2026Q1",
+            "n_trades": 13,
+            "mean_bp": 2394.2620148426104,
+            "t_stat": 4.750396372238055
+          },
+          {
+            "quarter": "2026Q2",
+            "n_trades": 12,
+            "mean_bp": -206.53611601620642,
+            "t_stat": -0.26550097115799987
+          }
+        ],
+        "n_quarters_measurable": 3,
+        "n_quarters_pos_t": 2,
+        "quarter_pos_t_ratio": 0.6666666666666666,
+        "n_pos": 42,
+        "n_neg": 15,
+        "sign_ratio_positive": 0.7368421052631579,
+        "top3_abs_concentration_pct": 14.93654464063897,
+        "concentration_gate": {
+          "quarter_pass": true,
+          "sign_pass": true,
+          "blowup_pass": "True",
+          "overall_pass": "True"
+        }
+      },
+      "frequency_first_gate_baseline": {
+        "side": "short",
+        "fee_per_trade": 0.0008,
+        "oos_days": 513.3022168518519,
+        "n_events": 57,
+        "trades_per_year": 40.55943909162739,
+        "per_trade_net_edge_pct": 12.490534304618258,
+        "capital_utilization_pct": 21.74157763908698,
+        "mean_hold_days": 1.9578947368421051,
+        "single_trade_sharpe_annualized": 7.459949030250148,
+        "cutoffs": {
+          "trades_per_year": 12,
+          "per_trade_net_edge_pct": 2.0,
+          "capital_utilization_pct": 30.0,
+          "single_trade_sharpe": 1.5
+        },
+        "gate_verdict": "FAIL",
+        "fail_dims": [
+          "capital_utilization_pct=21.74<30.0"
+        ]
+      },
+      "frequency_first_gate_stress": {
+        "side": "short",
+        "fee_per_trade": 0.0025,
+        "oos_days": 513.3022168518519,
+        "n_events": 57,
+        "trades_per_year": 40.55943909162739,
+        "per_trade_net_edge_pct": 12.320534304618256,
+        "capital_utilization_pct": 21.74157763908698,
+        "mean_hold_days": 1.9578947368421051,
+        "single_trade_sharpe_annualized": 7.358416837614191,
+        "cutoffs": {
+          "trades_per_year": 12,
+          "per_trade_net_edge_pct": 2.0,
+          "capital_utilization_pct": 30.0,
+          "single_trade_sharpe": 1.5
+        },
+        "gate_verdict": "FAIL",
+        "fail_dims": [
+          "capital_utilization_pct=21.74<30.0"
+        ]
+      },
+      "three_gate_verdict": "FAIL",
+      "concentration_gate_overall_pass": "True",
+      "frequency_gate_baseline_verdict": "FAIL",
+      "frequency_gate_stress_verdict": "FAIL"
+    },
+    "48h_long": {
+      "hold_label": "48h",
+      "hold_min": 2880,
+      "side": "long",
+      "n_obs": 57,
+      "n_skipped": 0,
+      "fee_baseline": {
+        "label": "48h_long_fee_baseline",
+        "fee_per_trade": 0.0008,
+        "n_obs": 57,
+        "obs_mean_bp": -1265.0534304618254,
+        "obs_median_bp": -1174.2726556343582,
+        "obs_win_rate": 0.2631578947368421,
+        "obs_t": -4.176386635526773,
+        "null_mean_t": -2.7830905385237807,
+        "signal_t_excess": -1.3932960970029926,
+        "perm_p_two_sided": 0.158,
+        "ci_lower_bp": -1829.328457757324,
+        "ci_upper_bp": -663.3047708584403,
+        "prob_positive": 0.0,
+        "n_candidate_pool": 506,
+        "gate_a_sigex_pass": false,
+        "gate_b_ci_pass": false,
+        "gate_c_perm_p_pass": false,
+        "three_gate_pass": false
+      },
+      "fee_stress": {
+        "label": "48h_long_fee_stress",
+        "fee_per_trade": 0.0025,
+        "n_obs": 57,
+        "obs_mean_bp": -1282.0534304618257,
+        "obs_median_bp": -1191.2726556343584,
+        "obs_win_rate": 0.2631578947368421,
+        "obs_t": -4.232509619026399,
+        "null_mean_t": -2.8426756757038634,
+        "signal_t_excess": -1.389833943322536,
+        "perm_p_two_sided": 0.158,
+        "ci_lower_bp": -1846.328457757324,
+        "ci_upper_bp": -680.3047708584403,
+        "prob_positive": 0.0,
+        "n_candidate_pool": 506,
+        "gate_a_sigex_pass": false,
+        "gate_b_ci_pass": false,
+        "gate_c_perm_p_pass": false,
+        "three_gate_pass": false
+      },
+      "concentration_baseline": {
+        "side": "long",
+        "per_quarter_t_stats": [
+          {
+            "quarter": "2024Q4",
+            "n_trades": 6,
+            "mean_bp": 658.1704325511979,
+            "t_stat": 1.1975537856824177
+          },
+          {
+            "quarter": "2025Q3",
+            "n_trades": 8,
+            "mean_bp": -2218.1638926384016,
+            "t_stat": -2.330344982708148
+          },
+          {
+            "quarter": "2025Q4",
+            "n_trades": 18,
+            "mean_bp": -1625.82134387581,
+            "t_stat": -4.537361074611157
+          },
+          {
+            "quarter": "2026Q1",
+            "n_trades": 13,
+            "mean_bp": -2410.2620148426113,
+            "t_stat": -4.782141578687739
+          },
+          {
+            "quarter": "2026Q2",
+            "n_trades": 12,
+            "mean_bp": 190.53611601620614,
+            "t_stat": 0.24493306458327407
+          }
+        ],
+        "n_quarters_measurable": 3,
+        "n_quarters_pos_t": 1,
+        "quarter_pos_t_ratio": 0.3333333333333333,
+        "n_pos": 15,
+        "n_neg": 42,
+        "sign_ratio_positive": 0.2631578947368421,
+        "top3_abs_concentration_pct": 14.894779111835948,
+        "concentration_gate": {
+          "quarter_pass": false,
+          "sign_pass": false,
+          "blowup_pass": "True",
+          "overall_pass": false
+        }
+      },
+      "frequency_first_gate_baseline": {
+        "side": "long",
+        "fee_per_trade": 0.0008,
+        "oos_days": 513.3022168518519,
+        "n_events": 57,
+        "trades_per_year": 40.55943909162739,
+        "per_trade_net_edge_pct": -12.650534304618255,
+        "capital_utilization_pct": 21.74157763908698,
+        "mean_hold_days": 1.9578947368421051,
+        "single_trade_sharpe_annualized": -7.55550874096634,
+        "cutoffs": {
+          "trades_per_year": 12,
+          "per_trade_net_edge_pct": 2.0,
+          "capital_utilization_pct": 30.0,
+          "single_trade_sharpe": 1.5
+        },
+        "gate_verdict": "FAIL",
+        "fail_dims": [
+          "per_trade_net_edge_pct=-12.65<2.0",
+          "capital_utilization_pct=21.74<30.0",
+          "single_trade_sharpe=-7.56<1.5"
+        ]
+      },
+      "frequency_first_gate_stress": {
+        "side": "long",
+        "fee_per_trade": 0.0025,
+        "oos_days": 513.3022168518519,
+        "n_events": 57,
+        "trades_per_year": 40.55943909162739,
+        "per_trade_net_edge_pct": -12.820534304618256,
+        "capital_utilization_pct": 21.74157763908698,
+        "mean_hold_days": 1.9578947368421051,
+        "single_trade_sharpe_annualized": -7.657040933602296,
+        "cutoffs": {
+          "trades_per_year": 12,
+          "per_trade_net_edge_pct": 2.0,
+          "capital_utilization_pct": 30.0,
+          "single_trade_sharpe": 1.5
+        },
+        "gate_verdict": "FAIL",
+        "fail_dims": [
+          "per_trade_net_edge_pct=-12.82<2.0",
+          "capital_utilization_pct=21.74<30.0",
+          "single_trade_sharpe=-7.66<1.5"
+        ]
+      },
+      "three_gate_verdict": "FAIL",
+      "concentration_gate_overall_pass": false,
+      "frequency_gate_baseline_verdict": "FAIL",
+      "frequency_gate_stress_verdict": "FAIL"
+    }
+  },
+  "n_short_cells_three_gate_pass": 2,
+  "n_long_cells_three_gate_pass": 0,
+  "n_short_cells_freq_gate_pass": 0,
+  "plateau_short": {
+    "all_candidates": [
+      {
+        "hold_labels": [
+          "1h",
+          "2h",
+          "4h"
+        ],
+        "hold_mins": [
+          60,
+          120,
+          240
+        ],
+        "all_three_gate_pass": false,
+        "all_concentration_pass": true,
+        "sigex_vals": [
+          1.8555991424904805,
+          -0.025793938144072104,
+          -0.5092348407847125
+        ],
+        "edge_vals_pct": [
+          4.321635233374168,
+          2.150536764176688,
+          1.4804458306037236
+        ],
+        "edge_sustained": false,
+        "plateau_stable": false,
+        "mean_sigex": 0.44019012118723194,
+        "mean_edge_pct": 2.65087260938486,
+        "plateau_overall_pass": false
+      },
+      {
+        "hold_labels": [
+          "2h",
+          "4h",
+          "8h"
+        ],
+        "hold_mins": [
+          120,
+          240,
+          480
+        ],
+        "all_three_gate_pass": false,
+        "all_concentration_pass": true,
+        "sigex_vals": [
+          -0.025793938144072104,
+          -0.5092348407847125,
+          2.2346069889025832
+        ],
+        "edge_vals_pct": [
+          2.150536764176688,
+          1.4804458306037236,
+          7.726502635154731
+        ],
+        "edge_sustained": false,
+        "plateau_stable": false,
+        "mean_sigex": 0.5665260699912662,
+        "mean_edge_pct": 3.7858284099783805,
+        "plateau_overall_pass": false
+      },
+      {
+        "hold_labels": [
+          "4h",
+          "8h",
+          "12h"
+        ],
+        "hold_mins": [
+          240,
+          480,
+          720
+        ],
+        "all_three_gate_pass": false,
+        "all_concentration_pass": true,
+        "sigex_vals": [
+          -0.5092348407847125,
+          2.2346069889025832,
+          2.952753952046437
+        ],
+        "edge_vals_pct": [
+          1.4804458306037236,
+          7.726502635154731,
+          9.502288478813652
+        ],
+        "edge_sustained": false,
+        "plateau_stable": false,
+        "mean_sigex": 1.5593753667214358,
+        "mean_edge_pct": 6.236412314857368,
+        "plateau_overall_pass": false
+      },
+      {
+        "hold_labels": [
+          "8h",
+          "12h",
+          "24h"
+        ],
+        "hold_mins": [
+          480,
+          720,
+          1440
+        ],
+        "all_three_gate_pass": false,
+        "all_concentration_pass": true,
+        "sigex_vals": [
+          2.2346069889025832,
+          2.952753952046437,
+          1.7315192659340293
+        ],
+        "edge_vals_pct": [
+          7.726502635154731,
+          9.502288478813652,
+          9.068668243134406
+        ],
+        "edge_sustained": true,
+        "plateau_stable": true,
+        "mean_sigex": 2.3062934022943495,
+        "mean_edge_pct": 8.765819785700929,
+        "plateau_overall_pass": false
+      },
+      {
+        "hold_labels": [
+          "12h",
+          "24h",
+          "48h"
+        ],
+        "hold_mins": [
+          720,
+          1440,
+          2880
+        ],
+        "all_three_gate_pass": false,
+        "all_concentration_pass": true,
+        "sigex_vals": [
+          2.952753952046437,
+          1.7315192659340293,
+          1.3965545945846003
+        ],
+        "edge_vals_pct": [
+          9.502288478813652,
+          9.068668243134406,
+          12.490534304618258
+        ],
+        "edge_sustained": true,
+        "plateau_stable": false,
+        "mean_sigex": 2.026942604188356,
+        "mean_edge_pct": 10.353830342188772,
+        "plateau_overall_pass": false
+      }
+    ],
+    "best_plateau": {
+      "hold_labels": [
+        "8h",
+        "12h",
+        "24h"
+      ],
+      "hold_mins": [
+        480,
+        720,
+        1440
+      ],
+      "all_three_gate_pass": false,
+      "all_concentration_pass": true,
+      "sigex_vals": [
+        2.2346069889025832,
+        2.952753952046437,
+        1.7315192659340293
+      ],
+      "edge_vals_pct": [
+        7.726502635154731,
+        9.502288478813652,
+        9.068668243134406
+      ],
+      "edge_sustained": true,
+      "plateau_stable": true,
+      "mean_sigex": 2.3062934022943495,
+      "mean_edge_pct": 8.765819785700929,
+      "plateau_overall_pass": false
+    },
+    "verdict": "NO_QUALIFYING_PLATEAU"
+  },
+  "plateau_long": {
+    "all_candidates": [
+      {
+        "hold_labels": [
+          "1h",
+          "2h",
+          "4h"
+        ],
+        "hold_mins": [
+          60,
+          120,
+          240
+        ],
+        "all_three_gate_pass": false,
+        "all_concentration_pass": false,
+        "sigex_vals": [
+          -1.5043742918480234,
+          0.27806980526806935,
+          0.6841286690903463
+        ],
+        "edge_vals_pct": [
+          -4.481635233374168,
+          -2.3105367641766885,
+          -1.640445830603725
+        ],
+        "edge_sustained": false,
+        "plateau_stable": false,
+        "mean_sigex": -0.1807252724965359,
+        "mean_edge_pct": -2.81087260938486,
+        "plateau_overall_pass": false
+      },
+      {
+        "hold_labels": [
+          "2h",
+          "4h",
+          "8h"
+        ],
+        "hold_mins": [
+          120,
+          240,
+          480
+        ],
+        "all_three_gate_pass": false,
+        "all_concentration_pass": false,
+        "sigex_vals": [
+          0.27806980526806935,
+          0.6841286690903463,
+          -2.1717605416593266
+        ],
+        "edge_vals_pct": [
+          -2.3105367641766885,
+          -1.640445830603725,
+          -7.886502635154735
+        ],
+        "edge_sustained": false,
+        "plateau_stable": false,
+        "mean_sigex": -0.40318735576697035,
+        "mean_edge_pct": -3.945828409978383,
+        "plateau_overall_pass": false
+      },
+      {
+        "hold_labels": [
+          "4h",
+          "8h",
+          "12h"
+        ],
+        "hold_mins": [
+          240,
+          480,
+          720
+        ],
+        "all_three_gate_pass": false,
+        "all_concentration_pass": false,
+        "sigex_vals": [
+          0.6841286690903463,
+          -2.1717605416593266,
+          -2.916888002485064
+        ],
+        "edge_vals_pct": [
+          -1.640445830603725,
+          -7.886502635154735,
+          -9.662288478813656
+        ],
+        "edge_sustained": false,
+        "plateau_stable": false,
+        "mean_sigex": -1.4681732916846812,
+        "mean_edge_pct": -6.396412314857372,
+        "plateau_overall_pass": false
+      },
+      {
+        "hold_labels": [
+          "8h",
+          "12h",
+          "24h"
+        ],
+        "hold_mins": [
+          480,
+          720,
+          1440
+        ],
+        "all_three_gate_pass": false,
+        "all_concentration_pass": false,
+        "sigex_vals": [
+          -2.1717605416593266,
+          -2.916888002485064,
+          -1.7206509546862188
+        ],
+        "edge_vals_pct": [
+          -7.886502635154735,
+          -9.662288478813656,
+          -9.228668243134408
+        ],
+        "edge_sustained": false,
+        "plateau_stable": false,
+        "mean_sigex": -2.269766499610203,
+        "mean_edge_pct": -8.925819785700932,
+        "plateau_overall_pass": false
+      },
+      {
+        "hold_labels": [
+          "12h",
+          "24h",
+          "48h"
+        ],
+        "hold_mins": [
+          720,
+          1440,
+          2880
+        ],
+        "all_three_gate_pass": false,
+        "all_concentration_pass": false,
+        "sigex_vals": [
+          -2.916888002485064,
+          -1.7206509546862188,
+          -1.3932960970029926
+        ],
+        "edge_vals_pct": [
+          -9.662288478813656,
+          -9.228668243134408,
+          -12.650534304618255
+        ],
+        "edge_sustained": false,
+        "plateau_stable": false,
+        "mean_sigex": -2.0102783513914253,
+        "mean_edge_pct": -10.513830342188774,
+        "plateau_overall_pass": false
+      }
+    ],
+    "best_plateau": {
+      "hold_labels": [
+        "1h",
+        "2h",
+        "4h"
+      ],
+      "hold_mins": [
+        60,
+        120,
+        240
+      ],
+      "all_three_gate_pass": false,
+      "all_concentration_pass": false,
+      "sigex_vals": [
+        -1.5043742918480234,
+        0.27806980526806935,
+        0.6841286690903463
+      ],
+      "edge_vals_pct": [
+        -4.481635233374168,
+        -2.3105367641766885,
+        -1.640445830603725
+      ],
+      "edge_sustained": false,
+      "plateau_stable": false,
+      "mean_sigex": -0.1807252724965359,
+      "mean_edge_pct": -2.81087260938486,
+      "plateau_overall_pass": false
+    },
+    "verdict": "NO_QUALIFYING_PLATEAU"
+  },
+  "overall_verdict": "NARROW_SCOPE_LIFE_CHANGING_FAIL"
+}

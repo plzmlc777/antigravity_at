@@ -1,0 +1,1 @@
+{"weights": {"trend": 1.0, "mom": 1.5, "sox": 1.5, "krsemi": 1.0, "usd": 1.0, "deposit": 0.7, "cover": 0.7, "copper": 0.7, "credit": 0.5}, "effective": {"trend": 1.0, "mom": 1.5, "sox": 1.5, "krsemi": 1.0, "usd": 1.0, "deposit": 0.7, "cover": 0.7, "copper": 0.7, "credit": 0.5}, "auto_tune": true, "min_samples": 15, "shrink": 0.5}

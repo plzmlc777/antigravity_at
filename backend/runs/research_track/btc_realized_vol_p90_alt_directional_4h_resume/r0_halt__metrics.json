@@ -1,0 +1,109 @@
+{
+  "paradigm": "btc_realized_vol_p90_alt_directional_4h_resume",
+  "counter": 155,
+  "phase": "R-0",
+  "verdict": "R0_HALT_BY_DNA_DUPLICATE_AND_PRIOR_FALSIFICATION",
+  "created_kst": "2026-05-21",
+  "type": "E",
+  "halt_axes": [
+    "lesson_62_strict_dim_count_fail_1_of_6",
+    "dna_overlap_5_of_6_with_paradigm_69_70_68",
+    "B_same_sign_quadrant_decisively_falsified_by_paradigm_70",
+    "4_quadrant_info_value_zero_bit_prior_coverage_complete"
+  ],
+  "r0_audit": {
+    "lesson_62_strict_dim_count": {
+      "dimensions_audited": [
+        "trigger_statistic",
+        "universe",
+        "hold_timing",
+        "entry_side_event_time",
+        "sign_conditioning",
+        "filter_rule"
+      ],
+      "strict_changes": 1,
+      "strict_change_dimensions": ["sign_conditioning"],
+      "partial_changes": 2,
+      "partial_change_dimensions": ["hold_timing_11pct_reduction", "filter_rule_paradigm_69_already_btc_up_only"],
+      "required_strict_min": 2,
+      "verdict": "FAIL"
+    },
+    "dna_overlap": {
+      "vs_paradigm_69_r5_seeded": "5/6 dims overlap (only sign-conditioning differs; A focus quadrant is direct paradigm 69 with 270m→240m partial retiming)",
+      "vs_paradigm_70_graveyard": "6/6 dims exact overlap for B same-sign quadrant (BTC RV p90 HIGH + BTC down + 13 alts SHORT + 240m hold)",
+      "vs_paradigm_68_graveyard": "4/6 dims overlap (A focus 240m hold matches; vol filter absent in 68 unfiltered baseline)",
+      "verdict": "FAIL_DUPLICATE_HALT_BLOCKING"
+    },
+    "lesson_19_symmetric_negative_test_4_quadrant_prior_coverage": {
+      "A_focus_BTC_up_alt_LONG": {
+        "prior_source": "paradigm_69_R5 + paradigm_67_H5_BTC_up_sub_cell",
+        "prior_measurement": "n=767 net +112.88bp t=+9.23 sig_t_ex +10.40 ci_lower +89.08bp",
+        "verdict_known": "PASS"
+      },
+      "A_mirror_BTC_up_alt_SHORT": {
+        "prior_source": "paradigm_70_h7_baseline + mirror_logic",
+        "prior_measurement": "signed≈unsigned, asymmetric microstructure 13σ delta vs paradigm 69",
+        "verdict_known": "FAIL_INVERTED"
+      },
+      "B_same_sign_BTC_down_alt_SHORT": {
+        "prior_source": "paradigm_70_R1_exact_match",
+        "prior_measurement": "n=793 net -49.00bp t=-3.62 sig_t_ex -2.48 ci_lower -75.56 13/13_alts_neg 5/5_holds_neg",
+        "verdict_known": "FAIL_BROAD_FEE_FLOOR_FALSIFIED"
+      },
+      "B_mirror_BTC_down_alt_LONG": {
+        "prior_source": "paradigm_67_H5_BTC_down_trig",
+        "prior_measurement": "n=2756 net -150.14bp t=-2.73 win 0.526",
+        "verdict_known": "FAIL_INVERTED"
+      },
+      "total_info_value_bits": 0,
+      "verdict": "FAIL_NO_NEW_INFORMATION"
+    },
+    "lesson_30_data_window_ratio": {
+      "paradigm_155_window_full_2_4yr": true,
+      "verdict": "PASS_NOT_ADVISORY"
+    },
+    "lesson_56_self_validation_track": {
+      "paradigm_69_R5_paper_baseline_day_7": "2026-05-21 (today, scheduled)",
+      "r1_ad_hoc_rerun_vs_paper_baseline": "paper baseline is primary SELF-validation source",
+      "verdict": "R1_AD_HOC_NOT_PRIMARY_SELF_VALIDATION_SOURCE"
+    },
+    "lesson_61_next_action_provenance": {
+      "source": "paradigm_154_next_action_option_beta_by_paradigm_architect",
+      "provenance_legitimacy": "PASS",
+      "provenance_cross_reference_completeness": "FAIL_paradigm_70_mirror_antipattern_not_checked_in_recommendation",
+      "note": "Legitimate provenance does not guarantee mechanism feasibility"
+    },
+    "mirror_hypothesis_antipattern": {
+      "paradigm_70_graveyard": "BTC RV p90 HIGH + BTC down + 13 alts SHORT 240m → broad-falsified 13σ asymmetry",
+      "paradigm_155_B_same_sign_quadrant": "exact match with paradigm 70",
+      "verdict": "DIRECT_ANTIPATTERN_VIOLATION"
+    }
+  },
+  "expected_quadrant_aggregate_mean_bp": {
+    "A_focus_known_plus_112_88": 112.88,
+    "A_mirror_estimated": -49,
+    "B_same_sign_known_paradigm_70_minus_49": -49.00,
+    "B_mirror_known_paradigm_67_H5_minus_150_14": -150.14,
+    "naive_mean_bp": -33.815,
+    "below_fee_floor_16bp": true,
+    "narrow_scope_lesson_20_eligibility": "FAIL_1_of_4_quadrants_pass_only"
+  },
+  "family_proxy_contribution": {
+    "family": "btc_rv_p90_alts_directional",
+    "graveyards_cumulative": ["paradigm_62_contagion", "paradigm_67_recovery", "paradigm_68_up_cond_R3.5", "paradigm_70_mirror_short", "paradigm_155_sign_cond_bilateral_R0_halt"],
+    "r5_seeded_exception": ["paradigm_69_long_270m_p90_TP5"],
+    "tier_4_retire_recommendation": "RATIFIED_AXIS_VARIANT_SPACE_EXHAUSTED"
+  },
+  "lesson_66_candidate": {
+    "title": "Sign-conditional bilateral reframe of unidirectional R-5 paradigm 가 mirror antipattern + dim-count fail double-bind",
+    "dogfood_count": 1,
+    "second_dogfood_required_for_confirmed": true
+  },
+  "wall_clock_min": 0.5,
+  "next_action_priority": [
+    "1_Day_7_baseline_measurement_paradigm_69_R5_today_primary_self_validation",
+    "2_family_tier_4_retire_ratification_btc_rv_p90_alts_directional",
+    "3_lesson_62_dogfood_success_documented",
+    "4_dispatch_axis_change_to_different_macro_proxy_funding_OI_liquidation_density"
+  ]
+}
