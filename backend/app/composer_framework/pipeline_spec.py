@@ -327,6 +327,13 @@ def _lifecycle_window_kwargs(kwargs: dict) -> dict:
         out["max_age_days"] = int(kwargs["max_age_days"])
     if kwargs.get("entry_window_days") is not None:
         out["entry_window_days"] = int(kwargs["entry_window_days"])
+    # ⚠ 2026-08-15 — 위 경고를 읽고도 **같은 실수를 반복했다.**
+    #   소스에 `entry_start_hours` 를 넣고 클래스 단위로 검증까지 했는데
+    #   (0 → 진입신호 10봉 / 24 → 1봉), 여기에 안 넣어서 실제 세션에서는
+    #   내내 무시됐다. 스펙에는 24 가 멀쩡히 적혀 있었다.
+    #   **새 소스 인자를 추가하면 이 헬퍼도 같이 고쳐야 한다.**
+    if kwargs.get("entry_start_hours") is not None:
+        out["entry_start_hours"] = int(kwargs["entry_start_hours"])
     return out
 
 
