@@ -67,10 +67,21 @@ class BinanceLifecycleDecayEarlyExitSource(SignalSource):
         listing_date: str | None = None,
         max_age_days: int = 30,
         entry_window_days: int = 3,
+        entry_start_hours: int = 0,
     ) -> None:
         self.listing_date = listing_date
         self.max_age_days = int(max_age_days)
         self.entry_window_days = int(entry_window_days)
+        # ⚠ 진입 **시작** 시각(상장 후 시간). 기본 0 = 종전과 동일.
+        #   `entry_window_days` 는 창을 **닫기만** 해서, 1시간봉에서는 창이
+        #   상장 즉시 열려 **상장가에 진입**한다. 그건 이미 기각된 변형이다
+        #   (교훈 #90: 251 코호트 평균 +5.15% → -0.37% 반전).
+        #
+        #   왜 24시간을 기다리나 — 실측 487상장:
+        #     상장가 → +24h  중앙값 **-1.1%** (오른 경우 46%)
+        #     Day-1 최고점   중앙값 **+11.5%** · p90 **+63.6%**
+        #   더 비싸게 팔려는 게 아니라 **초기 급등에 손절당하지 않으려는** 것이다.
+        self.entry_start_hours = int(entry_start_hours)
         self.check_day = int(check_day)
         self.vol_cliff_hi_threshold = float(vol_cliff_hi_threshold)
         if self.check_day not in (7, 14):
@@ -150,9 +161,12 @@ class BinanceLifecycleDecayEarlyExitSource(SignalSource):
         # Day 7/14 에 나오므로 진입 창을 짧게 닫아도 살아 있어야 한다.
         if getattr(self, "listing_date", None):
             _t0 = pd.Timestamp(self.listing_date)
+            _entry_start = _t0 + pd.Timedelta(hours=self.entry_start_hours)
             _entry_end = _t0 + pd.Timedelta(days=self.entry_window_days)
             _all_end = _t0 + pd.Timedelta(days=self.max_age_days)
             _c = "bnldex_signal"
+            # 창 **밖**(이르거나 늦은)의 진입 신호를 죽인다
+            out.loc[(out.index < _entry_start) & (out[_c] < 0), _c] = 0.0
             out.loc[(out.index > _entry_end) & (out[_c] < 0), _c] = 0.0
             out.loc[out.index > _all_end, _c] = 0.0
         return out
