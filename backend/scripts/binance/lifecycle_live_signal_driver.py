@@ -450,6 +450,44 @@ def _real_direct_close(account_id: int, symbol: str, session_id: str) -> Optiona
         db.close()
 
 
+
+def _place_entry_brackets(account_id: int, symbol: str, sl_price: float,
+                          tp_price: float, dry_run: bool) -> dict:
+    """진입 직후 거래소에 손절·익절 브래킷을 건다.
+
+    ⚠ 왜 — 정본은 **일봉**으로 평가하므로 한 봉 안에서 손절·익절이 둘 다 닿으면
+      보수적으로 손절을 택한다(`kernel._forced_exit`). 1h 격자가 SL50/TP50 을
+      1위로 뽑은 이유는 그 순서를 실제로 보기 때문이고, 그 이점은 **거래소가
+      실시간 판정해 줘야만** 실현된다. 시간 사이클 대신 브래킷으로 얻는다.
+
+    실패해도 진입을 되돌리지 않는다 — 브래킷이 없으면 종전 동작(일봉 정본
+    청산)으로 degrade 될 뿐이다.
+    """
+    try:
+        from app.db.session import SessionLocal
+        from app.models.account import ExchangeAccount
+        from app.api.endpoints import create_adapter_from_account
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        from lifecycle_brackets import place_short_brackets
+    except Exception as exc:
+        log.error("브래킷 모듈 임포트 실패: %s", exc)
+        return {"skipped": f"import 실패: {exc}"}
+    db = SessionLocal()
+    try:
+        acc = db.query(ExchangeAccount).filter(
+            ExchangeAccount.id == int(account_id)).first()
+        if not acc:
+            return {"skipped": f"계좌 {account_id} 없음"}
+        adapter = create_adapter_from_account(acc)
+        return place_short_brackets(adapter, symbol, float(sl_price or 0.0),
+                                    float(tp_price or 0.0),
+                                    run_async=_run_async, dry_run=dry_run)
+    except Exception as exc:
+        log.error("%s 브래킷 실패: %s", symbol, exc)
+        return {"skipped": str(exc)}
+    finally:
+        db.close()
+
 def _read_last_cycle(session_id: str) -> Optional[dict[str, Any]]:
     """Return the last CycleResult dict from a System-2 session's predictions.jsonl."""
     path = STORE_ROOT / session_id / "predictions.jsonl"
@@ -825,6 +863,14 @@ def run(args) -> int:
                         log.error("[FAIL] real %s short NOT opened (exchange qty=%.6f, rejected/partial?) "
                                   "— keep flat, retry next cycle. result=%s", symbol, pos_after, result)
                         continue
+                    # ── 거래소 브래킷 (2026-08-15) ───────────────────────
+                    # 정본 장부의 절대가를 그대로 건다 — 퍼센트로 재계산하면
+                    # 미세하게 어긋나 "거래소는 청산, 정본은 아직"이 생긴다.
+                    br = _place_entry_brackets(int(link["real_account_id"]), symbol,
+                                               cycle.get("sl_price") or 0.0,
+                                               cycle.get("tp_price") or 0.0,
+                                               args.dry_run)
+                    log.info("[BRACKET] %s %s", symbol, br)
                 # success "No position to close" is benign for close → still in sync
                 link_state[track] = desired  # update ONLY on success → failures retry next cycle
                 if track == "real" and margin_used and link.get("real_account_id") in real_budget:
