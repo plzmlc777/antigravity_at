@@ -59,6 +59,23 @@ LISTINGS = ROOT / "runs" / "research_track" / "lifecycle_phase" / "listing_dates
 OUT = ROOT / "runs" / "research_track" / "lifecycle_1h_backtest.json"
 
 ENTRY_OFFSET_H = 23        # 상장+23시부터 자른다 → 체결이 상장+24h
+
+# 손절 무력화율 — **체결 바**(상장+24h 의 1시간봉) 기준 실측 (544상장, 2026-08-15)
+#   1h 체결 바 상승폭  p50 2.09% · p75 4.69% · p90 9.23%
+#
+#     손절     1h      일봉      ← 일봉에서 못 보던 구간이 열린다
+#       2%   51.3%    79.9%
+#       5%   23.9%    58.5%
+#      10%    8.8%    35.6%   ← 여기부터 1h 전용 구간
+#      15%    2.9%       —
+#      20%    1.3%    16.9%
+#      30%    0.6%     9.6%
+#
+# 그래서 1h harness 의 정직한 하한은 **0.08~0.10** 이다(일봉은 0.20).
+# 5% 이하는 1h 에서도 24~51% 가 기록되지 않으므로 쓰지 마라.
+SL_FLOOR_1H = 0.08
+SL_NULLIFY_1H = {0.02: 51.3, 0.05: 23.9, 0.08: 11.9, 0.10: 8.8,
+                 0.15: 2.9, 0.20: 1.3, 0.30: 0.6, 0.50: 0.0}
 HOLD_DAYS = 30
 MIN_BARS = 24 * 5          # 최소 5일치는 있어야 판정
 
@@ -145,7 +162,7 @@ def main() -> int:
     p = argparse.ArgumentParser(description="신상저격수 1시간봉 백테스트")
     p.add_argument("--split", required=True, help="표본 밖 시작 상장일")
     p.add_argument("--since", default="2025-01-01")
-    p.add_argument("--sl", default="0.02,0.05,0.10,0.20,0.30,0.50")
+    p.add_argument("--sl", default="0.08,0.10,0.15,0.20,0.30,0.50")
     p.add_argument("--tp", default="none,0.50")
     p.add_argument("--hold-days", type=int, default=30)
     p.add_argument("--limit", type=int, default=0)
