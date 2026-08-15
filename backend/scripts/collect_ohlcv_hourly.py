@@ -40,6 +40,10 @@ logging.basicConfig(level=logging.INFO,
 log = logging.getLogger("ohlcv_1h")
 
 BASE = "https://data.binance.vision/data/futures/um"
+# ⚠ 아카이브는 **T+1** 이다 — 오늘·어제 봉이 없다. 라이브 사이클에는 못 쓴다.
+#   그래서 최근 구간만 REST klines 로 받는 `--live` 모드를 둔다.
+#   같은 데이터원이라 값은 일치한다(2026-08-15 실측: REST vs 아카이브 500/500).
+REST = "https://fapi.binance.com/fapi/v1/klines"
 LISTINGS = ROOT / "runs" / "research_track" / "lifecycle_phase" / "listing_dates.json"
 WORKERS = 8
 COHORT_DAYS = 35          # 상장일 + 35일 (보유 30일 + 여유)
@@ -71,6 +75,45 @@ def _fetch(url: str) -> list[list] | None:
         except (ValueError, IndexError):
             continue
     return out
+
+
+def rest_recent(sym: str, hours: int) -> list[list]:
+    """최근 N시간 1h 봉을 REST 로. 아카이브 지연을 메운다.
+
+    ⚠ **마지막 봉은 미완성**이다. 그대로 넣으면 진행 중인 시간의 고가·저가·
+      종가가 확정값처럼 저장된다. 마감된 봉만 남긴다.
+    """
+    import urllib.parse
+    end = int(time.time() * 1000)
+    start = end - hours * 3_600_000
+    out: list[list] = []
+    cur = start
+    while cur < end:
+        q = urllib.parse.urlencode({"symbol": sym, "interval": "1h",
+                                    "startTime": cur, "limit": 1000})
+        try:
+            with urllib.request.urlopen(f"{REST}?{q}", timeout=60) as r:
+                data = json.load(r)
+        except Exception as exc:
+            log.warning("%s REST 실패: %s", sym, exc)
+            break
+        if not data:
+            break
+        for k in data:
+            try:
+                out.append([int(k[0]), float(k[1]), float(k[2]), float(k[3]),
+                            float(k[4]), float(k[5])])
+            except (ValueError, IndexError):
+                continue
+        nxt = int(data[-1][0]) + 3_600_000
+        if nxt <= cur:
+            break
+        cur = nxt
+        if len(data) < 1000:
+            break
+    # 마감된 봉만 — 봉 시작 + 1시간 <= 현재
+    now_ms = int(time.time() * 1000)
+    return [r for r in out if r[0] + 3_600_000 <= now_ms]
 
 
 def month_file(sym: str, y: int, m: int) -> list[list] | None:
@@ -127,6 +170,8 @@ def main() -> int:
     p.add_argument("--symbols", default="", help="쉼표 구분 (--cohort 대신)")
     p.add_argument("--from", dest="d_from", default="")
     p.add_argument("--to", dest="d_to", default="")
+    p.add_argument("--live", type=int, default=0,
+                   help="최근 N시간을 REST 로 받는다 (아카이브 T+1 지연 보완)")
     p.add_argument("--limit", type=int, default=0)
     a = p.parse_args()
 
@@ -135,7 +180,22 @@ def main() -> int:
     from app.db.session import engine
 
     targets: list[tuple[str, date, date]] = []
-    if a.cohort:
+    if a.live and not (a.cohort or a.symbols):
+        # 활성 신상저격수 세션 종목 — 라이브 사이클이 실제로 필요로 하는 것
+        import glob as _glob
+        syms_live = set()
+        for f in _glob.glob(str(ROOT / "runs" / "paper_sessions" / "*" /
+                                "session.json")):
+            try:
+                d = json.load(open(f))
+            except Exception:
+                continue
+            if d.get("status") == "active" and "lifecycle" in (d.get("name") or ""):
+                syms_live.add(d["symbol"])
+        targets = [(s_, date.today(), date.today()) for s_ in sorted(syms_live)]
+        log.info("라이브 모드 — 활성 세션 %d종목 · 최근 %d시간",
+                 len(targets), a.live)
+    elif a.cohort:
         listings = json.loads(LISTINGS.read_text())
         for s, meta in sorted(listings.items()):
             if not isinstance(meta, dict) or not meta.get("onboard_date"):
@@ -161,7 +221,8 @@ def main() -> int:
     with engine.connect() as conn:
         for i, (sym, d0, d1) in enumerate(targets, 1):
             try:
-                rows = fetch_range(sym, d0, d1)
+                rows = (rest_recent(sym, a.live) if a.live
+                        else fetch_range(sym, d0, d1))
             except Exception as exc:
                 log.warning("[%d/%d] %s 실패: %s", i, len(targets), sym, exc)
                 continue
