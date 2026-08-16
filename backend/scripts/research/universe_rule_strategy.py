@@ -53,7 +53,8 @@ log = logging.getLogger("uni_rule")
 OUT = ROOT / "runs" / "research_track" / "universe_rule_strategy.json"
 
 
-def run_side(sym: str, anchor, bars, sl: float, tp: float, hold: int, side: str):
+def run_side(sym: str, anchor, bars, sl: float, tp: float, hold: int, side: str,
+             spec_sink: dict | None = None):
     """한 앵커 — `side` 방향으로 규칙 적용. 정본 커널.
 
     롱 대조군은 `long_short_threshold` 정책으로 만든다. 신상저격수 정책은
@@ -89,6 +90,12 @@ def run_side(sym: str, anchor, bars, sl: float, tp: float, hold: int, side: str)
                                    "sl_pct": sl,
                                    "tp_pct": (1.0 if tp is None else tp),
                                    "max_hold_bars": hold}}
+    # ⚠ 조립된 스펙을 **밖으로 내보낸다** — 호출자가 "내가 넣은 값이 정말
+    #   들어갔는가"를 확인할 수 있어야 한다. 교훈 #88 은 정확히 이걸 안 해서
+    #   생겼다(설정에 넣은 값이 팩토리에서 사라져 한 번도 안 걸림).
+    if spec_sink is not None:
+        spec_sink.clear()
+        spec_sink.update(ps)
     ctx = SourceContext(symbol=sym, eval_freq_minutes=1440,
                         ohlcv_1m=None, ohlcv_eval=bars)
     bt = GenericBacktester(initial_capital=1_000_000.0,
