@@ -268,19 +268,6 @@ def _build_bn_oi_price_decoupling(kwargs: dict, runtime: dict) -> SignalSource:
     )
 
 
-@register_source("bn_premium_index_zscore")
-def _build_bn_premium_index_zscore(kwargs: dict, runtime: dict) -> SignalSource:
-    from .sources import BinancePremiumIndexZScoreSource
-    premium = runtime.get("premium_df")
-    if premium is None:
-        raise KeyError("runtime_data['premium_df'] required for bn_premium_index_zscore")
-    return BinancePremiumIndexZScoreSource(
-        premium_df=premium,
-        zwin=int(kwargs.get("zwin", 30)),
-        entry_z=float(kwargs.get("entry_z", 2.0)),
-    )
-
-
 @register_source("bn_premium_velocity_zscore")
 def _build_bn_premium_velocity_zscore(kwargs: dict, runtime: dict) -> SignalSource:
     from .sources import BinancePremiumVelocityZScoreSource
@@ -363,19 +350,6 @@ def _build_bn_lifecycle_decay_bear_skip(kwargs: dict, runtime: dict) -> SignalSo
     )
 
 
-@register_source("bn_btc_rv_highvol_long")
-def _build_bn_btc_rv_highvol_long(kwargs: dict, runtime: dict) -> SignalSource:
-    from .sources import BinanceBTCRVHighvolLongSource
-    leader_1m = runtime.get("leader_ohlcv_1m")
-    if leader_1m is None:
-        raise KeyError("runtime_data['leader_ohlcv_1m'] required for bn_btc_rv_highvol_long")
-    return BinanceBTCRVHighvolLongSource(
-        leader_ohlcv_1m=leader_1m,
-        z_thresh=float(kwargs.get("z_thresh", 2.5)),
-        vol_pct_cutoff=float(kwargs.get("vol_pct_cutoff", 0.90)),
-    )
-
-
 @register_source("bn_stablecoin_supply_flow")
 def _build_bn_stablecoin_supply_flow(kwargs: dict, runtime: dict) -> SignalSource:
     """paradigm 251 — 3군 게이트 PASS 2026-08-09. USDT+USDC 7일 순증감 z (DefiLlama).
@@ -389,31 +363,6 @@ def _build_bn_stablecoin_supply_flow(kwargs: dict, runtime: dict) -> SignalSourc
         z_thresh=float(kwargs.get("z_thresh", 1.0)),
         refresh_hours=float(kwargs.get("refresh_hours", 12.0)),
         allow_network=bool(kwargs.get("allow_network", True)),
-    )
-
-
-@register_source("bn_alt_volume_burst_pos_continuation_long")
-def _build_bn_alt_volume_burst_pos_continuation_long(kwargs: dict, runtime: dict) -> SignalSource:
-    """paradigm 127 R-4 PASS 2026-05-21 — 1m volume burst positive continuation LONG."""
-    from .sources import BinanceAltVolumeBurstPosContinuationLongSource
-    return BinanceAltVolumeBurstPosContinuationLongSource(
-        volume_percentile=float(kwargs.get("volume_percentile", 99.0)),
-        magnitude_threshold=float(kwargs.get("magnitude_threshold", 0.005)),
-        aggregation_bin_min=int(kwargs.get("aggregation_bin_min", 5)),
-        debounce_min=int(kwargs.get("debounce_min", 30)),
-    )
-
-
-@register_source("bn_alt_volume_burst_neg_reversion_short")
-def _build_bn_alt_volume_burst_neg_reversion_short(kwargs: dict, runtime: dict) -> SignalSource:
-    """paradigm 128 R-4 PASS 2026-05-21 — 1m volume burst negative capitulation
-    reversion SHORT, SL=0.5% MANDATORY enforced via policy.sl_pct."""
-    from .sources import BinanceAltVolumeBurstNegReversionShortSource
-    return BinanceAltVolumeBurstNegReversionShortSource(
-        volume_percentile=float(kwargs.get("volume_percentile", 99.0)),
-        magnitude_threshold=float(kwargs.get("magnitude_threshold", 0.005)),
-        aggregation_bin_min=int(kwargs.get("aggregation_bin_min", 5)),
-        debounce_min=int(kwargs.get("debounce_min", 30)),
     )
 
 
