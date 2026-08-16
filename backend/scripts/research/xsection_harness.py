@@ -342,18 +342,12 @@ def judge(rows: pd.DataFrame, cfg: HarnessConfig, trait: str) -> dict:
     return out
 
 
-def main() -> int:
-    p = argparse.ArgumentParser(description="횡단면 선별 하네스 (공통 앵커 격자)")
-    for f_ in HarnessConfig.__dataclass_fields__.values():
-        arg = "--" + f_.name.replace("_", "-")
-        if f_.type is bool:
-            p.add_argument(arg, action="store_true")
-        else:
-            p.add_argument(arg, type=type(f_.default), default=f_.default)
-    a = p.parse_args()
-    cfg = HarnessConfig(**{k: getattr(a, k)
-                           for k in HarnessConfig.__dataclass_fields__})
+def collect_samples(cfg: "HarnessConfig") -> pd.DataFrame:
+    """앵커 격자를 돌며 (앵커 × 종목 × 수익 × 성질) 표를 만든다.
 
+    ⚠ **수집은 여기 한 곳**에만 있다 — 후속 검정(위약·포트폴리오 시뮬)이
+      각자 수집을 재구현하면 미묘하게 달라진다. 규칙 ⑤.
+    """
     from app.db.session import engine
     with engine.connect() as conn:
         close, dvol, fund = load_panel(conn)
@@ -469,6 +463,23 @@ def main() -> int:
     log.info("표본 %d · 앵커 %d개 · **앵커당 종목 중앙 %d개**",
              len(df), df["anchor"].nunique(), int(per_anchor.median()))
 
+
+    return df
+
+
+def main() -> int:
+    p = argparse.ArgumentParser(description="횡단면 선별 하네스 (공통 앵커 격자)")
+    for f_ in HarnessConfig.__dataclass_fields__.values():
+        arg = "--" + f_.name.replace("_", "-")
+        if f_.type is bool:
+            p.add_argument(arg, action="store_true")
+        else:
+            p.add_argument(arg, type=type(f_.default), default=f_.default)
+    a = p.parse_args()
+    cfg = HarnessConfig(**{k: getattr(a, k)
+                           for k in HarnessConfig.__dataclass_fields__})
+
+    df = collect_samples(cfg)
     traits = list(TRAITS) if cfg.trait == "all" else [cfg.trait]
     print("=" * 100)
     print(f"  **횡단면 선별 — 공통 앵커 격자** · {cfg.side.upper()} · 손절 "
