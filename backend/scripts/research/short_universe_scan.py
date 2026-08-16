@@ -107,31 +107,17 @@ def full_daily(conn, sym: str) -> pd.DataFrame:
 
 
 def run_anchor(sym: str, anchor, bars: pd.DataFrame, sl: float, tp: float,
-               hold: int):
-    """앵커 하나 — 그 날 숏 진입, 손절/익절/보유 규칙. 정본 커널로 실행."""
-    from app.composer_framework.backtester import GenericBacktester
-    from app.composer_framework.pipeline_spec import build_pipeline
-    from app.composer_framework.signal_source import SourceContext
-    from research.lifecycle_session_spawner import build_session_spec
-    from research.sweep_engine import apply_all
+               hold: int, side: str = "short"):
+    """앵커 하나 — `side` 방향으로 규칙 적용.
 
-    spec = build_session_spec(sym, str(anchor), policy_variant="baseline",
-                              baseline_hold_days=hold)
-    ps = apply_all(spec["pipeline_spec"], {
-        "policy.sl_pct": sl,
-        "policy.tp_pct": (1.0 if tp is None else tp),
-        "policy.max_hold_bars": hold,
-        # 앵커 당일 **한 번만** 진입한다 — 재진입은 이 측정의 대상이 아니다
-        "source.entry_window_days": 1,
-        "source.max_age_days": hold + 5,
-    })
-    ctx = SourceContext(symbol=sym, eval_freq_minutes=1440,
-                        ohlcv_1m=None, ohlcv_eval=bars)
-    bt = GenericBacktester(initial_capital=1_000_000.0,
-                           fee_rate=float(spec["fee_rate"]),
-                           apply_fee_to_short=True)
-    return bt.run_rule_based(pipeline=build_pipeline(ps, {}), ctx=ctx,
-                             signal_lag_bars=1).trades
+    ⚠ **구현을 여기 두지 않는다.** `universe_rule_strategy.run_side` 에
+      위임한다. 방향 뒤집기는 컴포저 `scale` 반전 + 정책 교체라 미묘하고
+      (2026-08-15 에 `long_threshold` 로 만들었다가 롱 거래가 **0건** 나온
+      적이 있다), 두 벌을 두면 한쪽만 고쳐진다. 손익 구현체가 6개 중 4개
+      오염됐던 이유가 그것이다 — [[project-canon-backtest-unification]].
+    """
+    from research.universe_rule_strategy import run_side
+    return run_side(sym, anchor, bars, sl, tp, hold, side)
 
 
 def stats(a: np.ndarray) -> dict:
@@ -154,8 +140,12 @@ def tfmt(t) -> str:
 
 
 def main() -> int:
-    p = argparse.ArgumentParser(description="전 종목 숏 규칙 스캔")
+    p = argparse.ArgumentParser(description="전 종목 규칙 스캔 (숏/롱)")
     p.add_argument("--split", required=True, help="표본 안/밖 분할 날짜 (필수)")
+    # ⚠ 롱 재검정은 **부호 뒤집기가 아니다** — 손절·익절·수수료가 비대칭이라
+    #   롱 수익률은 숏 수익률의 음수가 아니다(실측: 바스켓 롱 -6.1%/년 vs
+    #   숏 -47.7%/년). 그래서 별도 실행이 필요하다.
+    p.add_argument("--side", choices=("short", "long"), default="short")
     p.add_argument("--sl", type=float, default=0.2)
     p.add_argument("--tp", type=float, default=0.3, help="1.0 이면 익절 없음")
     p.add_argument("--hold", type=int, default=30)
@@ -166,8 +156,12 @@ def main() -> int:
     p.add_argument("--min-days", type=int, default=120,
                    help="완전한 일봉 최소 일수")
     p.add_argument("--limit", type=int, default=0)
-    p.add_argument("--out", default=str(OUT))
+    # ⚠ 방향별로 **다른 파일**에 쓴다. 2026-08-16 에 롱 실행이 숏 기준선
+    #   `short_universe_scan.json` 을 조용히 덮어썼다 — 같은 기본 경로였다.
+    p.add_argument("--out", default="")
     a = p.parse_args()
+    if not a.out:
+        a.out = str(OUT).replace(".json", f"_{a.side}.json")
 
     stride = a.stride or a.hold
     if stride < a.hold:
@@ -188,8 +182,9 @@ def main() -> int:
             "확인하라: python3 -m scripts.build_ohlcv_daily --all")
     log.info("유동성 통과 %d종목 (일 거래대금 중앙값 >= $%s, 완전일봉 >= %d일)",
              len(uni), f"{a.min_dollar_vol:,.0f}", a.min_days)
-    log.info("손절 %.0f%% · 익절 %s · 보유 %d일 · 앵커 %d일 간격 · 분할 %s",
-             a.sl * 100, ("없음" if a.tp >= 1.0 else f"{a.tp*100:.0f}%"),
+    log.info("**%s** · 손절 %.0f%% · 익절 %s · 보유 %d일 · 앵커 %d일 간격 · 분할 %s",
+             a.side.upper(), a.sl * 100,
+             ("없음" if a.tp >= 1.0 else f"{a.tp*100:.0f}%"),
              a.hold, stride, split)
     symbol_meta = {u["symbol"]: u for u in uni}
 
@@ -211,7 +206,8 @@ def main() -> int:
                            & (bars.index.date <= anchor + timedelta(days=a.hold + 5))]
                 if len(seg) >= a.hold - 2:
                     try:
-                        tr = run_anchor(sym, anchor, seg, a.sl, a.tp, a.hold)
+                        tr = run_anchor(sym, anchor, seg, a.sl, a.tp,
+                                        a.hold, a.side)
                     except Exception:
                         tr = []
                     for t in tr:
@@ -253,7 +249,7 @@ def main() -> int:
     Path(a.out).write_text(json.dumps(out, ensure_ascii=False, indent=2))
 
     print("=" * 88)
-    print(f"전 종목 숏 규칙 스캔 — {len(rows)}종목 · 손절 {a.sl:.0%} · "
+    print(f"전 종목 **{a.side.upper()}** 규칙 스캔 — {len(rows)}종목 · 손절 {a.sl:.0%} · "
           f"익절 {'없음' if a.tp >= 1.0 else f'{a.tp:.0%}'} · 보유 {a.hold}일")
     print("=" * 88)
     if rank:

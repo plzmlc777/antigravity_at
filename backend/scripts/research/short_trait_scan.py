@@ -137,16 +137,27 @@ def quintile_table(df: pd.DataFrame, trait: str, split_date) -> dict | None:
 
 
 def main() -> int:
-    p = argparse.ArgumentParser(description="성질 기반 숏 대상 선별")
+    p = argparse.ArgumentParser(description="성질 기반 대상 선별 (숏/롱)")
     p.add_argument("--split", required=True)
+    # ⚠ 롱 재검정은 부호 뒤집기가 아니다 — 손절·익절·수수료가 비대칭이다.
+    #   `short_universe_scan.run_anchor` 가 `universe_rule_strategy.run_side`
+    #   에 위임하므로 구현은 한 벌뿐이다.
+    p.add_argument("--side", choices=("short", "long"), default="short")
+    # ⚠ 원시 행을 남긴다 — **t 를 앵커 날짜로 묶어 다시 재기 위해서다.**
+    #   오분위 표의 t 는 같은 앵커 날짜의 종목 수백 개를 독립 표본으로 세므로
+    #   부풀어 있다(실효 표본은 종목 수가 아니라 **앵커 수**에 가깝다).
+    p.add_argument("--dump-rows", default="", help="원시 행 CSV 경로")
     p.add_argument("--sl", type=float, default=0.2)
     p.add_argument("--tp", type=float, default=0.3)
     p.add_argument("--hold", type=int, default=30)
     p.add_argument("--min-dollar-vol", type=float, default=1_000_000)
     p.add_argument("--min-days", type=int, default=120)
     p.add_argument("--limit", type=int, default=0)
-    p.add_argument("--out", default=str(OUT))
+    # ⚠ 방향별로 다른 파일 — 같은 경로면 롱이 숏 기준선을 덮는다.
+    p.add_argument("--out", default="")
     a = p.parse_args()
+    if not a.out:
+        a.out = str(OUT).replace(".json", f"_{a.side}.json")
 
     from app.db.session import engine
     from research.short_universe_scan import full_daily, run_anchor, universe
@@ -175,7 +186,8 @@ def main() -> int:
                                & (bars.index.date <= anchor + timedelta(days=a.hold + 5))]
                     if len(seg) >= a.hold - 2:
                         try:
-                            trades = run_anchor(sym, anchor, seg, a.sl, a.tp, a.hold)
+                            trades = run_anchor(sym, anchor, seg, a.sl, a.tp,
+                                                a.hold, a.side)
                         except Exception:
                             trades = []
                         for t in trades:
@@ -188,6 +200,9 @@ def main() -> int:
     if not recs:
         raise SystemExit("표본이 없다")
     df = pd.DataFrame(recs)
+    if a.dump_rows:
+        df.to_csv(a.dump_rows, index=False)
+        log.info("원시 행 %d개 → %s", len(df), a.dump_rows)
     log.info("총 표본 %d (IS %d / OOS %d)", len(df),
              int((df["anchor"] < split_date).sum()),
              int((df["anchor"] >= split_date).sum()))
@@ -205,7 +220,7 @@ def main() -> int:
     Path(a.out).write_text(json.dumps(out, ensure_ascii=False, indent=2, default=str))
 
     print("=" * 92)
-    print(f"성질 기반 숏 선별 — 표본 {len(df)} (IS {out['n_is']} / OOS {out['n_oos']})")
+    print(f"성질 기반 {a.side.upper()} 선별 — 표본 {len(df)} (IS {out['n_is']} / OOS {out['n_oos']})")
     print(f"손절 {a.sl:.0%} · 익절 {a.tp:.0%} · 보유 {a.hold}일 · 분할 {a.split}")
     print("=" * 92)
     for tb in tables:
