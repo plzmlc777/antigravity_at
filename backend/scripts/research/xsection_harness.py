@@ -116,6 +116,12 @@ class HarnessConfig:
 
     trait: str = "all"
     limit_symbols: int = 0             # 0 = 전부 (디버그용)
+    # ⚠ **최대통계량 귀무** — 성질 13종 × 방향이면 검정이 26회다. 26칸에서
+    #   고른 최고 t 는 26번 뽑기의 최댓값이지 한 번 뽑기의 값이 아니다.
+    #   귀무는 **같은 격자를 전부 다시 훑은** 최고 |t| 다(교훈 #95).
+    #   섞는 방식: 앵커 **안에서** 성질을 뒤섞는다 — 앵커 구조와 그 날의
+    #   수익 분포는 보존하고 종목별 성질↔수익 연결만 깬다.
+    shuffle_null: int = 0              # 0 = 안 함. 200 권장
 
     def __post_init__(self):
         if self.side not in ("long", "short"):
@@ -185,7 +191,12 @@ def verify_reaches(cfg: HarnessConfig, sample_symbol: str,
 # ══════════════════════════════════════════════════════════════════════
 #  기질 적재 — 한 번만 읽고 메모리에서 자른다
 # ══════════════════════════════════════════════════════════════════════
-def load_panel(conn) -> tuple[pd.DataFrame, pd.DataFrame]:
+def load_panel(conn):
+    """일봉 패널 + 펀딩 패널. 한 번만 읽고 메모리에서 자른다.
+
+    ⚠ 펀딩은 2026-08-15 에 26종목 → **354종목 · 116만 행**으로 늘렸다.
+      그 전에는 성질로 쓸 수 없었다.
+    """
     from sqlalchemy import text
     r = conn.execute(text(
         "SELECT symbol, date, open, high, low, close, volume FROM ohlcv_daily "
@@ -198,26 +209,79 @@ def load_panel(conn) -> tuple[pd.DataFrame, pd.DataFrame]:
     close = d.pivot(index="ts", columns="symbol", values="close").sort_index()
     dvol = (d.assign(x=d["close"] * d["volume"])
              .pivot(index="ts", columns="symbol", values="x").sort_index())
-    return d, (close, dvol)
+    f = conn.execute(text(
+        "SELECT symbol, date_trunc('day', funding_time) dd, sum(funding_rate) fr "
+        "FROM binance_funding_rate GROUP BY symbol, dd")).fetchall()
+    fu = pd.DataFrame(f, columns=["symbol", "ts", "fr"])
+    fu["ts"] = pd.to_datetime(fu["ts"])
+    fu["fr"] = pd.to_numeric(fu["fr"], errors="coerce")
+    fund = (fu.pivot(index="ts", columns="symbol", values="fr").sort_index()
+            .reindex(index=close.index).fillna(0.0))
+    return close, dvol, fund
 
 
-TRAITS = ("rv_30d", "ret_30d", "ret_7d", "dd_from_high", "log_dollar_vol")
+# ⚠ 성질을 늘리면 **검정 횟수가 늘어난다.** 13성질 × 2방향 = 26회다.
+#   그래서 `--shuffle-null` 최대통계량 귀무가 **필수**다 — 26칸에서 고른
+#   최고 t 는 26번 뽑기의 최댓값이지 한 번 뽑기의 값이 아니다(교훈 #95).
+TRAITS = (
+    # 변동성·수익 계열 (기존)
+    "rv_30d", "ret_30d", "ret_7d", "dd_from_high", "log_dollar_vol",
+    # 펀딩 — 2026-08-15 에 354종목으로 늘려 처음 쓸 수 있게 된 축
+    "funding_sum_30d", "funding_z_30d",
+    # 구조·미시 계열
+    "age_days", "turnover_ratio", "beta_btc_60d", "skew_30d",
+    "downside_ratio", "amihud",
+)
+BENCH = "BTCUSDT"
 
 
 def traits_before(close: pd.DataFrame, dvol: pd.DataFrame,
-                  anchor: pd.Timestamp) -> pd.DataFrame:
-    """앵커 **이전** 봉으로만 계산한 성질 표 (index=symbol)."""
+                  fund: pd.DataFrame, anchor: pd.Timestamp) -> pd.DataFrame:
+    """앵커 **이전** 봉으로만 계산한 성질 표 (index=symbol).
+
+    ⚠ 앵커 당일 봉은 쓰지 않는다 — `index < anchor`. 당일을 넣으면 진입가
+      정보가 성질에 새어든다.
+    """
     hist = close.loc[close.index < anchor]
     dv = dvol.loc[dvol.index < anchor]
-    if len(hist) < 31:
+    fd = fund.loc[fund.index < anchor]
+    if len(hist) < 61:
         return pd.DataFrame()
     ret = hist.pct_change()
+    r30 = ret.tail(30)
+    dvol30 = dv.tail(30).median().replace(0, np.nan)
+    down = r30.where(r30 < 0)
+    f30 = fd.tail(30)
+    f_mu, f_sd = f30.mean(), f30.std()
+    # BTC 대비 베타 — 60일. 벤치가 없으면 NaN
+    beta = pd.Series(np.nan, index=hist.columns)
+    if BENCH in hist.columns:
+        b = ret[BENCH].tail(60)
+        r60 = ret.tail(60)
+        var = float(b.var())
+        if var and var == var:
+            beta = r60.apply(lambda c: c.cov(b) / var)
     out = pd.DataFrame({
-        "rv_30d": ret.tail(30).std() * 100,
+        "rv_30d": r30.std() * 100,
         "ret_30d": (hist.iloc[-1] / hist.iloc[-31] - 1) * 100,
         "ret_7d": (hist.iloc[-1] / hist.iloc[-8] - 1) * 100,
         "dd_from_high": (hist.iloc[-1] / hist.tail(90).max() - 1) * 100,
-        "log_dollar_vol": np.log10(dv.tail(30).median().replace(0, np.nan)),
+        "log_dollar_vol": np.log10(dvol30),
+        # 펀딩 — 양수면 롱이 숏에게 지급한다(숏이 받는다)
+        "funding_sum_30d": f30.sum() * 100,
+        "funding_z_30d": ((fd.tail(3).sum() - f_mu * 3)
+                          / (f_sd.replace(0, np.nan) * np.sqrt(3))),
+        # 상장 이후 경과 — 완전한 일봉 수로 근사한다
+        "age_days": hist.notna().sum().astype(float),
+        # 최근 거래 활황도 — 7일 대비 60일
+        "turnover_ratio": (dv.tail(7).mean()
+                           / dv.tail(60).mean().replace(0, np.nan)),
+        "beta_btc_60d": beta,
+        "skew_30d": r30.skew(),
+        # 하방 변동성 비중 — 같은 변동성이라도 아래로 치우쳤는지
+        "downside_ratio": (down.std() / r30.std().replace(0, np.nan)),
+        # Amihud 비유동성 — 거래대금당 가격 충격
+        "amihud": (r30.abs().mean() / dvol30) * 1e9,
     })
     return out
 
@@ -254,7 +318,10 @@ def judge(rows: pd.DataFrame, cfg: HarnessConfig, trait: str) -> dict:
     sp = pd.DataFrame(spreads)
     sp["split"] = np.where(pd.to_datetime(sp["anchor"]) < pd.Timestamp(cfg.split),
                            "IS", "OOS")
-    out = {"trait": trait, "n_anchors": len(sp), "bins": {}, "splits": {}}
+    out = {"trait": trait, "n_anchors": len(sp), "bins": {}, "splits": {},
+           # ⑦ 앵커별 원값을 남긴다 — 나중에 "이 스프레드가 시장 방향으로
+           #    설명되는가" 같은 후속 검정을 재실행 없이 할 수 있어야 한다.
+           "per_anchor": sp.to_dict("records")}
     for k in range(1, cfg.n_bins + 1):
         v = np.array([x for x in per_bin[k] if x == x])
         out["bins"][k] = {"n": int(len(v)), "mean": float(v.mean())}
@@ -289,7 +356,7 @@ def main() -> int:
 
     from app.db.session import engine
     with engine.connect() as conn:
-        _, (close, dvol) = load_panel(conn)
+        close, dvol, fund = load_panel(conn)
     end = pd.Timestamp(cfg.end) if cfg.end else close.index[-1]
     start = pd.Timestamp(cfg.start)
 
@@ -361,7 +428,7 @@ def main() -> int:
                 elig = elig[:cfg.limit_symbols]
             if len(elig) < cfg.min_symbols_per_anchor:
                 continue
-            tr = traits_before(close[elig], dvol[elig], an)
+            tr = traits_before(close[elig], dvol[elig], fund.reindex(columns=elig).fillna(0.0), an)
             if tr.empty:
                 continue
             rows = conn.execute(text(
@@ -432,6 +499,66 @@ def main() -> int:
               f"{o_.get('n_anchors',0):>7}{o_.get('mean',np.nan):>+11.2f}"
               f"{(o_.get('t') or 0):>+7.2f}{o_.get('pos_frac',0)*100:>8.0f}% | "
               f"{'○' if r['survives'] else '✗':>5}")
+
+    # ── 최대통계량 귀무 (교훈 #95) ────────────────────────────────────
+    if cfg.shuffle_null:
+        # ⚠ 귀무는 **사전 확정한 통과 규칙과 같은 통계량**으로 만들어야 한다.
+        #   OOS t 하나만 쓰면 "IS·OOS 부호 일치 + 둘 다 유의"라는 실제 기준보다
+        #   느슨한 귀무가 되어, 그 기준을 통과한 칸을 과소평가한다.
+        #   결합 통계량 = 부호가 일치할 때 min(|IS t|, |OOS t|), 아니면 0.
+        def joint_stat(res: dict) -> float:
+            i_ = (res.get("splits", {}) or {}).get("IS") or {}
+            o_ = (res.get("splits", {}) or {}).get("OOS") or {}
+            ti, to = i_.get("t"), o_.get("t")
+            if ti is None or to is None:
+                return 0.0
+            if float(i_.get("mean", 0)) * float(o_.get("mean", 0)) <= 0:
+                return 0.0                     # 부호 불일치 = 탈락
+            return min(abs(float(ti)), abs(float(to)))
+
+        obs_oos = max((abs((r.get("splits", {}).get("OOS", {}) or {}).get("t") or 0)
+                       for r in out["results"].values()), default=0.0)
+        obs_max = max((joint_stat(r) for r in out["results"].values()), default=0.0)
+        obs_best = max(out["results"].items(),
+                       key=lambda kv: joint_stat(kv[1]))[0]
+        rng = np.random.default_rng(20260816)
+        null = []
+        for _ in range(cfg.shuffle_null):
+            sh = df.copy()
+            # 앵커 안에서 성질만 뒤섞는다 — 그 날의 수익 분포는 그대로다
+            for tr_ in traits:
+                sh[tr_] = sh.groupby("anchor")[tr_].transform(
+                    lambda v: rng.permutation(v.values))
+            m = mo = 0.0
+            for tr_ in traits:
+                rr = judge(sh, cfg, tr_)
+                m = max(m, joint_stat(rr))
+                mo = max(mo, abs((rr.get("splits", {}).get("OOS", {}) or {})
+                                 .get("t") or 0))
+            null.append((m, mo))
+        null_j = np.array([x[0] for x in null])
+        null_o = np.array([x[1] for x in null])
+        null = null_j
+        null = np.array(null)
+        p_max = float((null >= obs_max).mean())
+        p_oos = float((null_o >= obs_oos).mean())
+        out["max_stat"] = {
+            "joint": {"obs": obs_max, "best_trait": obs_best, "p": p_max,
+                      "null_med": float(np.median(null_j)),
+                      "null_p95": float(np.percentile(null_j, 95))},
+            "oos_only": {"obs": obs_oos, "p": p_oos,
+                         "null_med": float(np.median(null_o)),
+                         "null_p95": float(np.percentile(null_o, 95))}}
+        print(f"\n  **최대통계량 귀무** — 앵커 안 성질 뒤섞기 "
+              f"{cfg.shuffle_null}회 × {len(traits)}성질 전부 재판정")
+        print(f"     ① OOS t 만        관측 **{obs_oos:.2f}** · 귀무 중앙 "
+              f"{np.median(null_o):.2f} · p95 {np.percentile(null_o,95):.2f}"
+              f" → p {p_oos:.3f}")
+        print(f"     ② **결합**(부호일치 & min(|IS t|,|OOS t|)) — 사전 확정 "
+              f"규칙과 같은 통계량")
+        print(f"        관측 **{obs_max:.2f}** ({obs_best}) · 귀무 중앙 "
+              f"{np.median(null_j):.2f} · p95 {np.percentile(null_j,95):.2f}"
+              f" → **p {p_max:.3f}**")
 
     print("\n" + "=" * 100)
     print("  통과 조건 — IS·OOS 부호 일치 + OOS |t| >= 2.0 + 앵커 "
