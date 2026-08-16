@@ -77,6 +77,7 @@ class RVConfig:
     fee: float = 0.0004
     oos_start: str = "2026-05-13"
     warmup_start: str = "2026-03-29"
+    end: str = "2026-08-15"
     rot: int = 200
 
     def __post_init__(self):
@@ -118,57 +119,50 @@ def main() -> int:
     from sqlalchemy import text
 
     from app.db.session import engine
-    end = "2026-08-15"
+    end = cfg.end
     with engine.connect() as conn:
         btc1 = load_1m(conn, BENCH, cfg.warmup_start, end)
-        # BTC 일봉 변동성 — 90일 백분위를 내려면 일봉이 필요하다(1분봉은 4.5개월뿐)
-        dr = conn.execute(text(
-            "SELECT date, close FROM ohlcv_daily WHERE symbol=:s "
-            "AND is_partial=false ORDER BY date"), {"s": BENCH}).fetchall()
     if btc1.empty:
         raise SystemExit("BTC 1분봉이 없다")
-    dd = pd.DataFrame(dr, columns=["ts", "close"])
-    dd["ts"] = pd.to_datetime(dd["ts"])
-    dd = dd.set_index("ts").astype(float)
-    dvol = dd["close"].pct_change().rolling(30).std()
-    thr = dvol.rolling(90).quantile(cfg.vol_pct / 100.0)
-    hi_vol = (dvol >= thr)                       # 일 단위 HIGH-vol 국면
-    log.info("BTC 1분봉 %s행 · %s ~ %s · HIGH-vol 일수 %d/%d",
-             f"{len(btc1):,}", btc1.index[0], btc1.index[-1],
-             int(hi_vol.loc[cfg.oos_start:].sum()),
-             int(hi_vol.loc[cfg.oos_start:].notna().sum()))
-
-    b30 = resample(btc1, "30min")
-    r30 = b30["close"].pct_change()
-    win = cfg.rv_win_days * 48                   # 30분봉 개수
-    rv = r30.rolling(6).std()                    # 3시간 창의 30분 RV
-    z = (rv - rv.rolling(win).mean()) / rv.rolling(win).std()
-
-    # 트리거 — 상향 돌파 + BTC 30분 수익률 > 0 + HIGH-vol 일자
-    cross = (z >= cfg.rv_z) & (z.shift(1) < cfg.rv_z)
-    up = r30 > 0
-    day = pd.Series(b30.index.normalize(), index=b30.index)
-    hv = day.map(hi_vol.to_dict()).fillna(False).astype(bool)
-    trig = cross & up & hv
-    trig = trig[trig.index >= pd.Timestamp(cfg.oos_start)]
-    # 쿨다운
-    keep, last = [], None
-    for ts in trig[trig].index:
-        if last is None or (ts - last).total_seconds() >= cfg.cooldown_min * 60:
-            keep.append(ts)
-            last = ts
-    log.info("트리거 %d회 (표본 밖 %s ~ %s)", len(keep), cfg.oos_start, end)
+    log.info("BTC 1분봉 %s행 · %s ~ %s", f"{len(btc1):,}",
+             btc1.index[0], btc1.index[-1])
+    # ⚠ **신호는 정본 소스에서 온다** — 재구현하지 않는다(규칙 ⑤).
+    #   2026-08-16 에 내가 30분봉으로 리샘플해 RV 를 다시 짰다가 트리거가
+    #   9개월에 2회밖에 안 나왔다. 원본은 **1분봉 로그수익률의 30분 창 RV** 를
+    #   **43,200개 1분봉**으로 z-score 한다. 완전히 다른 신호였다.
+    from app.composer_framework.sources.binance_btc_rv_highvol_long_source import (
+        BinanceBTCRVHighvolLongSource)
+    src = BinanceBTCRVHighvolLongSource(z_thresh=cfg.rv_z,
+                                        vol_pct_cutoff=cfg.vol_pct / 100.0)
+    t_all = src._compute_btc_triggers(btc1)
+    if t_all is None or len(t_all) == 0:
+        print("트리거 0회 — 워밍업(약 120일) 후 조건이 성립한 적이 없다")
+        return 0
+    keep = [ts for ts in t_all.index if ts >= pd.Timestamp(cfg.oos_start)]
+    log.info("정본 트리거 전체 %d회 · 창 안 **%d회** (%s ~ %s)",
+             len(t_all), len(keep), cfg.oos_start, end)
     if not keep:
-        print("트리거 0회 — HIGH-vol 국면이 이 창에 없었다는 뜻이다")
+        print("창 안 트리거 0회")
         return 0
 
+    # ⚠ 알트는 **트리거 창만** 읽는다 — 3년치 1분봉을 종목마다 통짜로 읽으면
+    #   45GB 테이블 함정에 걸린다(실측: 통짜 GROUP BY 는 응답이 없다).
+    #   창 하나가 보유기간 + 여유이므로 트리거 수 × 종목 수 만큼의 작은 조회다.
     rows = []
+    pad = pd.Timedelta(minutes=cfg.hold_min + 60)
     with engine.connect() as conn:
         for s in ALTS:
-            a1 = load_1m(conn, s, cfg.oos_start, end)
-            if a1.empty:
-                log.warning("%s 1분봉 없음", s)
+            segs = []
+            for t0 in keep:
+                seg1 = load_1m(conn, s, str(t0 - pd.Timedelta(minutes=10)),
+                               str(t0 + pad))
+                if not seg1.empty:
+                    segs.append(seg1)
+            if not segs:
+                log.warning("%s 1분봉 없음 (창 %d개)", s, len(keep))
                 continue
+            a1 = pd.concat(segs).sort_index()
+            a1 = a1[~a1.index.duplicated()]
             a5 = resample(a1, "5min")
             for t0 in keep:
                 idx = a5.index.searchsorted(t0)
