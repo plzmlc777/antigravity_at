@@ -183,8 +183,15 @@ def update_listings(known: dict) -> tuple[dict, list[str]]:
     return known, new_syms
 
 
-def eligible_for_session(sym: str, meta: dict, today: date) -> tuple[bool, str]:
-    """Returns (eligible, reason_if_not)."""
+def eligible_for_session(sym: str, meta: dict, today: date,
+                         max_age_days: int = 14) -> tuple[bool, str]:
+    """Returns (eligible, reason_if_not).
+
+    ⚠ `max_age_days` 는 **인자로 받는다** — 2026-08-16 이전에는 `age > 14` 가
+      하드코딩돼 있어 `--max-age-days` 플래그가 **선언만 되고 아무 데도 안
+      닿았다.** 값을 바꿔도 판정이 안 바뀌는데 로그는 정상으로 보인다.
+      [[feedback-lesson-88-fix-the-class-verify-the-path]] 와 같은 계열이다.
+      기본값이 하드코딩 값과 같아 증상이 없었을 뿐이다."""
     # Only spawn once the listing is actually live (forward-detected PENDING_TRADING
     # entries wait here until they transition to TRADING + accrue ≥1 day of data).
     if meta.get("status") not in (None, "TRADING"):
@@ -200,7 +207,7 @@ def eligible_for_session(sym: str, meta: dict, today: date) -> tuple[bool, str]:
     age = (today - ld).days
     if age < 1:
         return False, f"too young (age={age}d) — Day 1 close not yet"
-    if age > 14:
+    if age > max_age_days:
         return False, f"too old (age={age}d) — past entry window"
     return True, "ok"
 
@@ -669,7 +676,8 @@ def main() -> int:
         if not meta:
             log.warning("[%s] not in listings — skip", sym)
             continue
-        ok, why = eligible_for_session(sym, meta, today)
+        ok, why = eligible_for_session(sym, meta, today,
+                                       max_age_days=args.max_age_days)
         if not ok:
             skipped.append((sym, why))
             continue
