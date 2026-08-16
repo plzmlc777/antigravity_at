@@ -220,6 +220,28 @@ const agentApps = [
         restart_delay: 5000
     },
     {
+        // `ohlcv_daily` 꼬리 유지 (2026-08-16 신설).
+        //
+        // 이 표를 채우는 크론이 **없었다** — `build_ohlcv_daily --incremental`
+        // 은 수동 체인에서만 불렸다. 그래서 조용히 말랐다:
+        //   08-07 353종목 → 08-12 158 → 08-13~15 **15**(신상저격수 종목뿐).
+        // 유니버스 분석이 경고 없이 절반짜리 유니버스로 돌았다
+        // (게이트 통과 실제 224 vs 보이던 129).
+        //
+        // ⚠ 아카이브는 T+1 이라 오늘 행은 못 채운다. 10일 창으로 따라 붙는다.
+        // ⚠ 완전한 1분봉 유도분은 안 덮는다 — 부분봉만 교체한다.
+        //
+        // 1분봉 백필(02:00 UTC) 뒤 03:40 에 돈다.
+        name: "daily-ohlcv-backfill",
+        script: SAS_WRAPPER,
+        args: `'40 3 * * *' ./backend/scripts/run_daily_ohlcv_backfill.sh`,
+        interpreter: "bash",
+        cwd: ".",
+        autorestart: true,
+        max_restarts: 10,
+        restart_delay: 5000
+    },
+    {
         // 신상저격수 **시간별 정합** — 청산 지연 24시간 → 1시간 (2026-08-15).
         //
         // 날짜 기반 청산(Day-30 시간청산 · Day-31 강제청산 · vol_cliff 조기청산)

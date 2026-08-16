@@ -47,6 +47,12 @@ logging.basicConfig(level=logging.INFO,
 log = logging.getLogger("backfill_daily")
 
 BASE = "https://data.binance.vision/data/futures/um/monthly/klines"
+# ⚠ **당월은 월별 파일이 없다** — 달이 끝나야 올라간다.
+#     2026-08-16 에 이 결함이 드러났다. `ohlcv_daily` 가 08-08 264종목 →
+#     08-12 158 → 08-13 이후 **15종목**(신상저격수 세션 종목뿐)으로 말라
+#     있었는데, 이 도구로 메우려 해도 8월 월별 파일이 없어 **조용히 0행**을
+#     넣었을 것이다. 당월은 **일별 파일**로 받아야 한다.
+DAILY_BASE = "https://data.binance.vision/data/futures/um/daily/klines"
 WORKERS = 8
 
 
@@ -60,20 +66,7 @@ def months(start: date, end: date) -> list[tuple[int, int]]:
     return out
 
 
-def fetch_month(symbol: str, y: int, m: int) -> list[dict]:
-    """월별 일봉 zip. 없으면 빈 리스트(상장 전이거나 미공개)."""
-    name = f"{symbol}-1d-{y}-{m:02d}.zip"
-    url = f"{BASE}/{symbol}/1d/{name}"
-    try:
-        with urllib.request.urlopen(url, timeout=90) as r:
-            blob = r.read()
-    except urllib.error.HTTPError as e:
-        if e.code == 404:
-            return []
-        raise
-    except Exception as exc:
-        log.warning("%s %d-%02d: %s", symbol, y, m, exc)
-        return []
+def parse_zip(blob: bytes) -> list[dict]:
     with zipfile.ZipFile(io.BytesIO(blob)) as z:
         text = z.read(z.namelist()[0]).decode("utf-8", errors="replace")
     rows = []
@@ -94,11 +87,45 @@ def fetch_month(symbol: str, y: int, m: int) -> list[dict]:
     return rows
 
 
+def fetch_day(symbol: str, d0: date) -> list[dict]:
+    """일별 일봉 zip — **당월용**. 월별 파일은 달이 끝나야 올라간다."""
+    url = f"{DAILY_BASE}/{symbol}/1d/{symbol}-1d-{d0.isoformat()}.zip"
+    try:
+        with urllib.request.urlopen(url, timeout=60) as r:
+            return parse_zip(r.read())
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            return []                      # 아직 안 올라왔거나 상장 전
+        raise
+    except Exception as exc:
+        log.warning("%s %s: %s", symbol, d0, exc)
+        return []
+
+
+def fetch_month(symbol: str, y: int, m: int) -> list[dict]:
+    """월별 일봉 zip. 없으면 빈 리스트(상장 전이거나 미공개)."""
+    name = f"{symbol}-1d-{y}-{m:02d}.zip"
+    url = f"{BASE}/{symbol}/1d/{name}"
+    try:
+        with urllib.request.urlopen(url, timeout=90) as r:
+            blob = r.read()
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            return []
+        raise
+    except Exception as exc:
+        log.warning("%s %d-%02d: %s", symbol, y, m, exc)
+        return []
+    return parse_zip(blob)
+
+
 def main() -> int:
     p = argparse.ArgumentParser(description="ohlcv_daily 아카이브 백필")
     p.add_argument("--symbols", default="", help="쉼표 구분")
     p.add_argument("--min-days", type=int, default=0,
                    help="이 일수 미만인 종목 전부 (게이트 통과분 중)")
+    p.add_argument("--all", action="store_true",
+                   help="`ohlcv_daily` 에 있는 전 종목 (꼬리 결손 복구용)")
     p.add_argument("--since", default="2021-01-01")
     p.add_argument("--dry-run", action="store_true")
     a = p.parse_args()
@@ -117,6 +144,10 @@ def main() -> int:
 
     if a.symbols:
         syms = [s.strip().upper() for s in a.symbols.split(",") if s.strip()]
+    elif a.all:
+        # ⚠ `--since` 를 반드시 좁혀라 — 전 종목 × 5.7년이면 요청이 수만 건이다.
+        #   꼬리 복구는 `--since 2026-08-01` 처럼 최근 구간만 주면 된다.
+        syms = sorted(have)
     elif a.min_days:
         import json
         gate = ROOT / "configs" / "liquid_universe.json"
@@ -132,12 +163,19 @@ def main() -> int:
             log.info("  %s (현재 %d일)", s, have.get(s, 0))
         return 0
 
-    mons = months(since, end)
+    # 완결된 달은 월별 한 방, **당월은 일별로** 하루씩.
+    mons = [ym for ym in months(since, end) if ym != (end.year, end.month)]
+    cur_days = [date(end.year, end.month, d)
+                for d in range(1, end.day + 1)] if since <= end else []
+    cur_days = [d for d in cur_days if d >= since]
+    log.info("월별 %d개 + 당월 일별 %d개", len(mons), len(cur_days))
+
     total_new = 0
     with engine.connect() as conn:
         for i, sym in enumerate(syms, 1):
             with ThreadPoolExecutor(max_workers=WORKERS) as ex:
                 chunks = list(ex.map(lambda ym: fetch_month(sym, *ym), mons))
+                chunks += list(ex.map(lambda d0: fetch_day(sym, d0), cur_days))
             rows = [r for c in chunks for r in c]
             if not rows:
                 log.warning("[%d/%d] %s — 아카이브에 없음", i, len(syms), sym)
@@ -146,14 +184,25 @@ def main() -> int:
             for r in rows:
                 if r["date"] >= end:            # 오늘은 아직 안 닫혔다
                     continue
-                # ⚠ 이미 있는 행은 **덮지 않는다** — 1분봉 유도분이 우선이다
+                # ⚠ 완전한 1분봉 유도분은 **덮지 않는다** — 그쪽이 원본에 가깝다.
+                #   그러나 **부분봉(`is_partial`)은 덮는다.** 아카이브의 완결된
+                #   하루가 결손 있는 1분봉 집계보다 낫다. 2026-08-16 에 08-13~14
+                #   행 다수가 n_minutes 900~1100 짜리 부분봉으로 남아 있었는데,
+                #   `DO NOTHING` 이면 그 틀린 값이 영원히 살아남는다.
                 res = conn.execute(text(
                     "INSERT INTO ohlcv_daily (symbol, date, open, high, low, "
                     "close, volume, n_minutes, is_partial, built_at) VALUES "
                     "(:s, :d, :o, :h, :l, :c, :v, 1440, false, now()) "
-                    "ON CONFLICT (symbol, date) DO NOTHING"),
+                    "ON CONFLICT (symbol, date) DO UPDATE SET "
+                    "open = EXCLUDED.open, high = EXCLUDED.high, "
+                    "low = EXCLUDED.low, close = EXCLUDED.close, "
+                    "volume = EXCLUDED.volume, n_minutes = 1440, "
+                    "is_partial = false, built_at = now() "
+                    "WHERE ohlcv_daily.is_partial = true"),
                     {"s": sym, "d": r["date"], "o": r["open"], "h": r["high"],
                      "l": r["low"], "c": r["close"], "v": r["volume"]})
+                # INSERT 든 부분봉 교체든 rowcount 1 이다. 둘을 나누려면
+                # 사전 조회가 한 번 더 필요한데, 사후 집계로 확인하는 편이 싸다.
                 new += res.rowcount or 0
             conn.commit()
             total_new += new
