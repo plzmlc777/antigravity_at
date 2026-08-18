@@ -30,6 +30,7 @@ from .binance_lifecycle_decay_source import BinanceLifecycleDecaySource
 from .binance_lifecycle_decay_early_exit_source import BinanceLifecycleDecayEarlyExitSource
 from .binance_lifecycle_decay_bear_skip_source import BinanceLifecycleDecayBearSkipSource
 from .binance_stablecoin_supply_flow_source import BinanceStablecoinSupplyFlowSource
+from .rsi_threshold_source import RsiThresholdSource
 from .us_daily_source import USDailySource
 from .us_relative_strength_source import USRelativeStrengthSource
 
@@ -60,6 +61,7 @@ __all__ = [
     "BinanceLifecycleDecayEarlyExitSource",
     "BinanceLifecycleDecayBearSkipSource",
     "BinanceStablecoinSupplyFlowSource",
+    "RsiThresholdSource",
     "USDailySource",
     "USRelativeStrengthSource",
 ]

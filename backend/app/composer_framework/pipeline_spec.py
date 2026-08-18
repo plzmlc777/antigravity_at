@@ -292,6 +292,20 @@ def _build_bn_wick_reversal_multibar(kwargs: dict, runtime: dict) -> SignalSourc
     )
 
 
+@register_source("rsi_threshold")
+def _build_rsi_threshold(kwargs: dict, runtime: dict) -> SignalSource:
+    """⚠ 인자를 하나라도 버리면 격자를 돌려도 판정이 안 바뀐다 (교훈 #88).
+    세 인자 전부 넘기고, 하네스가 `spec_sink` 로 도달을 확인한다."""
+    from .sources import RsiThresholdSource
+    return RsiThresholdSource(
+        period=int(kwargs.get("period", 14)),
+        entry_threshold=float(kwargs.get("entry_threshold", 30.0)),
+        side=str(kwargs.get("side", "long")),
+        placebo=str(kwargs.get("placebo", "")),
+        placebo_seed=int(kwargs.get("placebo_seed", 0)),
+    )
+
+
 def _lifecycle_window_kwargs(kwargs: dict) -> dict:
     """상장 창 인자(listing_date / max_age_days / entry_window_days)를 전달한다.
 
