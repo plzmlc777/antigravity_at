@@ -795,18 +795,25 @@ def run(args) -> int:
                 side = "close_position"
                 qty = 0.0
 
-            # REAL transient flat (source oscillated to flat but NOT retired):
-            # hold the position through it — checked BEFORE dry-run logging so
-            # both dry-run and live behave identically. Do NOT route to the
-            # engine (its close is a no-op for external-qty → 'No position to
-            # close') which would flip link_state and fire a FALSE '🟢 REAL 청산'
-            # telegram while the exchange short stays open (incident 2026-07-30:
-            # spurious DATAIP close notice). Keep intended=short; real exits only
-            # at Day-31 via the retired direct-close below.
-            if track == "real" and desired == "flat" and not link_state.get("retired"):
-                log.info("%s real (%s): transient flat (not retired) — holding, no action",
-                         s2_id, symbol)
-                continue
+            # ⚠ 2026-08-19 — 여기 있던 `transient flat` 보류 가드를 **제거했다.**
+            #
+            # 그 가드는 정본이 flat 이어도 실계좌는 Day-31 까지 들고 가게 했다.
+            # 근거가 둘이었는데 **둘 다 이미 해소됐다**:
+            #
+            #   ① "엔진 청산이 external-qty 에서 no-op" → `_real_direct_close`
+            #      가 거래소 실물을 보고 닫으므로 엔진과 무관해졌다.
+            #   ② "소스가 매 바 short↔flat 진동" → 2026-08-13 팩토리 수정
+            #      (`_lifecycle_window_kwargs`)으로 멈췄다. **실측: 수정 전
+            #      재진입 505회 / 수정 후 0회.**
+            #
+            # 근거가 사라진 가드가 남아 세 가지를 동시에 망가뜨리고 있었다:
+            #   · 정본의 조기청산(vol_cliff)·Day-30 시간청산을 실계좌가 무시
+            #   · `lifecycle_brackets` 가 문서화한 대체 경로("브래킷 실패 시
+            #     일봉 정본 청산으로 degrade")가 **실제로는 끊겨 있었다**
+            #   · 모든 실포지션이 Day-31 백스톱에 걸려, 예외를 알리려던
+            #     `log.error("**모순** …")` 가 정상 경로가 돼 경보 가치를 잃었다
+            #
+            # 이제 정본이 flat 이면 실계좌도 flat 이 된다(아래 직접청산 경로).
 
             metadata = {
                 "driver": "lifecycle_decay_d14",
@@ -824,14 +831,19 @@ def run(args) -> int:
                          (f" (margin≈{margin_used:.2f})" if margin_used else ""))
                 continue
 
-            # REAL final exit → close DIRECTLY on the exchange (engine-independent),
-            # bypassing the engine's no-op close for external-qty sessions.
-            # Gated on `retired` (the Day-31 hard exit): the decay source
-            # oscillates short↔flat every bar, so honoring every transient flat
-            # would churn the real position (close→re-short daily = fee drag).
-            # The position is held through oscillation and closed once, for good,
-            # at the hold-window backstop.
-            if track == "real" and desired == "flat" and link_state.get("retired"):
+            # REAL 청산은 **거래소에 직접** 낸다(엔진 독립).
+            #
+            # 엔진 경로를 쓰면 external-qty 세션에서 청산이 no-op 이라
+            # `link_state` 만 뒤집히고 **거짓 '🟢 REAL 청산' 텔레그램**이 나가는데
+            # 거래소 숏은 열린 채 남는다(2026-07-30 DATAIP 사고).
+            # `_real_direct_close` 는 `adapter.get_position` 으로 거래소 실물을
+            # 보고 닫으므로 백엔드 재시작·상태 유실과 무관하다.
+            #
+            # ⚠ 2026-08-19 — `retired`(Day-31) 조건을 **제거했다.** 그 조건은
+            #   소스 진동을 전제했는데 2026-08-13 팩토리 수정 이후 재진입이
+            #   **0회**다. 이제 정본이 내린 모든 청산(조기청산·시간청산·
+            #   강제청산)을 실계좌가 그대로 따른다.
+            if track == "real" and desired == "flat":
                 acc_id = link.get("real_account_id")
                 realized = _real_direct_close(int(acc_id), symbol, live_id) if acc_id is not None else None
                 if realized is None:
