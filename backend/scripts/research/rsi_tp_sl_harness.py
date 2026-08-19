@@ -122,6 +122,38 @@ def verify_reaches(cfg: RsiConfig) -> None:
              100 * cfg.tp_pct, 100 * cfg.sl_pct, cfg.max_hold_bars)
 
 
+def aggregate(P: "pd.DataFrame") -> "pd.DataFrame":
+    """종목 패널 → 격자 칸별 집계.
+
+    ⚠ 반드시 `placebo` 로도 나눈다. 안 나누면 실측 행과 위약 행이 한 칸에
+      섞여 모든 수치가 둘의 혼합이 된다 (2026-08-19 이전 산출물의 결함).
+
+    ⚠ 이름을 값에 맞춘다. 예전 `sum_pct` 는 합계가 아니라 **종목별 합의
+      중앙값**이었다. 종목 대부분이 1~4거래뿐이라 `win_rate` 중앙값도
+      100/50/33/25 로 튀어 읽는 사람을 오도했다. 총손익은 `sum_pct_tot`.
+    """
+    need = {"n_trades", "sum_pct", "symbol", "side", "period", "thr",
+            "tp", "sl"}
+    missing = need - set(P.columns)
+    if missing:                         # 거래 0건으로 끝난 실행 등
+        raise ValueError(f"집계에 필요한 열이 없다: {sorted(missing)}")
+    if "placebo" not in P.columns:      # 구형 산출물 — key 끝에 박혀 있다
+        P = P.assign(placebo=P.key.str.rsplit("_", n=1).str[-1])
+    G = ["side", "period", "thr", "tp", "sl", "placebo"]
+    agg = (P[P.n_trades.notna()].groupby(G)
+           .agg(n_sym=("symbol", "nunique"), trades=("n_trades", "sum"),
+                sum_pct_tot=("sum_pct", "sum"),        # ← 총손익 (판정 주축)
+                sum_pct_med=("sum_pct", "median"),     # ← 종목별 합의 중앙값
+                win_rate_med=("win_rate_calc", "median"),
+                avg_pct_med=("avg_pct", "median"),
+                payoff_med=("payoff", "median"),
+                pos_sym=("sum_pct", lambda x: 100.0 * float((x > 0).mean())))
+           .reset_index())
+    # 거래 가중 평균 — 종목별 중앙값과 달리 거래 수가 반영된다
+    agg["avg_pct_w"] = agg.sum_pct_tot / agg.trades.replace(0, np.nan)
+    return agg
+
+
 def selftest() -> None:
     """RSI 계산과 문턱·방향이 실제로 신호를 바꾸는지 합성 경로로 확인."""
     from app.composer_framework.signal_source import SourceContext
@@ -199,6 +231,33 @@ def selftest() -> None:
     verify_reaches(RsiConfig(side="short", period=7, entry_threshold=25,
                              tp_pct=0.05, sl_pct=0.01, max_hold_bars=12))
     verify_reaches(RsiConfig(side="long", entry_threshold=20, placebo="rotate"))
+    # ⓕ 집계가 **위약을 분리**하는지. 안 하면 실측 칸에 위약 행이 섞여
+    #    모든 수치가 둘의 혼합이 된다 — 2026-08-19 이전 산출물의 결함이다.
+    P = pd.DataFrame({
+        "symbol": ["A", "B", "A", "B"],
+        "side": "long", "period": 14, "thr": 8.0, "tp": 0.08, "sl": 0.03,
+        "placebo": ["real", "real", "rotate", "rotate"],
+        "n_trades": [2, 3, 2, 3],
+        "sum_pct": [10.0, 30.0, -4.0, -6.0],
+        "win_rate_calc": [50.0, 100.0, 0.0, 0.0],
+        "avg_pct": [5.0, 10.0, -2.0, -2.0], "payoff": [1.0, 2.0, 0.5, 0.5],
+        "key": ["k_real", "k_real", "k_rotate", "k_rotate"]})
+    A = aggregate(P)
+    if len(A) != 2 or set(A.placebo) != {"real", "rotate"}:
+        raise SystemExit(f"집계가 위약을 안 나눈다 — {A}")
+    r = A[A.placebo == "real"].iloc[0]
+    if abs(r.sum_pct_tot - 40.0) > 1e-9:            # 합계이지 중앙값이 아니다
+        raise SystemExit(f"sum_pct_tot 가 합계가 아니다 — {r.sum_pct_tot}")
+    if abs(r.sum_pct_med - 20.0) > 1e-9:
+        raise SystemExit(f"sum_pct_med 가 중앙값이 아니다 — {r.sum_pct_med}")
+    if abs(r.avg_pct_w - 40.0 / 5) > 1e-9:          # 거래 가중 평균
+        raise SystemExit(f"avg_pct_w 틀림 — {r.avg_pct_w}")
+    # placebo 열이 없는 구형 산출물은 key 끝에서 되살린다
+    A2 = aggregate(P.drop(columns=["placebo"]))
+    if set(A2.placebo) != {"real", "rotate"}:
+        raise SystemExit(f"구형 산출물에서 위약 복원 실패 — {set(A2.placebo)}")
+    log.info("✔ 집계 확인 — 위약 분리 · 총손익은 합계 · 구형 파일은 key 로 복원")
+
     log.info("✔ 자기검사 통과")
 
 
@@ -206,7 +265,37 @@ def selftest() -> None:
 #  기질
 # ══════════════════════════════════════════════════════════════════════
 TF_TABLE = {"1h": "ohlcv_hourly", "15m": "ohlcv_15m", "5m": "ohlcv_5m"}
-TF_MIN = {"1h": 60, "15m": 15, "5m": 5}
+TF_MIN = {"1h": 60, "30m": 30, "15m": 15, "5m": 5, "1m": 1}
+TF_RULE = {"1h": "1h", "30m": "30min", "15m": "15min",
+           "5m": "5min", "1m": "1min"}
+
+
+def load_1m_resampled(sym: str, tf: str, min_bars: int) -> pd.DataFrame | None:
+    """`ohlcv_1m` 에서 **한 종목만** 읽어 목표 시간대로 만다.
+
+    ⚠ 전 종목을 한 번에 올리면 1.99억 행 = 11GB 를 넘고, 워커 7개가 포크되면
+      감당이 안 된다. 그래서 **워커가 자기 종목만** 읽는다. 부모는 종목 이름만
+      들고 있으므로 직렬화 비용도 없다.
+    ⚠ 파생은 아카이브 원본과 일치함을 확인했다 (2026-08-17 실측: 1분→1시간
+      744봉 완전일치).
+    """
+    from sqlalchemy import text
+    from app.db.session import engine
+    with engine.connect() as conn:
+        rows = conn.execute(text(
+            "SELECT ts, open, high, low, close, volume FROM ohlcv_1m "
+            "WHERE symbol = :s ORDER BY ts"), {"s": sym}).fetchall()
+    if not rows:
+        return None
+    b = pd.DataFrame(rows, columns=["ts", "open", "high", "low", "close",
+                                    "volume"])
+    b["ts"] = pd.to_datetime(b["ts"])
+    b = b.drop_duplicates("ts").set_index("ts")
+    if tf != "1m":
+        b = b.resample(TF_RULE[tf]).agg({"open": "first", "high": "max",
+                                         "low": "min", "close": "last",
+                                         "volume": "sum"}).dropna()
+    return b if len(b) >= min_bars else None
 
 
 def load_panel(min_bars: int, limit: int = 0, symbols: str = "",
@@ -252,6 +341,18 @@ def load_panel(min_bars: int, limit: int = 0, symbols: str = "",
 def run_symbol(cfgs: list, sym: str, bars: pd.DataFrame,
                dump_trades: bool = False) -> list:
     """한 종목을 워커로 **한 번만** 보내고 그 안에서 설정을 전부 돈다."""
+    return [run_one(c, sym, bars, dump_trades) for c in cfgs]
+
+
+def run_symbol_from_1m(cfgs: list, sym: str, tf: str, min_bars: int,
+                       dump_trades: bool = False) -> list:
+    """워커가 **자기 종목만** `ohlcv_1m` 에서 읽어 파생한 뒤 설정을 전부 돈다.
+
+    부모는 종목 이름만 들고 있으므로 메모리도 직렬화 비용도 없다.
+    """
+    bars = load_1m_resampled(sym, tf, min_bars)
+    if bars is None:
+        return [{"symbol": sym, "error": "1m 데이터 부족"} for _ in cfgs]
     return [run_one(c, sym, bars, dump_trades) for c in cfgs]
 
 
@@ -333,7 +434,10 @@ def main() -> int:
     p.add_argument("--min-bars", type=int, default=8760)
     p.add_argument("--limit", type=int, default=0)
     p.add_argument("--symbols", default="")
-    p.add_argument("--tf", default="1h", choices=["1h", "15m", "5m"],
+    p.add_argument("--source", default="table", choices=["table", "1m"],
+                   help="1m = ohlcv_1m 에서 메모리 파생 (새 테이블 안 만듦)")
+    p.add_argument("--tf", default="1h",
+                   choices=["1h", "30m", "15m", "5m", "1m"],
                    help="시간대. 보유상한(--hold)은 **봉 수**이니 같이 바꿔라")
     p.add_argument("--start", default="", help="구간 시작 YYYY-MM-DD (포함)")
     p.add_argument("--end", default="", help="구간 끝 YYYY-MM-DD (미포함)")
@@ -367,7 +471,20 @@ def main() -> int:
     verify_reaches(grid[0])
     log.info("격자 %d칸", len(grid))
 
-    panel = load_panel(a.min_bars, a.limit, a.symbols, a.start, a.end, a.tf)
+    if a.source == "1m":
+        # 종목 목록만 확보한다 — 봉은 워커가 읽는다
+        syms = [x.strip().upper() for x in a.symbols.split(",") if x.strip()]
+        if not syms:
+            syms = [x.strip().upper() for x in
+                    (ROOT / "configs" / "rsi_paper_universe.txt").read_text().split()
+                    if x.strip()]
+        if a.limit:
+            syms = sorted(syms)[:a.limit]
+        panel = {s_: None for s_ in sorted(syms)}
+        log.info("파생 모드 — ohlcv_1m → %s · %d종목 (워커가 종목별 적재)",
+                 a.tf, len(panel))
+    else:
+        panel = load_panel(a.min_bars, a.limit, a.symbols, a.start, a.end, a.tf)
     if not panel:
         log.error("종목이 없다")
         return 1
@@ -388,19 +505,26 @@ def main() -> int:
                        "tp": cfg.tp_pct, "sl": cfg.sl_pct,
                        "placebo": cfg.placebo or "real"})
             trade_rows.append(tr)
+        # ⚠ placebo 를 빼면 아래 집계가 **실측과 위약을 한 그룹에 섞는다**.
+        #   거래 행(위)엔 붙는데 여기만 빠져 있었다 — 2026-08-19 발견.
         r.update({"side": cfg.side, "period": cfg.period,
                   "thr": cfg.entry_threshold, "tp": cfg.tp_pct,
                   "sl": cfg.sl_pct, "hold": cfg.max_hold_bars,
-                  "key": cfg.key()})
+                  "placebo": cfg.placebo or "real", "key": cfg.key()})
         return r
 
     def _collect(res):
         for cfg, r in zip(grid, res):
             rows.append(tag(cfg, r))
 
+    def _dispatch(sym):
+        if a.source == "1m":
+            return run_symbol_from_1m(grid, sym, a.tf, a.min_bars, a.dump_trades)
+        return run_symbol(grid, sym, panel[sym], a.dump_trades)
+
     if a.workers <= 1:
         for i, sym in enumerate(jobs, 1):
-            _collect(run_symbol(grid, sym, panel[sym], a.dump_trades))
+            _collect(_dispatch(sym))
             if i % 5 == 0:
                 log.info("[%d/%d종목] %.0f초", i, len(jobs),
                          (datetime.now() - t0).total_seconds())
@@ -408,8 +532,11 @@ def main() -> int:
     else:
         from concurrent.futures import ProcessPoolExecutor, as_completed
         with ProcessPoolExecutor(max_workers=a.workers) as ex:
-            fut = {ex.submit(run_symbol, grid, s_, panel[s_], a.dump_trades): s_
-                   for s_ in jobs}
+            fut = ({ex.submit(run_symbol_from_1m, grid, s_, a.tf, a.min_bars,
+                              a.dump_trades): s_ for s_ in jobs}
+                   if a.source == "1m" else
+                   {ex.submit(run_symbol, grid, s_, panel[s_], a.dump_trades): s_
+                    for s_ in jobs})
             for i, f in enumerate(as_completed(fut), 1):
                 _collect(f.result())
                 if i % 5 == 0:
@@ -420,20 +547,13 @@ def main() -> int:
     P = pd.DataFrame(rows)
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     span = f"_{a.start or 'beg'}_{a.end or 'end'}" if (a.start or a.end) else ""
-    stem = f"{'_'.join(sides)}_{a.tf}_h{a.hold}{span}" + (f"_{a.tag}" if a.tag else "")
+    stem = f"{'_'.join(sides)}_{a.tf}{'from1m' if a.source=='1m' else ''}_h{a.hold}{span}" + (f"_{a.tag}" if a.tag else "")
     P.to_csv(OUT_DIR / f"persym_{stem}.csv", index=False)
     if trade_rows:
         pd.DataFrame(trade_rows).to_csv(OUT_DIR / f"trades_{stem}.csv", index=False)
         log.info("거래 덤프 %s행 저장", f"{len(trade_rows):,}")
 
-    G = ["side", "period", "thr", "tp", "sl"]
-    agg = (P[P.n_trades.notna()].groupby(G)
-           .agg(n_sym=("symbol", "nunique"), trades=("n_trades", "sum"),
-                win_rate=("win_rate_calc", "median"),
-                avg_pct=("avg_pct", "median"), payoff=("payoff", "median"),
-                sum_pct=("sum_pct", "median"),
-                pos_sym=("sum_pct", lambda x: 100.0 * float((x > 0).mean())))
-           .reset_index())
+    agg = aggregate(P)
     agg.to_csv(OUT_DIR / f"agg_{stem}.csv", index=False)
     with open(OUT_DIR / f"meta_{stem}.json", "w") as fh:
         json.dump({"args": vars(a), "n_symbols": len(panel),
