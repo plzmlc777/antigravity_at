@@ -240,7 +240,9 @@ class RsiPaper:
         self.n_signal = 0
         self.n_skip = 0
         self.n_pricefail = 0
-        self.slip_sum = 0.0          # 체결된 것들의 slip_bp 합 (평균 산출용)
+        self.slip_sum = 0.0          # 진입 slip_bp 합 (평균 산출용)
+        self.exit_slip_sum = 0.0     # 청산 slip_bp 합 (손절·시간만료만)
+        self.n_exit_mkt = 0          # 시장가로 나간 청산 건수
         # 자기검사가 시세를 안 건드리고 체결 경로를 확인할 수 있도록 주입 가능
         self.price_fn = fetch_mark_price
         self.spec = {x.tf: x for x in cfg.sources}   # 시간대 → 규약
@@ -271,15 +273,30 @@ class RsiPaper:
                 continue
             last = b.iloc[-1]
             p.bars_held += 1
-            reason, px = None, None
+            reason, ref = None, None
             # ⚠ 불리한 쪽(손절)을 먼저 본다 — 한 봉 안의 순서를 모른다
             if last.low <= p.sl_price:
-                reason, px = "sl", p.sl_price
+                reason, ref = "sl", p.sl_price
             elif last.high >= p.tp_price:
-                reason, px = "tp", p.tp_price
+                reason, ref = "tp", p.tp_price
             elif p.bars_held >= self.spec[src].max_hold_bars:
-                reason, px = "time", float(last.close)
+                reason, ref = "time", float(last.close)
             if reason:
+                # 익절은 **지정가**가 호가에 걸려 있다 — 그 값에 체결된다.
+                # 손절은 스탑마켓, 시간만료는 시장가라 **지금 값**으로 나간다.
+                #
+                # ⚠ 백테스트는 손절가에 정확히 체결된다고 가정한다. 실제로는
+                #   미끄러지고, 이 세션은 봉 마감 뒤에야 알아채니 더 미끄러진다.
+                #   정본값(ref)과 실제값을 **둘 다** 남겨야 그 대가를 잰다.
+                #   손절 비중이 80%를 넘는 설정에서는 이 한 숫자가 판정을 가른다.
+                if reason == "tp":
+                    px, slip = ref, 0.0
+                else:
+                    now = self.price_fn(sym)
+                    px = now if (now and now > 0) else ref
+                    slip = 1e4 * (1.0 - px / ref) if ref else 0.0  # +가 손해
+                self.exit_slip_sum += slip
+                self.n_exit_mkt += 0 if reason == "tp" else 1
                 ret = (px / p.entry_price - 1.0)
                 pnl = ret * self.cfg.notional_usd
                 self.equity += pnl
@@ -288,7 +305,8 @@ class RsiPaper:
                     "entry_price": p.entry_price, "entry_ts": p.entry_ts,
                     "bars_held": p.bars_held, "ret_pct": 100 * ret,
                     "pnl_usd": pnl, "signal_rsi": p.signal_rsi,
-                    "src": src, "slip_bp": p.slip_bp})
+                    "src": src, "slip_bp": p.slip_bp,
+                    "ref_exit_price": ref, "exit_slip_bp": slip})
                 del self.pos[sym]
 
         # ② 신호 — **전부 기록한다**. 못 잡은 것까지 남겨야 나중에 선택
@@ -398,6 +416,7 @@ class RsiPaper:
               "equity": self.equity, "n_fill": self.n_fill,
               "n_signal": self.n_signal, "n_skip": self.n_skip,
               "n_pricefail": self.n_pricefail, "slip_sum": self.slip_sum,
+              "exit_slip_sum": self.exit_slip_sum, "n_exit_mkt": self.n_exit_mkt,
               "saved_at": datetime.now(timezone.utc).isoformat()}
         tmp = self.state_path.with_suffix(".tmp")
         tmp.parent.mkdir(parents=True, exist_ok=True)
@@ -420,6 +439,8 @@ class RsiPaper:
         # 새 필드 — 예전 상태 파일엔 없다. 기본값으로 이어받는다
         self.n_pricefail = int(st.get("n_pricefail", 0))
         self.slip_sum = float(st.get("slip_sum", 0.0))
+        self.exit_slip_sum = float(st.get("exit_slip_sum", 0.0))
+        self.n_exit_mkt = int(st.get("n_exit_mkt", 0))
         log.info("상태 복원 — 보유 %d · 누적 $%.2f · 신호 %d · 체결 %d (저장 %s)",
                  len(self.pos), self.equity, self.n_signal, self.n_fill,
                  st.get("saved_at", "?")[:19])
@@ -434,7 +455,11 @@ class RsiPaper:
                         "n_skip": self.n_skip,
                         "n_pricefail": self.n_pricefail,
                         "slip_bp_mean": round(self.slip_sum / self.n_fill, 2)
-                                        if self.n_fill else 0.0}
+                                        if self.n_fill else 0.0,
+                        "n_exit_mkt": self.n_exit_mkt,
+                        "exit_slip_bp_mean":
+                            round(self.exit_slip_sum / self.n_exit_mkt, 2)
+                            if self.n_exit_mkt else 0.0}
         with open(d / "cycles.jsonl", "a") as fh:
             fh.write(json.dumps(cyc, ensure_ascii=False) + "\n")
         self.save_state()
@@ -535,6 +560,36 @@ def selftest() -> None:
     if not ex or ex[0]["reason"] != "sl":
         raise SystemExit(f"같은 봉에서 손절·익절이 겹쳤는데 손절이 안 났다: {ex}")
     log.info("✔ 청산 규약 확인 — 한 봉에 손절·익절 동시면 **손절** (보수적)")
+
+    # 손절은 **현재가**로 나가고 정본(손절가) 대비 차이를 남겨야 한다.
+    # 이걸 안 재면 손절 비중 80% 설정의 실전 성적을 영영 모른다.
+    e = ex[0]
+    if abs(e["ref_exit_price"] - p.sl_price) > 1e-9:
+        raise SystemExit(f'정본 손절가 기록 안 됨 — {e["ref_exit_price"]}')
+    px_now = ref_close["A"] * 1.01
+    if abs(e["exit_price"] - px_now) > 1e-9:
+        raise SystemExit(f'손절이 현재가로 안 나갔다 — {e["exit_price"]}')
+    want = 1e4 * (1.0 - px_now / p.sl_price)
+    if abs(e["exit_slip_bp"] - want) > 1e-6:
+        raise SystemExit(f'청산 지연대가 계산 틀림 {e["exit_slip_bp"]} vs {want}')
+    log.info("✔ 손절 체결 확인 — **현재가**로 청산 · 정본 대비 %+.1fbp 기록",
+             e["exit_slip_bp"])
+
+    # 익절은 지정가라 그 값에 체결된다 — 미끄러지지 않아야 한다
+    p4 = RsiPaper(PaperConfig(slots=1, warmup_bars=50), ["A"], OUT_DIR)
+    p4.price_fn = lambda sym: ref_close["A"] * 0.5      # 현재가를 크게 어긋나게
+    c4 = p4.step({"1h": {"A": mk(dn)}})
+    pos4 = p4.pos["A"]
+    win = mk(dn).copy()
+    win.iloc[-1, win.columns.get_loc("high")] = pos4.tp_price * 1.01
+    win.iloc[-1, win.columns.get_loc("low")] = pos4.sl_price * 1.01
+    c5 = p4.step({"1h": {"A": win}})
+    e5 = [x for x in c5["exits"] if x["symbol"] == "A"]
+    if not e5 or e5[0]["reason"] != "tp":
+        raise SystemExit(f"익절이 안 났다 — {c5['exits']}")
+    if abs(e5[0]["exit_price"] - pos4.tp_price) > 1e-9 or e5[0]["exit_slip_bp"] != 0.0:
+        raise SystemExit(f"익절이 지정가로 안 나갔다 — {e5[0]}")
+    log.info("✔ 익절 체결 확인 — 지정가라 익절가 그대로 (미끄러짐 0)")
 
     # ⓔ 상태 저장·복원 — 이게 안 되면 재시작 때 **조용히** 표본을 잃는다
     import tempfile
