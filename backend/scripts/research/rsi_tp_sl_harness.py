@@ -585,11 +585,21 @@ def main() -> int:
         for cfg, r in zip(grid, res):
             rows.append(tag(cfg, r))
 
-    def _dispatch(sym):
+    # ⚠ 2026-08-21 — 경로가 둘이라 하나만 고쳤다가 92분을 잃었다.
+    #   `_dispatch` 에는 start/end 를 넣었는데 **병렬 경로는 `_dispatch` 를
+    #   거치지 않고** `run_symbol_from_1m` 을 직접 submit 했다. 인자 목록이
+    #   따로 적혀 있어 새 인자가 안 갔고, 창 밖 거래 1,116건이 나왔다.
+    #   교훈 #88 그대로다 — 클래스(함수)만 고치지 말고 **경로**를 검증하라.
+    #   이제 직렬·병렬이 **같은 인자 묶음**을 쓴다. 갈라질 자리를 없앤다.
+    def _args(sym) -> tuple:
         if a.source == "1m":
-            return run_symbol_from_1m(grid, sym, a.tf, a.min_bars,
-                                      a.dump_trades, a.start, a.end)
-        return run_symbol(grid, sym, panel[sym], a.dump_trades)
+            return (run_symbol_from_1m,
+                    (grid, sym, a.tf, a.min_bars, a.dump_trades, a.start, a.end))
+        return (run_symbol, (grid, sym, panel[sym], a.dump_trades))
+
+    def _dispatch(sym):
+        fn, args = _args(sym)
+        return fn(*args)
 
     if a.workers <= 1:
         for i, sym in enumerate(jobs, 1):
@@ -601,11 +611,10 @@ def main() -> int:
     else:
         from concurrent.futures import ProcessPoolExecutor, as_completed
         with ProcessPoolExecutor(max_workers=a.workers) as ex:
-            fut = ({ex.submit(run_symbol_from_1m, grid, s_, a.tf, a.min_bars,
-                              a.dump_trades): s_ for s_ in jobs}
-                   if a.source == "1m" else
-                   {ex.submit(run_symbol, grid, s_, panel[s_], a.dump_trades): s_
-                    for s_ in jobs})
+            fut = {}
+            for s_ in jobs:
+                fn, args = _args(s_)          # 직렬과 **같은** 인자 묶음
+                fut[ex.submit(fn, *args)] = s_
             for i, f in enumerate(as_completed(fut), 1):
                 _collect(f.result())
                 if i % 5 == 0:
@@ -632,10 +641,17 @@ def main() -> int:
             if a.end:
                 bad += int((et >= pd.Timestamp(a.end, tz="UTC")).sum())
             if bad:
+                # ⚠ 저장만 막으면 몇 시간치 진단 근거까지 잃는다(실측: 92분).
+                #   창을 주장하지 않는 이름으로 남겨서 **무엇이 어긋났는지**
+                #   볼 수 있게 한다. 정상 이름으로는 절대 저장하지 않는다.
+                bad_path = OUT_DIR / f"INVALID_window_{a.tag or 'run'}.csv"
+                TR.to_csv(bad_path, index=False)
+                lo, hi = et.min(), et.max()
                 raise SystemExit(
                     f"창 밖 거래 {bad:,}/{len(TR):,}건 — 구간 인자가 적재까지 "
-                    f"도달하지 않았다. 파일명은 {a.start}~{a.end} 를 주장하는데 "
-                    f"내용이 다르다. 산출물을 저장하지 않는다.")
+                    f"도달하지 않았다. 요청 {a.start}~{a.end} 인데 진입이 "
+                    f"{lo}~{hi} 다. 정상 산출물은 저장하지 않았다. "
+                    f"진단용: {bad_path}")
             log.info("✔ 창 확인 — 거래 %s건 전부 %s ~ %s 안",
                      f"{len(TR):,}", a.start or "beg", a.end or "end")
         TR.to_csv(OUT_DIR / f"trades_{stem}.csv", index=False)
