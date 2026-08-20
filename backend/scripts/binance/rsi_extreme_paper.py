@@ -47,6 +47,7 @@
 from __future__ import annotations
 
 import argparse
+import concurrent.futures as cf
 import json
 import logging
 import math
@@ -96,7 +97,7 @@ KCFG = KernelConfig(size_pct=1.0,
 REST = "https://fapi.binance.com/fapi/v1/klines"
 REST_TICKER = "https://fapi.binance.com/fapi/v1/ticker/price"
 TF_MS = {"1h": 3_600_000, "30m": 1_800_000, "15m": 900_000,
-         "5m": 300_000}
+         "5m": 300_000, "1m": 60_000}
 UNIVERSE = ROOT / "configs" / "rsi_paper_universe.txt"
 OUT_DIR = ROOT / "runs" / "paper_sessions" / "rsi_extreme"
 
@@ -118,6 +119,12 @@ class SourceSpec:
     max_hold_bars: int = 48       # **자기 시간대의** 봉 수. 48h 면 1h=48/15m=192
     rsi_period: int = 14
     warmup_bars: int = 200        # RSI 안정화
+    # ⚠ 죽은 종목 게이트 (2026-08-19 HFTUSDT 사고)
+    #   거래가 멈춘 종목은 봉이 전부 같은 값이고 거래대금이 0 이다. 그러면
+    #   Wilder RSI 가 0/0 에 가까워져 **RSI 0.28** 같은 값이 나오고 문턱을
+    #   그냥 통과한다. 실제로 한 주도 안 거래된 종목에서 +7.92% 익절이 났다.
+    min_active_bars: int = 10     # RSI 창에서 거래대금>0 인 봉의 최소 개수
+    min_distinct_closes: int = 5  # RSI 창의 서로 다른 종가 최소 개수
 
     def __post_init__(self):
         if self.tf not in TF_MS:
@@ -145,6 +152,20 @@ class PaperConfig:
     # 세션 공용
     slots: int = 5
     notional_usd: float = 200.0  # 슬롯당 명목
+    # ⚠ 정본 대비 괴리 상한 (2026-08-19 HFTUSDT 사고)
+    #   정상 지연(수십 초)으로는 100bp 를 못 넘는다. 넘으면 시세가 이상한
+    #   것이다 — 거래 없는 종목의 마지막 체결가와 현재 호가가 따로 노는 등.
+    #   그런 값으로 채우면 익절가가 이미 봉 안에 들어와 다음 사이클에 즉시
+    #   "익절"이 나고, 한 주도 안 거래된 종목에서 이익이 생긴다.
+    max_slip_bp: float = 100.0
+    # ⚠ 봉 마감 후 대기 (2026-08-20 실측으로 40초 → 2초)
+    #   40초는 "REST 봉이 확정되길 기다린다"는 근거로 있었는데, 실측하니
+    #   마감 후 **0.1~0.3초**에 확정된다. 40초는 통째로 낭비였다.
+    #   이 전략의 수익은 진입 봉 안에서 끝난다(익절가 도달까지 중앙 2개
+    #   1분봉). 대기 1초가 곧 손실이다.
+    bar_wait_s: float = 2.0
+    # 시세 조회 병렬도. 순차면 377종목에 43초(실측) — 그동안 급등이 지나간다.
+    fetch_workers: int = 16
     seed: int = 20260817         # 무작위 선택의 재현성
     sources: list = field(default_factory=list)   # 비면 위 인자로 1개 구성
 
@@ -239,10 +260,13 @@ def fetch_klines(symbol: str, limit: int = 300,
         ot = int(k[0])
         if ot + TF_MS[tf] > now_ms:      # 진행 중인 봉
             continue
-        rows.append((ot, float(k[1]), float(k[2]), float(k[3]), float(k[4])))
+        # k[5]=거래량(코인) k[7]=거래대금(USDT). 죽은 종목 판정에 쓴다.
+        rows.append((ot, float(k[1]), float(k[2]), float(k[3]), float(k[4]),
+                     float(k[7])))
     if not rows:
         return None
-    df = pd.DataFrame(rows, columns=["ot", "open", "high", "low", "close"])
+    df = pd.DataFrame(rows, columns=["ot", "open", "high", "low", "close",
+                                     "quote_vol"])
     df["ts"] = pd.to_datetime(df.ot, unit="ms", utc=True)
     return df.set_index("ts")
 
@@ -285,6 +309,8 @@ class RsiPaper:
         self.slip_sum = 0.0          # 진입 slip_bp 합 (평균 산출용)
         self.exit_slip_sum = 0.0     # 청산 slip_bp 합 (손절·시간만료만)
         self.n_exit_mkt = 0          # 시장가로 나간 청산 건수
+        self.n_dead = 0              # 거래 멈춘 종목이라 거른 신호
+        self.n_slipreject = 0        # 괴리 상한 초과로 거부한 체결
         # 자기검사가 시세를 안 건드리고 체결 경로를 확인할 수 있도록 주입 가능
         self.price_fn = fetch_mark_price
         self.spec = {x.tf: x for x in cfg.sources}   # 시간대 → 규약
@@ -364,6 +390,14 @@ class RsiPaper:
                 if sym in self.pos or b is None or len(b) < spec.warmup_bars:
                     continue
                 c = b["close"].astype(float)
+                # 거래가 멈춘 종목은 RSI 가 의미 없다 — 계산 전에 거른다
+                w = c.iloc[-(spec.rsi_period + 1):]
+                qv = (b["quote_vol"].astype(float).iloc[-(spec.rsi_period + 1):]
+                      if "quote_vol" in b.columns else None)
+                if (qv is not None and int((qv > 0).sum()) < spec.min_active_bars) \
+                        or w.nunique() < spec.min_distinct_closes:
+                    self.n_dead += 1
+                    continue
                 v = float(wilder_rsi(c, spec.rsi_period).iloc[-1])
                 if np.isnan(v) or v > spec.entry_rsi:
                     continue
@@ -405,17 +439,34 @@ class RsiPaper:
         #   ⚠ 진입 봉(체결 시점에 진행 중인 봉)은 다음 사이클에 마감된 채로
         #     ①에서 평가된다. 그 봉의 고·저에는 체결 **전** 구간이 섞여 있어
         #     불리하게 잡힐 수 있다 — 정본과 같은 방향(보수적)이라 둔다.
+        # 체결가는 **동시에** 받는다 — 순차면 20종목에 2초, 그만큼 더 밀린다
+        px_map: dict = {}
+        if picked:
+            with cf.ThreadPoolExecutor(max_workers=min(20, len(picked))) as ex:
+                fut = {ex.submit(self.price_fn, c["symbol"]): c["symbol"]
+                       for c in picked}
+                for f in cf.as_completed(fut):
+                    try:
+                        px_map[fut[f]] = f.result()
+                    except Exception:
+                        px_map[fut[f]] = None
         for c in picked:
             # 같은 종목이 두 시간대에서 동시에 뽑힐 수 있다 — 한 번만 채운다
             if c["symbol"] in self.pos:
                 continue
             spec = self.spec[c["src"]]
-            px = self.price_fn(c["symbol"])
+            px = px_map.get(c["symbol"])
             if px is None or px <= 0:
                 self.n_pricefail += 1
                 continue
             ref = c["close"]                       # 정본 체결가 = 신호 봉 종가
             slip = 1e4 * (px / ref - 1.0) if ref > 0 else 0.0
+            if abs(slip) > self.cfg.max_slip_bp:
+                # 정상 지연으로는 안 나오는 값 — 시세가 이상하다. 안 채운다.
+                self.n_slipreject += 1
+                log.warning("%s 괴리 %+.0fbp — 체결 거부 (정본 %.8g / 현재 %.8g)",
+                            c["symbol"], slip, ref, px)
+                continue
             # 진입 회계도 커널이 한다. 체결가는 우리가 실측한 현재가를
             # MarketOpenFill 로 그대로 넘긴다(바 네 값을 같은 값으로 준다).
             ts_now = datetime.now(timezone.utc).isoformat()
@@ -474,6 +525,7 @@ class RsiPaper:
               "n_signal": self.n_signal, "n_skip": self.n_skip,
               "n_pricefail": self.n_pricefail, "slip_sum": self.slip_sum,
               "exit_slip_sum": self.exit_slip_sum, "n_exit_mkt": self.n_exit_mkt,
+              "n_dead": self.n_dead, "n_slipreject": self.n_slipreject,
               "saved_at": datetime.now(timezone.utc).isoformat()}
         tmp = self.state_path.with_suffix(".tmp")
         tmp.parent.mkdir(parents=True, exist_ok=True)
@@ -498,6 +550,8 @@ class RsiPaper:
         self.slip_sum = float(st.get("slip_sum", 0.0))
         self.exit_slip_sum = float(st.get("exit_slip_sum", 0.0))
         self.n_exit_mkt = int(st.get("n_exit_mkt", 0))
+        self.n_dead = int(st.get("n_dead", 0))
+        self.n_slipreject = int(st.get("n_slipreject", 0))
         log.info("상태 복원 — 보유 %d · 누적 $%.2f · 신호 %d · 체결 %d (저장 %s)",
                  len(self.pos), self.equity, self.n_signal, self.n_fill,
                  st.get("saved_at", "?")[:19])
@@ -514,6 +568,8 @@ class RsiPaper:
                         "slip_bp_mean": round(self.slip_sum / self.n_fill, 2)
                                         if self.n_fill else 0.0,
                         "n_exit_mkt": self.n_exit_mkt,
+                        "n_dead": self.n_dead,
+                        "n_slipreject": self.n_slipreject,
                         "exit_slip_bp_mean":
                             round(self.exit_slip_sum / self.n_exit_mkt, 2)
                             if self.n_exit_mkt else 0.0}
@@ -534,7 +590,7 @@ def selftest() -> None:
     bars = {"A": mk(dn), "B": mk(dn * 1.01), "C": mk(up)}
     # 시세를 안 건드리고 체결 경로를 확인한다 — 현재가를 정본 대비 +1% 로 준다
     ref_close = {"A": float(dn.iloc[-1]), "B": float((dn * 1.01).iloc[-1])}
-    pp.price_fn = lambda sym: ref_close[sym] * 1.01
+    pp.price_fn = lambda sym: ref_close[sym] * 1.005   # +50bp (상한 100 미만)
     cyc = pp.step({"1h": bars})
     syms = {c["symbol"] for c in cyc["signals"]}
     if syms != {"A", "B"}:
@@ -545,11 +601,11 @@ def selftest() -> None:
 
     p = pp.pos["A"]
     # 체결가가 **주입한 현재가**인지 — 지나간 봉 시가로 채우면 여기서 걸린다
-    if abs(p.entry_price - ref_close["A"] * 1.01) > 1e-9:
+    if abs(p.entry_price - ref_close["A"] * 1.005) > 1e-9:
         raise SystemExit(f"체결가가 현재가가 아니다 {p.entry_price}")
     if abs(p.ref_price - ref_close["A"]) > 1e-9:
         raise SystemExit(f"정본 기준가 틀림 {p.ref_price}")
-    if abs(p.slip_bp - 100.0) > 1e-6:
+    if abs(p.slip_bp - 50.0) > 1e-6:
         raise SystemExit(f"지연 대가 계산 틀림 {p.slip_bp}")
     # 익절·손절은 **실제 체결가** 기준이어야 한다 (정본 기준가가 아니라)
     if abs(p.tp_price / p.entry_price - 1.08) > 1e-9:
@@ -570,7 +626,7 @@ def selftest() -> None:
     cp = RsiPaper(ccfg, ["A", "B"], OUT_DIR)
     # 체결가를 합성 봉의 마지막 종가 근처로 둔다 — 안 그러면 진입 즉시
     # 손절이 나고 같은 사이클에 재진입해서 보유봉 검사가 무의미해진다
-    PX = float(dn.iloc[-1]) - 1.0
+    PX = float(dn.iloc[-1]) * 0.995      # -50bp (괴리 상한 100bp 미만)
     cp.price_fn = lambda sym: PX
     # 1h 봉은 **안 닫혔다** — B 는 1h 로만 후보가 되므로 잡히면 안 된다
     c1 = cp.step({"15m": {"A": mk(dn)}, "1h": {"A": mk(dn), "B": mk(dn)}},
@@ -591,6 +647,34 @@ def selftest() -> None:
         raise SystemExit("자기 시간대 마감인데 보유봉이 안 늘었다")
     log.info("✔ 결합 확인 — 슬롯 공유 · 시간대별 익절/손절 · "
              "**마감된 시간대만** 평가")
+
+    # ── 죽은 종목 게이트 — 2026-08-19 HFTUSDT 재현
+    #   봉이 전부 같은 값이고 거래대금 0. RSI 가 0/0 에 가까워 0.28 이 나오고
+    #   문턱을 통과했다. 한 주도 안 거래된 종목에서 +7.92% 익절이 났다.
+    dead = pd.DataFrame({"open": 0.0238, "high": 0.0238, "low": 0.0238,
+                         "close": 0.0238, "quote_vol": 0.0}, index=idx)
+    pd_ = RsiPaper(PaperConfig(slots=2, warmup_bars=50), ["D"], OUT_DIR)
+    pd_.price_fn = lambda sym: 0.0209654          # 마지막 체결가와 따로 노는 호가
+    cd = pd_.step({"1h": {"D": dead}})
+    if cd["signals"] or cd["fills"] or pd_.n_dead != 1:
+        raise SystemExit(f"죽은 종목이 안 걸러졌다 — 신호 {cd['signals']} "
+                         f"체결 {cd['fills']} n_dead {pd_.n_dead}")
+    log.info("✔ 죽은 종목 확인 — 평평한 봉·거래대금 0 은 RSI 계산 전에 제외")
+
+    # ── 괴리 상한 — 시세가 정본과 크게 어긋나면 안 채운다
+    ps_ = RsiPaper(PaperConfig(slots=2, warmup_bars=50, max_slip_bp=100.0),
+                   ["A"], OUT_DIR)
+    ps_.price_fn = lambda sym: float(dn.iloc[-1]) * 0.85    # -1500bp
+    cs_ = ps_.step({"1h": {"A": mk(dn)}})
+    if cs_["fills"] or ps_.pos or ps_.n_slipreject != 1:
+        raise SystemExit(f"괴리 상한이 안 걸렸다 — {cs_['fills']} "
+                         f"n_slipreject {ps_.n_slipreject}")
+    ps_.price_fn = lambda sym: float(dn.iloc[-1]) * 1.005   # +50bp = 허용
+    cs2 = ps_.step({"1h": {"A": mk(dn)}})
+    if not cs2["fills"]:
+        raise SystemExit("허용 범위인데 체결이 안 됐다")
+    log.info("✔ 괴리 상한 확인 — %+.0fbp 거부 / %+.0fbp 체결 (상한 %gbp)",
+             -1500, 50, ps_.cfg.max_slip_bp)
 
     # 유니버스에서 빠진 보유 종목도 계속 봐야 한다 — 안 보면 슬롯이 묶인다
     sl_ = scan_list(["A", "B"], {"B"}, {"B", "Z"})
@@ -623,7 +707,7 @@ def selftest() -> None:
     e = ex[0]
     if abs(e["ref_exit_price"] - p.sl_price) > 1e-9:
         raise SystemExit(f'정본 손절가 기록 안 됨 — {e["ref_exit_price"]}')
-    px_now = ref_close["A"] * 1.01
+    px_now = ref_close["A"] * 1.005
     if abs(e["exit_price"] - px_now) > 1e-9:
         raise SystemExit(f'손절이 현재가로 안 나갔다 — {e["exit_price"]}')
     want = 1e4 * (1.0 - px_now / p.sl_price)
@@ -634,9 +718,12 @@ def selftest() -> None:
 
     # 익절은 지정가라 그 값에 체결된다 — 미끄러지지 않아야 한다
     p4 = RsiPaper(PaperConfig(slots=1, warmup_bars=50), ["A"], OUT_DIR)
-    p4.price_fn = lambda sym: ref_close["A"] * 0.5      # 현재가를 크게 어긋나게
+    # 진입은 허용 범위로 하고, **청산 직전에** 현재가를 크게 어긋나게 만든다.
+    # (진입까지 어긋나게 두면 괴리 상한에 걸려 포지션이 안 생긴다)
+    p4.price_fn = lambda sym: ref_close["A"]
     c4 = p4.step({"1h": {"A": mk(dn)}})
     pos4 = p4.pos["A"]
+    p4.price_fn = lambda sym: ref_close["A"] * 0.5      # 익절이 이걸 쓰면 안 된다
     win = mk(dn).copy()
     win.iloc[-1, win.columns.get_loc("high")] = pos4.tp_price * 1.01
     win.iloc[-1, win.columns.get_loc("low")] = pos4.sl_price * 1.01
@@ -800,7 +887,7 @@ def main() -> int:
         # 봉 마감 직후로 맞춘다 (+40초 여유 — 아카이브가 아니라 REST 라 빠르다)
         now = time.time()
         base = TF_MS[cfg.base_tf] / 1000
-        nxt = (int(now // base) + 1) * base + 40
+        nxt = (int(now // base) + 1) * base + cfg.bar_wait_s
         if not a.once:
             time.sleep(max(5, nxt - now))
         t0 = time.time()
@@ -813,17 +900,24 @@ def main() -> int:
         targets = scan_list(syms, dead, set(pp.pos))
         bars_by_tf: dict = {}
         miss: list = []
+        # ⚠ 순차 조회는 377종목에 43초(실측). 그 사이에 급등이 끝난다.
+        #   스레드풀로 병렬화한다 — 조회는 I/O 대기라 GIL 이 문제되지 않는다.
         for tf in sorted(closed, key=lambda t: TF_MS[t]):
             spec = pp.spec[tf]
+            lim = max(300, spec.warmup_bars + 50)
             d: dict = {}
-            for s in targets:
-                b = fetch_klines(s, limit=max(300, spec.warmup_bars + 50),
-                                 tf=tf)
-                if b is not None:
-                    d[s] = b
-                elif tf == cfg.base_tf:      # 건강 판정은 기준 시간대로만
-                    miss.append(s)
-                time.sleep(0.05)
+            with cf.ThreadPoolExecutor(max_workers=cfg.fetch_workers) as ex:
+                fut = {ex.submit(fetch_klines, s, lim, tf): s for s in targets}
+                for f in cf.as_completed(fut):
+                    sym_ = fut[f]
+                    try:
+                        b = f.result()
+                    except Exception:
+                        b = None
+                    if b is not None:
+                        d[sym_] = b
+                    elif tf == cfg.base_tf:   # 건강 판정은 기준 시간대로만
+                        miss.append(sym_)
             bars_by_tf[tf] = d
         bars = bars_by_tf.get(cfg.base_tf, {})          # 레이트리밋 여유
         # ⚠ 상장폐지·심볼변경 종목은 매 사이클 HTTP 400 을 낸다(실측 BTCSTUSDT·
