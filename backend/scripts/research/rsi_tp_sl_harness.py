@@ -269,19 +269,35 @@ def selftest() -> None:
     # ⓖ 요율 **도달 증명** — 넘긴 값이 커널까지 가는지. 안 가면 조용히
     #    DEFAULT_FEE_RATE(한국 주식 1.5bp) 로 계산된다. 2026-08-19 실제 사고.
     from app.composer_framework.backtester import GenericBacktester
-    from app.composer_framework.kernel import (DEFAULT_FEE_RATE,
+    from app.composer_framework.kernel import (FEE_MAKER_BINANCE_FUTURES,
                                                FEE_TAKER_BINANCE_FUTURES)
     c0 = RsiConfig()
-    bt = GenericBacktester(fee_rate=c0.fee_rate)
+    bt = _bt(c0)
     kc = bt._kernel_config()
     if abs(kc.fee_rate - c0.fee_rate) > 1e-12:
-        raise SystemExit(f"요율이 커널에 안 갔다 — {kc.fee_rate} vs {c0.fee_rate}")
+        raise SystemExit(f"테이커가 커널에 안 갔다 — {kc.fee_rate} vs {c0.fee_rate}")
+    # ⚠ 2026-08-20 실제 결함. `fee_rate_maker` 는 RsiConfig 에 **선언만**
+    #   돼 있고 백테스터로 넘어가지 않았다. 커널은 익절을 메이커로 표시
+    #   (`exit_maker=(forced[1]=="tp")`)하는데 maker 요율이 None 이라
+    #   테이커로 떨어졌다 — 익절마다 3bp, 페이퍼와 어긋났다.
+    #   교훈 #88: 필드를 만든 것과 그 필드가 도달하는 것은 다른 사건이다.
+    if kc.fee_rate_maker is None or abs(kc.fee_rate_maker - c0.fee_rate_maker) > 1e-12:
+        raise SystemExit(f"메이커가 커널에 안 갔다 — {kc.fee_rate_maker} vs "
+                         f"{c0.fee_rate_maker} (익절이 테이커로 계산된다)")
     if abs(c0.fee_rate - FEE_TAKER_BINANCE_FUTURES) > 1e-12:
         raise SystemExit(f"설정 요율이 바이낸스 테이커가 아니다 — {c0.fee_rate}")
-    if abs(GenericBacktester()._kernel_config().fee_rate - DEFAULT_FEE_RATE) > 1e-12:
-        raise SystemExit("기본값 전제가 깨졌다 — 이 검사를 다시 설계해야 한다")
-    log.info("✔ 요율 도달 확인 — 커널 %.1fbp 편도 (안 넘기면 기본 %.1fbp = "
-             "한국 주식)", 1e4 * kc.fee_rate, 1e4 * DEFAULT_FEE_RATE)
+    if abs(c0.fee_rate_maker - FEE_MAKER_BINANCE_FUTURES) > 1e-12:
+        raise SystemExit(f"설정 요율이 바이낸스 메이커가 아니다 — {c0.fee_rate_maker}")
+    # 요율을 아예 안 주면 **거절**되어야 한다(예전엔 조용히 한국 주식 1.5bp).
+    try:
+        GenericBacktester()
+    except ValueError:
+        pass
+    else:
+        raise SystemExit("요율 미지정이 거절되지 않는다 — 기본값 강제가 풀렸다")
+    log.info("✔ 요율 도달 확인 — 테이커 %.1fbp / 메이커 %.1fbp 편도 "
+             "(익절은 메이커, 손절·시간은 테이커)",
+             1e4 * kc.fee_rate, 1e4 * kc.fee_rate_maker)
 
     log.info("✔ 자기검사 통과")
 
@@ -393,7 +409,7 @@ def run_one(cfg: RsiConfig, sym: str, bars: pd.DataFrame,
     ctx = SourceContext(symbol=sym, eval_freq_minutes=cfg.eval_freq_minutes,
                         ohlcv_eval=bars)
     try:
-        kpi = GenericBacktester(fee_rate=cfg.fee_rate).run_rule_based(
+        kpi = _bt(cfg).run_rule_based(
             pipeline=pipe, ctx=ctx, signal_lag_bars=cfg.signal_lag_bars)
     except InsufficientSourceDataError as e:
         return {"symbol": sym, "error": str(e)}
@@ -436,6 +452,20 @@ def run_one(cfg: RsiConfig, sym: str, bars: pd.DataFrame,
                 tt["symbol"] = sym
                 d["_trades"] = tt.to_dict("records")
     return d
+
+
+def _bt(cfg):
+    """백테스터 생성은 **여기 한 곳**. 요율이 갈라지지 않게.
+
+    ⚠ 예전엔 호출부마다 `GenericBacktester(fee_rate=...)` 를 직접 만들었고
+      `fee_rate_maker` 를 아무도 안 넘겼다. 커널은 익절을 메이커로 표시하는데
+      요율이 None 이라 테이커로 떨어져 **페이퍼와 익절마다 3bp 어긋났다**.
+      정본의 목적이 백테·페이퍼·실거래가 같은 회계를 쓰는 것인데,
+      생성 지점이 여럿이면 그게 조용히 깨진다.
+    """
+    from app.composer_framework.backtester import GenericBacktester
+    return GenericBacktester(fee_rate=cfg.fee_rate,
+                             fee_rate_maker=cfg.fee_rate_maker)
 
 
 def _partial(rows, a) -> None:

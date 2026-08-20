@@ -114,6 +114,10 @@ def main() -> int:
     p.add_argument("--trades", required=True)
     p.add_argument("--meta", required=True)
     p.add_argument("--out", default="")
+    p.add_argument("--tp-maker-bp", type=float, default=0.0,
+                   help="익절이 테이커로 계산된 원장을 메이커로 되돌린다(편도 차 bp). "
+                        "2026-08-20 이전 격자는 3.0 — 그날 하네스가 "
+                        "fee_rate_maker 를 백테스터에 안 넘겼다. 이후 실행은 0")
     a = p.parse_args()
 
     T = pd.read_csv(a.trades)
@@ -124,6 +128,17 @@ def main() -> int:
 
     print(f"거래 {len(T):,}행 · 메타 {len(M)}종목 · 창 {meta['window']} "
           f"· 출처 {meta['source']}")
+
+    if a.tp_maker_bp:
+        # ⚠ 사후 보정. 커널은 익절을 메이커로 표시하는데 하네스가 메이커
+        #   요율을 안 넘겨 테이커로 계산된 원장이 있다. 재실행 2.5시간 대신
+        #   청산사유로 되돌린다 — 차액은 **익절 거래의 청산 다리에만** 붙는다.
+        if "exit_reason" not in T.columns:
+            raise SystemExit("--tp-maker-bp 를 쓰려면 원장에 exit_reason 이 있어야 한다")
+        istp = T["exit_reason"].astype(str).str.lower().eq("tp")
+        T.loc[istp, "ret_pct"] = T.loc[istp, "ret_pct"] + a.tp_maker_bp / 100.0
+        print(f"  ↺ 익절 {int(istp.sum()):,}건에 +{a.tp_maker_bp:.1f}bp 되돌림 "
+              f"(테이커로 계산돼 있었다) — 나머지 {int((~istp).sum()):,}건 불변")
 
     real = T[T["placebo"] == "real"].merge(M, on="symbol", how="left")
     rot = T[T["placebo"] != "real"].merge(M, on="symbol", how="left")
