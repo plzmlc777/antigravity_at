@@ -57,6 +57,45 @@ def summarize(g: pd.DataFrame, rot: pd.DataFrame | None) -> dict:
     return d
 
 
+def concentration(df: pd.DataFrame) -> None:
+    """신호가 **뭉쳐서** 나오면 슬롯 20개는 분산이 아니라 한 번의 베팅이다.
+
+    실측 동기(2026-08-20): 기대 빈도는 하루 21건인데 최근 25시간 실측은
+    **0건**이었다(63종목 18,018관측 독립 측정). 평균이 아니라 군집이다.
+    """
+    if "entry_ts" not in df.columns:
+        print("\n■ 집중도 — entry_ts 없음, 생략")
+        return
+    t = pd.to_datetime(df["entry_ts"], errors="coerce", utc=True)
+    d = df.assign(_d=t.dt.floor("D"), _h=t.dt.floor("h")).dropna(subset=["_d"])
+    n = len(d)
+    byday = d.groupby("_d")["ret_pct"].agg(["size", "sum"]).sort_values(
+        "size", ascending=False)
+    ndays = int((d["_d"].max() - d["_d"].min()).days) + 1
+    print(f"\n■ 집중도 — 거래 {n:,} · 거래발생일 {len(byday)}일 / 달력 {ndays}일 "
+          f"({100*len(byday)/ndays:.0f}%)")
+    tot = d["ret_pct"].sum()
+    for k in (1, 5, 10, 20):
+        if k <= len(byday):
+            sh = 100.0 * byday["size"].head(k).sum() / n
+            amt = byday["sum"].head(k).sum()
+            # ⚠ 총손익이 0 근처면 비율이 폭발한다. 절대값을 먼저 읽어라.
+            share = f"{100.0 * amt / tot:6.1f}%" if abs(tot) > 1e-9 else "   n/a"
+            print(f"   상위 {k:>2}일: 거래 {sh:5.1f}% · 손익 {amt:+9.1f}%p "
+                  f"(전체 {tot:+.1f}%p 의 {share})")
+    # 동시 보유 — 진입/청산을 시간순 이벤트로 훑는다
+    if "exit_ts" in d.columns:
+        x = pd.to_datetime(d["exit_ts"], errors="coerce", utc=True)
+        ev = pd.concat([pd.Series(1, index=t.loc[d.index]),
+                        pd.Series(-1, index=x)]).sort_index()
+        conc = ev.cumsum()
+        print(f"   동시 보유 — 중앙 {conc.median():.0f} · 90% {conc.quantile(.9):.0f}"
+              f" · 최대 {conc.max():.0f}  (슬롯 20 기준)")
+        over = 100.0 * (conc > 20).mean()
+        print(f"   슬롯 20 초과 시간 비중 {over:.1f}%  "
+              f"— 초과분은 실제로는 체결되지 않는다")
+
+
 def table(df: pd.DataFrame, rotdf: pd.DataFrame | None, col: str,
           title: str) -> pd.DataFrame:
     out = {}
@@ -112,6 +151,8 @@ def main() -> int:
     tot = real["ret_pct"].sum()
     print(f"\n전체 총손익 {tot:,.1f}% · 거래 {len(real):,} "
           f"· 거래당 {real['ret_pct'].mean():+.3f}%")
+
+    concentration(real)
 
     tabs = {k: table(real, rot, k, k) for k in keys}
 
