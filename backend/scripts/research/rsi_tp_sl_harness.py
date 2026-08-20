@@ -311,7 +311,8 @@ TF_RULE = {"1h": "1h", "30m": "30min", "15m": "15min",
            "5m": "5min", "1m": "1min"}
 
 
-def load_1m_resampled(sym: str, tf: str, min_bars: int) -> pd.DataFrame | None:
+def load_1m_resampled(sym: str, tf: str, min_bars: int,
+                      start: str = "", end: str = "") -> pd.DataFrame | None:
     """`ohlcv_1m` 에서 **한 종목만** 읽어 목표 시간대로 만다.
 
     ⚠ 전 종목을 한 번에 올리면 1.99억 행 = 11GB 를 넘고, 워커 7개가 포크되면
@@ -319,13 +320,24 @@ def load_1m_resampled(sym: str, tf: str, min_bars: int) -> pd.DataFrame | None:
       들고 있으므로 직렬화 비용도 없다.
     ⚠ 파생은 아카이브 원본과 일치함을 확인했다 (2026-08-17 실측: 1분→1시간
       744봉 완전일치).
+    ⚠ 2026-08-20 결함 — 이 함수에 `start`/`end` 가 **아예 없어서**
+      `--start/--end` 가 `--source 1m` 경로에서 조용히 무시됐다. 그런데
+      산출물 파일명에는 창이 박혀 나갔다(`_2025-08-17_2026-08-17`). 실측:
+      1년을 요청했는데 진입이 2024-08-18 부터 나왔고 **632거래(9.8%) ·
+      149종목**이 창 밖이었다 — 복구로 2년치가 된 바로 그 종목들.
+      종목마다 노출 기간이 달라지면 종목 간 비교가 통째로 기운다.
     """
     from sqlalchemy import text
     from app.db.session import engine
+    q = ("SELECT ts, open, high, low, close, volume FROM ohlcv_1m "
+         "WHERE symbol = :s")
+    prm: dict = {"s": sym}
+    if start:
+        q += " AND ts >= :a"; prm["a"] = start
+    if end:
+        q += " AND ts < :b"; prm["b"] = end
     with engine.connect() as conn:
-        rows = conn.execute(text(
-            "SELECT ts, open, high, low, close, volume FROM ohlcv_1m "
-            "WHERE symbol = :s ORDER BY ts"), {"s": sym}).fetchall()
+        rows = conn.execute(text(q + " ORDER BY ts"), prm).fetchall()
     if not rows:
         return None
     b = pd.DataFrame(rows, columns=["ts", "open", "high", "low", "close",
@@ -386,12 +398,13 @@ def run_symbol(cfgs: list, sym: str, bars: pd.DataFrame,
 
 
 def run_symbol_from_1m(cfgs: list, sym: str, tf: str, min_bars: int,
-                       dump_trades: bool = False) -> list:
+                       dump_trades: bool = False,
+                       start: str = "", end: str = "") -> list:
     """워커가 **자기 종목만** `ohlcv_1m` 에서 읽어 파생한 뒤 설정을 전부 돈다.
 
     부모는 종목 이름만 들고 있으므로 메모리도 직렬화 비용도 없다.
     """
-    bars = load_1m_resampled(sym, tf, min_bars)
+    bars = load_1m_resampled(sym, tf, min_bars, start, end)
     if bars is None:
         return [{"symbol": sym, "error": "1m 데이터 부족"} for _ in cfgs]
     return [run_one(c, sym, bars, dump_trades) for c in cfgs]
@@ -574,7 +587,8 @@ def main() -> int:
 
     def _dispatch(sym):
         if a.source == "1m":
-            return run_symbol_from_1m(grid, sym, a.tf, a.min_bars, a.dump_trades)
+            return run_symbol_from_1m(grid, sym, a.tf, a.min_bars,
+                                      a.dump_trades, a.start, a.end)
         return run_symbol(grid, sym, panel[sym], a.dump_trades)
 
     if a.workers <= 1:
@@ -605,7 +619,26 @@ def main() -> int:
     stem = f"{'_'.join(sides)}_{a.tf}{'from1m' if a.source=='1m' else ''}_h{a.hold}{span}" + (f"_{a.tag}" if a.tag else "")
     P.to_csv(OUT_DIR / f"persym_{stem}.csv", index=False)
     if trade_rows:
-        pd.DataFrame(trade_rows).to_csv(OUT_DIR / f"trades_{stem}.csv", index=False)
+        TR = pd.DataFrame(trade_rows)
+        # ⚠ 파일명이 창을 주장하면 거래도 그 창 안에 있어야 한다.
+        #   2026-08-20: `--start/--end` 가 1m 경로에서 무시됐는데 파일명엔
+        #   창이 박혀 나갔다. 632거래(9.8%)가 창 밖이었고, 산출물만 보면
+        #   알 길이 없었다. 이제 **조용히 지나가지 못한다**.
+        if (a.start or a.end) and "entry_ts" in TR.columns:
+            et = pd.to_datetime(TR["entry_ts"], utc=True, errors="coerce")
+            bad = 0
+            if a.start:
+                bad += int((et < pd.Timestamp(a.start, tz="UTC")).sum())
+            if a.end:
+                bad += int((et >= pd.Timestamp(a.end, tz="UTC")).sum())
+            if bad:
+                raise SystemExit(
+                    f"창 밖 거래 {bad:,}/{len(TR):,}건 — 구간 인자가 적재까지 "
+                    f"도달하지 않았다. 파일명은 {a.start}~{a.end} 를 주장하는데 "
+                    f"내용이 다르다. 산출물을 저장하지 않는다.")
+            log.info("✔ 창 확인 — 거래 %s건 전부 %s ~ %s 안",
+                     f"{len(TR):,}", a.start or "beg", a.end or "end")
+        TR.to_csv(OUT_DIR / f"trades_{stem}.csv", index=False)
         log.info("거래 덤프 %s행 저장", f"{len(trade_rows):,}")
 
     agg = aggregate(P)
