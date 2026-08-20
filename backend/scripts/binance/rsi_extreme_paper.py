@@ -49,6 +49,8 @@ from __future__ import annotations
 import argparse
 import concurrent.futures as cf
 import json
+import re
+import threading
 import logging
 import math
 import sys
@@ -93,6 +95,70 @@ from app.composer_framework.rules import MarketOpenFill, NotionalSizing
 KCFG = KernelConfig(size_pct=1.0,
                     fee_rate=FEE_TAKER_BINANCE_FUTURES,      # 5bp 편도
                     fee_rate_maker=FEE_MAKER_BINANCE_FUTURES)  # 2bp 편도
+
+# ══════════════════════════════════════════════════════════════════════
+#  레이트리밋 감시 — 2026-08-20 IP 차단 사고
+# ══════════════════════════════════════════════════════════════════════
+#
+# 무슨 일이 있었나
+#   조회를 순차(43초) → 병렬 16(4초)으로 바꾸면서 **요청 밀도도 15배** 올렸다.
+#   5세션이 각각 377종목을 병렬로 긁어 분당 한도를 넘겼고
+#   `-1003 Way too many requests; IP banned` 로 12분간 차단됐다.
+#   **같은 IP 라 실거래 세션도 함께 막힌다** — 속도만 보고 예산을 안 셌다.
+#
+# 왜 헤더로 재는가
+#   공식 문서는 klines weight 를 "Adjusted based on the limit" 라고만 하고
+#   표를 주지 않는다. 추측하면 또 틀린다. 바이낸스는 **매 응답에**
+#   `X-MBX-USED-WEIGHT-1M` 로 현재 분의 누적 weight 를 돌려준다 — 그 값을
+#   그대로 읽어 예산을 관리한다. 표를 몰라도 정확하다.
+_WEIGHT_LOCK = threading.Lock()
+_WEIGHT_USED = 0          # 최근 응답이 알려준 이번 분의 누적 weight
+_WEIGHT_TS = 0.0
+_BANNED_UNTIL = 0.0       # -1003 을 받으면 그때까지 요청을 멈춘다
+
+WEIGHT_LIMIT_1M = 2400    # 바이낸스 선물 IP 한도
+WEIGHT_SOFT = 1600        # 여기 넘으면 스스로 늦춘다 (실거래 몫을 남긴다)
+
+
+def _note_weight(headers) -> None:
+    global _WEIGHT_USED, _WEIGHT_TS
+    v = None
+    for k in ("X-MBX-USED-WEIGHT-1M", "x-mbx-used-weight-1m"):
+        if headers.get(k):
+            v = int(headers[k]); break
+    if v is None:
+        return
+    with _WEIGHT_LOCK:
+        _WEIGHT_USED, _WEIGHT_TS = v, time.time()
+
+
+def _throttle() -> None:
+    """예산을 넘겼으면 다음 분까지 기다린다. 차단 중이면 해제까지 기다린다."""
+    while True:
+        now = time.time()
+        with _WEIGHT_LOCK:
+            banned, used, ts = _BANNED_UNTIL, _WEIGHT_USED, _WEIGHT_TS
+        if banned > now:
+            wait = min(banned - now, 60)
+            log.warning("IP 차단 중 — %.0f초 대기", wait)
+            time.sleep(wait); continue
+        # 헤더가 오래됐으면(분이 바뀌었으면) 사용량을 0 으로 본다
+        if used < WEIGHT_SOFT or now - ts > 60:
+            return
+        log.warning("weight %d/%d — 다음 분까지 대기", used, WEIGHT_LIMIT_1M)
+        time.sleep(max(1.0, 61 - (now - ts)))
+
+
+def _note_ban(msg: str) -> None:
+    global _BANNED_UNTIL
+    m = re.search(r"banned until (\d+)", msg)
+    if not m:
+        return
+    with _WEIGHT_LOCK:
+        _BANNED_UNTIL = int(m.group(1)) / 1000.0
+    log.error("IP 차단 감지 — %s 까지",
+              datetime.fromtimestamp(_BANNED_UNTIL).strftime("%H:%M:%S"))
+
 
 REST = "https://fapi.binance.com/fapi/v1/klines"
 REST_TICKER = "https://fapi.binance.com/fapi/v1/ticker/price"
@@ -165,7 +231,21 @@ class PaperConfig:
     #   1분봉). 대기 1초가 곧 손실이다.
     bar_wait_s: float = 2.0
     # 시세 조회 병렬도. 순차면 377종목에 43초(실측) — 그동안 급등이 지나간다.
-    fetch_workers: int = 16
+    # ⚠ 16 은 과했다 — 5세션이 동시에 377종목을 긁어 IP 가 차단됐다.
+    #   4 면 조회가 43초 → 약 12초로 여전히 3.5배 빠르면서 밀도는 1/4 이다.
+    fetch_workers: int = 4
+    # 세션마다 사이클 시작을 어긋나게 해 5개가 같은 순간에 몰리지 않게 한다.
+    cycle_offset_s: float = 0.0
+    # 시세 공급원. rest = 폴링(기본, 안전) / ws = 체결 웹소켓
+    #
+    # ⚠ ws 로 가면 REST weight 가 **0** 이 된다. 지금 최악의 분 2,262/2,400 을
+    #   쓰는데 5세션이 정각에 겹치면 IP 가 차단된다(2026-08-20 실제 발생,
+    #   같은 IP 인 실거래 세션까지 12분 막혔다).
+    #
+    # ⚠ 봉 정확성은 검증했다 — 1분 436봉·5분 31봉 공식 klines 와 100% 일치.
+    #   가는 길에 결함 3종을 잡았다: 부분 관측 봉(시가 틀림) · 바이낸스가
+    #   보내는 체결가 0 이벤트(저가 틀림) · 무거래 봉 누락(봉 수 어긋남).
+    feed_mode: str = "rest"
     seed: int = 20260817         # 무작위 선택의 재현성
     sources: list = field(default_factory=list)   # 비면 위 인자로 1개 구성
 
@@ -246,10 +326,13 @@ def fetch_klines(symbol: str, limit: int = 300,
     """마감된 봉만. 진행 중인 마지막 봉은 **버린다**."""
     q = urllib.parse.urlencode({"symbol": symbol, "interval": tf,
                                 "limit": min(limit, 1500)})
+    _throttle()
     try:
         with urllib.request.urlopen(f"{REST}?{q}", timeout=20) as r:
+            _note_weight(r.headers)
             data = json.load(r)
     except Exception as exc:
+        _note_ban(str(exc))
         log.warning("%s 시세 실패: %s", symbol, exc)
         return None
     if not data:
@@ -285,10 +368,13 @@ def scan_list(syms: list, dead: set, held) -> list:
 def fetch_mark_price(symbol: str) -> float | None:
     """**지금** 잡을 수 있는 값. 지나간 봉 시가가 아니라 현재 체결가다."""
     q = urllib.parse.urlencode({"symbol": symbol})
+    _throttle()
     try:
         with urllib.request.urlopen(f"{REST_TICKER}?{q}", timeout=10) as r:
+            _note_weight(r.headers)
             return float(json.load(r)["price"])
     except Exception as exc:
+        _note_ban(str(exc))
         log.warning("%s 현재가 실패: %s", symbol, exc)
         return None
 
@@ -676,6 +762,23 @@ def selftest() -> None:
     log.info("✔ 괴리 상한 확인 — %+.0fbp 거부 / %+.0fbp 체결 (상한 %gbp)",
              -1500, 50, ps_.cfg.max_slip_bp)
 
+    # ── 레이트리밋 감시 (2026-08-20 IP 차단 사고)
+    import scripts.binance.rsi_extreme_paper as _self
+    class _H(dict):
+        pass
+    _self._note_weight(_H({"X-MBX-USED-WEIGHT-1M": "1234"}))
+    if _self._WEIGHT_USED != 1234:
+        raise SystemExit(f"weight 헤더를 못 읽는다 — {_self._WEIGHT_USED}")
+    _self._note_weight(_H({"x-mbx-used-weight-1m": "77"}))   # 소문자도
+    if _self._WEIGHT_USED != 77:
+        raise SystemExit("소문자 헤더를 못 읽는다")
+    _self._note_ban("Way too many requests; IP(1.2.3.4) banned until 1787195919299.")
+    if abs(_self._BANNED_UNTIL - 1787195919.299) > 1e-3:
+        raise SystemExit(f"차단 시각 파싱 실패 — {_self._BANNED_UNTIL}")
+    _self._BANNED_UNTIL = 0.0            # 자기검사가 본 실행을 막지 않게 되돌린다
+    _self._WEIGHT_USED, _self._WEIGHT_TS = 0, 0.0
+    log.info("✔ 레이트리밋 확인 — 응답 헤더로 사용량 추적 · -1003 차단 시각 파싱")
+
     # 유니버스에서 빠진 보유 종목도 계속 봐야 한다 — 안 보면 슬롯이 묶인다
     sl_ = scan_list(["A", "B"], {"B"}, {"B", "Z"})
     if set(sl_) != {"A", "B", "Z"} or len(sl_) != 3:
@@ -845,6 +948,12 @@ def main() -> int:
     p.add_argument("--sl", type=float, default=0.03)
     p.add_argument("--notional", type=float, default=200.0)
     p.add_argument("--universe", default=str(UNIVERSE))
+    p.add_argument("--offset", type=float, default=0.0,
+                   help="사이클 시작 오프셋(초). 여러 세션이 몰리지 않게 어긋낸다")
+    p.add_argument("--workers", type=int, default=4,
+                   help="시세 조회 병렬도. 올리면 빨라지지만 레이트리밋을 먹는다")
+    p.add_argument("--feed", default="rest", choices=["rest", "ws"],
+                   help="시세 공급원. ws = 체결 웹소켓 (REST weight 0)")
     p.add_argument("--once", action="store_true", help="한 사이클만 (점검용)")
     p.add_argument("--selftest", action="store_true")
     a = p.parse_args()
@@ -863,11 +972,14 @@ def main() -> int:
                                     tp_pct=float(f[2]), sl_pct=float(f[3]),
                                     max_hold_bars=int(f[4])))
         cfg = PaperConfig(slots=a.slots, notional_usd=a.notional,
-                          sources=specs)
+                          sources=specs, cycle_offset_s=a.offset,
+                          fetch_workers=a.workers, feed_mode=a.feed)
     else:
         cfg = PaperConfig(slots=a.slots, entry_rsi=a.entry_rsi, tf=a.tf,
                           max_hold_bars=a.hold_bars,
-                          tp_pct=a.tp, sl_pct=a.sl, notional_usd=a.notional)
+                          tp_pct=a.tp, sl_pct=a.sl, notional_usd=a.notional,
+                          cycle_offset_s=a.offset, fetch_workers=a.workers,
+                          feed_mode=a.feed)
     syms = [s.strip().upper() for s in Path(a.universe).read_text().split()
             if s.strip()]
     log.info("유니버스 %d종목 · 슬롯 %d **공유** · 슬롯당 $%.0f · 세션 %s",
@@ -878,6 +990,21 @@ def main() -> int:
                  x.max_hold_bars)
     pp = RsiPaper(cfg, syms, OUT_DIR / cfg.session_name)
     pp.load_state()
+
+    feed = None
+    if cfg.feed_mode == "ws":
+        from scripts.binance.ws_trade_feed import TradeFeed
+        tfs = [x.tf for x in cfg.sources]
+        feed = TradeFeed(syms, tfs, maxlen=max(
+            400, max(x.warmup_bars for x in cfg.sources) + 100))
+        log.info("웹소켓 피드 — REST 워밍업 중 (%d종목 × %d시간대)",
+                 len(syms), len(tfs))
+        feed.seed(fetch_klines,
+                  {x.tf: max(300, x.warmup_bars + 50) for x in cfg.sources})
+        feed.start()
+        # 체결가도 피드에서 받는다 — REST ticker 가 불필요해진다
+        pp.price_fn = lambda sym: feed.last_price(sym)
+        time.sleep(3)
     pp.write_config({"universe": str(a.universe), "n_symbols": len(syms),
                      "started_at": datetime.now(timezone.utc).isoformat()})
     dead: set = set()      # 시세가 계속 실패하는 종목 (상장폐지·심볼변경)
@@ -887,7 +1014,7 @@ def main() -> int:
         # 봉 마감 직후로 맞춘다 (+40초 여유 — 아카이브가 아니라 REST 라 빠르다)
         now = time.time()
         base = TF_MS[cfg.base_tf] / 1000
-        nxt = (int(now // base) + 1) * base + cfg.bar_wait_s
+        nxt = (int(now // base) + 1) * base + cfg.bar_wait_s + cfg.cycle_offset_s
         if not a.once:
             time.sleep(max(5, nxt - now))
         t0 = time.time()
@@ -900,6 +1027,32 @@ def main() -> int:
         targets = scan_list(syms, dead, set(pp.pos))
         bars_by_tf: dict = {}
         miss: list = []
+        if feed is not None:
+            h = feed.health()
+            if h.get("gap"):
+                # 재연결 구멍 — 그 사이 체결을 못 받아 봉이 틀린다.
+                # 메우는 로직이 없으므로 이번 사이클을 건너뛴다.
+                log.warning("웹소켓 구멍 — 이번 사이클 건너뜀 (%s)", h)
+                if a.once:
+                    return 1
+                continue
+            for tf in sorted(closed, key=lambda t: TF_MS[t]):
+                spec = pp.spec[tf]
+                bars_by_tf[tf] = feed.snapshot(tf, spec.warmup_bars)
+            bars = bars_by_tf.get(cfg.base_tf, {})
+            log.info("피드 스냅샷 — %s · %s", 
+                     {k: len(v) for k, v in bars_by_tf.items()}, h)
+            cyc = pp.step(bars_by_tf, closed)
+            pp.persist(cyc)
+            log.info("사이클 %.0fs · 마감 %s · 신호 %d · 진입 %d · 청산 %d · "
+                     "보유 %d/%d · 누적 $%.2f · 지연대가 %+.1fbp",
+                     time.time() - t0, ",".join(sorted(closed)),
+                     len(cyc["signals"]), len(cyc["fills"]), len(cyc["exits"]),
+                     len(pp.pos), cfg.slots, pp.equity,
+                     pp.slip_sum / pp.n_fill if pp.n_fill else 0.0)
+            if a.once:
+                return 0
+            continue
         # ⚠ 순차 조회는 377종목에 43초(실측). 그 사이에 급등이 끝난다.
         #   스레드풀로 병렬화한다 — 조회는 I/O 대기라 GIL 이 문제되지 않는다.
         for tf in sorted(closed, key=lambda t: TF_MS[t]):
