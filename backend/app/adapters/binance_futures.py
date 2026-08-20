@@ -512,6 +512,110 @@ class BinanceFuturesAdapter(BinanceBaseAdapter, FuturesInterface):
             except Exception as e:
                 logger.error(f"Tick listener error: {e}")
 
+    # ══════════════════════════════════════════════════════════════
+    #  조건부 주문 (Algo) — 거래소가 감시한다
+    # ══════════════════════════════════════════════════════════════
+    #
+    # ⚠ 왜 필요한가 (2026-08-20)
+    #   지금까지 손절·익절을 `pending_orders.py` 가 **클라이언트에서** 감시했다.
+    #   봉이 닫혀야 평가하므로(live_engine:574, `if closed_candle:` 안), 1시간봉
+    #   세션이면 최대 1시간을 손절선 아래에서 방치한다. 엔진이 죽으면 보호가 0 이다.
+    #   실제로 엔진·거래소 장부 불일치로 Day-30 청산이 안 된 사고가 있었다.
+    #
+    #   거래소 조건부 주문은 **약 10ms 마다** 감시한다(공식 문서). 엔진 상태와
+    #   무관하게 작동한다.
+    #
+    # ⚠ 경로가 바뀌었다 — 2025-12-09
+    #   USDⓈ-M 조건부 주문이 Algo 서비스로 이관됐다. STOP_MARKET /
+    #   TAKE_PROFIT_MARKET / STOP / TAKE_PROFIT / TRAILING_STOP_MARKET 를
+    #   `POST /fapi/v1/order` 로 보내면 **-4120 STOP_ORDER_SWITCH_ALGO** 로 막힌다.
+    #   반드시 `/fapi/v1/algoOrder` 를 써야 한다.
+    #
+    # ⚠ 이관과 함께 바뀐 동작
+    #   · 트리거 전에는 증거금 검사를 하지 않는다
+    #   · 미체결 조건부 주문은 **수정 불가** — 취소 후 재등록해야 한다
+    #   · GTE_GTC 가 반대편 미체결 주문이 아니라 **포지션에만** 의존한다
+
+    async def place_algo_stop(self, symbol: str, side: str, trigger_price: float,
+                              *, limit_price: float = 0.0,
+                              take_profit: bool = False,
+                              close_position: bool = True,
+                              quantity: float = 0.0,
+                              working_type: str = "CONTRACT_PRICE",
+                              price_protect: bool = False) -> Dict[str, Any]:
+        """조건부 주문을 **거래소에** 건다.
+
+        side        : 청산 방향. 롱 포지션을 닫으려면 "SELL".
+        limit_price : 0 이면 STOP_MARKET / TAKE_PROFIT_MARKET (체결 보장, 가격 미보장).
+                      >0 이면 STOP / TAKE_PROFIT (가격 보장, **체결 미보장**).
+        close_position: True 면 전량 청산. quantity·reduceOnly 와 함께 못 쓴다.
+        price_protect : True 면 표시가·계약가 괴리가 임계를 넘을 때 **체결을 막는다**.
+                        손절에 켜면 급락에 안 나갈 수 있다 — 기본 False.
+        """
+        await self._ensure_time_sync()
+        await self._ensure_exchange_info()
+        kind = "TAKE_PROFIT" if take_profit else "STOP"
+        params: Dict[str, Any] = {
+            "symbol": symbol,
+            "side": side,
+            "type": kind if limit_price > 0 else f"{kind}_MARKET",
+            "triggerPrice": str(self.adjust_price(symbol, trigger_price)),
+            "workingType": working_type,
+            "priceProtect": "true" if price_protect else "false",
+            "newOrderRespType": "RESULT",
+        }
+        if limit_price > 0:
+            params["price"] = str(self.adjust_price(symbol, limit_price))
+            params["timeInForce"] = "GTC"
+        if close_position:
+            params["closePosition"] = "true"
+        else:
+            adj = self.adjust_quantity(symbol, quantity, price=trigger_price)
+            if adj <= 0:
+                return {"status": "failed", "message": f"수량 부족 {quantity} → {adj}"}
+            params["quantity"] = str(adj)
+            params["reduceOnly"] = "true"
+        try:
+            r = await self._signed_post(f"{FAPI}/algoOrder", params)
+            logger.info("Algo %s %s %s trigger=%s → id=%s",
+                        params["type"], side, symbol, params["triggerPrice"],
+                        r.get("algoId") or r.get("orderId"))
+            return {"status": "success", "raw": r,
+                    "algo_id": str(r.get("algoId") or r.get("orderId") or "")}
+        except Exception as exc:
+            logger.error("Algo 주문 실패 %s %s: %s", symbol, params["type"], exc)
+            return {"status": "failed", "message": str(exc)}
+
+    async def cancel_algo_order(self, symbol: str, algo_id: str) -> Dict[str, Any]:
+        """조건부 주문 취소. 반대쪽이 체결되면 **반드시** 불러야 한다 —
+        안 그러면 포지션 없이 주문만 남아 반대 포지션이 열린다."""
+        try:
+            r = await self._signed_delete(f"{FAPI}/algoOrder",
+                                          {"symbol": symbol, "algoId": algo_id})
+            return {"status": "success", "raw": r}
+        except Exception as exc:
+            logger.error("Algo 취소 실패 %s %s: %s", symbol, algo_id, exc)
+            return {"status": "failed", "message": str(exc)}
+
+    async def cancel_all_algo_orders(self, symbol: str) -> Dict[str, Any]:
+        """해당 종목의 조건부 주문 전부 취소 (고아 주문 정리용)."""
+        try:
+            r = await self._signed_delete(f"{FAPI}/algoOpenOrders",
+                                          {"symbol": symbol})
+            return {"status": "success", "raw": r}
+        except Exception as exc:
+            return {"status": "failed", "message": str(exc)}
+
+    async def get_open_algo_orders(self, symbol: str = "") -> list:
+        """미체결 조건부 주문 조회. 엔진 장부와 거래소 장부를 맞출 때 쓴다."""
+        try:
+            params = {"symbol": symbol} if symbol else {}
+            r = await self._signed_get(f"{FAPI}/openAlgoOrders", params)
+            return r if isinstance(r, list) else r.get("orders", [])
+        except Exception as exc:
+            logger.error("Algo 조회 실패: %s", exc)
+            return []
+
     async def get_order_executions(self, order_no: str = "", symbol: str = "") -> list:
         """Get recent trade/fill history from Binance Futures."""
         await self._ensure_time_sync()

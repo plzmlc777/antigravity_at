@@ -502,6 +502,11 @@ class LiveContext:
             # 기존 market 주문 파이프라인으로 실행
             self._execute_order(symbol, side, fill.quantity, fill.price, meta, fill.on_filled)
 
+            # 청산 브래킷이 체결됐으면 거래소 쪽 조건부 주문도 지운다.
+            # (엔진이 먼저 잡은 경우 — 거래소 주문은 아직 살아 있다)
+            if fill.group_id:
+                self.clear_exchange_algo(symbol)
+
             # Bracket: entry 체결 후 exit OCO 등록
             if fill.bracket_orders:
                 oco_group = str(uuid.uuid4())[:8]
@@ -510,6 +515,93 @@ class LiveContext:
                     bo.submitted_at = current_time
                     self.pending_book.add(bo)
                 self.log(f"BRACKET OCO registered: {len(fill.bracket_orders)} exit orders (group={oco_group})")
+                # 거래소에도 같은 조건부 주문을 건다 (이중화). 엔진 감시는
+                # 그대로 두고 **추가**하는 것이라 기존 동작이 안 바뀐다.
+                self._mirror_bracket_to_exchange(symbol, fill.bracket_orders,
+                                                 oco_group)
+
+    # ══════════════════════════════════════════════════════════════
+    #  거래소 조건부 주문 미러링 (이중화)
+    # ══════════════════════════════════════════════════════════════
+    #
+    # ⚠ 왜 (2026-08-20)
+    #   `pending_book` 은 **봉이 닫혀야** 평가된다(live_engine:574 의
+    #   `if closed_candle:` 안). 1시간봉 세션이면 손절선 아래에서 최대 1시간을
+    #   방치하고, 엔진이 죽으면 보호가 0 이다. 실제로 엔진·거래소 장부
+    #   불일치로 Day-30 청산이 안 된 사고가 있었다.
+    #
+    #   거래소 조건부 주문은 약 10ms 마다 감시하며 엔진 상태와 무관하다.
+    #
+    # ⚠ 왜 **이중화**인가 (기존 감시를 안 없앤다)
+    #   `pending_book` 은 백테스트와 라이브가 공유하는 단 하나의 구현이다.
+    #   라이브에서만 빼면 판본이 갈린다 — 이 저장소가 손익 구현체 6개 중
+    #   4개 오염으로 데인 구조다. 거래소 주문은 **더 빠른 안전망**으로 얹고,
+    #   판정 로직은 그대로 둔다. 거래소 주문이 실패해도 종전대로 동작한다.
+    #
+    # ⚠ 기본은 꺼져 있다
+    #   실주문 경로라 세션이 명시적으로 켤 때만 작동한다.
+
+    def _algo_enabled(self) -> bool:
+        return bool(getattr(self, "exchange_algo_orders", False)) and not self.is_paper
+
+    def _mirror_bracket_to_exchange(self, symbol: str, bracket: list,
+                                    group: str) -> None:
+        """청산 브래킷을 거래소 조건부 주문으로도 건다. 실패해도 삼킨다 —
+        엔진 감시가 남아 있으므로 여기서 예외를 올리면 오히려 더 위험하다."""
+        if not self._algo_enabled():
+            return
+        fn = getattr(self.adapter, "place_algo_stop", None)
+        if fn is None:
+            self.log("ALGO SKIP: 어댑터가 조건부 주문을 지원하지 않는다")
+            return
+        import asyncio
+        ids = []
+        for bo in bracket:
+            trig = float(bo.stop_price or bo.price or 0)
+            if trig <= 0:
+                continue
+            is_tp = bo.order_type.value.startswith("take_profit")
+            side = "SELL" if bo.side == PendingOrderSide.SELL else "BUY"
+            try:
+                r = asyncio.get_event_loop().run_until_complete(
+                    fn(symbol, side, trig, take_profit=is_tp,
+                       close_position=True))
+            except RuntimeError:      # 이미 루프 안이면 태스크로
+                r = {"status": "deferred"}
+                asyncio.ensure_future(fn(symbol, side, trig,
+                                         take_profit=is_tp, close_position=True))
+            except Exception as exc:
+                self.log(f"ALGO FAIL {symbol} {side} {trig}: {exc}")
+                continue
+            if r.get("algo_id"):
+                ids.append(r["algo_id"])
+        if ids:
+            self._algo_ids = getattr(self, "_algo_ids", {})
+            self._algo_ids.setdefault(symbol, []).extend(ids)
+            self.log(f"ALGO MIRRORED {symbol}: {len(ids)}건 (group={group})")
+
+    def clear_exchange_algo(self, symbol: str) -> None:
+        """포지션이 닫힌 뒤 남은 조건부 주문을 지운다.
+
+        ⚠ 안 지우면 포지션 없이 주문만 남아 **반대 포지션이 열린다.**
+          closePosition=true 는 트리거 시 '현재 포지션 전량'을 닫으므로,
+          다음 진입이 엉뚱하게 청산될 수도 있다."""
+        if not self._algo_enabled():
+            return
+        fn = getattr(self.adapter, "cancel_all_algo_orders", None)
+        if fn is None:
+            return
+        import asyncio
+        try:
+            asyncio.get_event_loop().run_until_complete(fn(symbol))
+        except RuntimeError:
+            asyncio.ensure_future(fn(symbol))
+        except Exception as exc:
+            self.log(f"ALGO CLEAR FAIL {symbol}: {exc}")
+            return
+        if getattr(self, "_algo_ids", None):
+            self._algo_ids.pop(symbol, None)
+        self.log(f"ALGO CLEARED {symbol}")
 
     def cancel_order(self, order_id: str) -> bool:
         """대기 주문 취소."""
@@ -575,6 +667,10 @@ class LiveContext:
         # a long entry → cash_delta = -margin and realized_pnl = 0.
         side = OrderSide.SELL if holding > 0 else OrderSide.BUY
         pos_side = "long" if holding > 0 else "short"
+        # 포지션을 닫으면 거래소에 남은 조건부 주문도 지운다. 안 지우면
+        # 다음 진입이 그 주문에 걸려 엉뚱하게 청산된다(closePosition=true 는
+        # 트리거 시 **그때의 포지션 전량**을 닫는다).
+        self.clear_exchange_algo(symbol)
         return self._execute_order(symbol, side, qty, 0,
                                    {**(metadata or {}), "close_position": True,
                                     "position_side": pos_side}, None)
