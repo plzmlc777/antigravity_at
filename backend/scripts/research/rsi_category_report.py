@@ -57,6 +57,38 @@ def summarize(g: pd.DataFrame, rot: pd.DataFrame | None) -> dict:
     return d
 
 
+def sensitivity(df: pd.DataFrame, applied_maker_bp: float,
+                slip_bp: float) -> None:
+    """익절이 **어떻게 체결되는가**에 결론이 얼마나 매달려 있는가.
+
+    이 전략의 수익은 큰 익절에서 나온다. 그런데 페이퍼는 익절을
+    "익절가에 지정가가 얹혀 있어 정확히 그 가격에 메이커로 체결" 로
+    모형화한다(슬리피지 0). 실거래 경로는 지금 `algoOrder` 조건부
+    주문 — **트리거 후 시장가**라 테이커에 슬리피지가 붙는다.
+
+    즉 아직 만들지 않은 체결 방식을 전제하고 있다. 손절은 반대로
+    시장가·슬리피지를 이미 반영하므로 **익절만 낙관적**이다.
+    바뀌는 폭을 먼저 재고, 결론이 뒤집히면 지정가 익절 경로부터 만든다.
+    """
+    if "exit_reason" not in df.columns:
+        return
+    istp = df["exit_reason"].astype(str).str.lower().eq("tp")
+    r = df["ret_pct"].astype(float)
+    ntp, n = int(istp.sum()), len(r)
+    base = r.sum()                       # 이미 --tp-maker-bp 가 반영된 값
+    taker = base - istp.sum() * applied_maker_bp / 100.0
+    pess = taker - istp.sum() * slip_bp / 100.0
+    print(f"\n■ 익절 체결 가정 민감도 — 익절 {ntp:,}건 / 전체 {n:,}건 "
+          f"({100*ntp/n:.1f}%)")
+    for lab, v in (("메이커 2bp · 슬리피지 0  (페이퍼 전제)", base),
+                   ("테이커 5bp · 슬리피지 0  (원장 그대로)", taker),
+                   (f"테이커 5bp · 슬리피지 {slip_bp:.0f}bp (실거래 조건부주문)", pess)):
+        d = f"{100*(v-base)/abs(base):+6.1f}%" if abs(base) > 1e-9 else "  n/a"
+        print(f"   {lab:<44} 총손익 {v:+10.1f}%p  ({d})")
+    if base > 0 >= pess:
+        print("   ⚠ 낙관 전제에서만 흑자다 — 지정가 익절 경로를 먼저 만들어야 한다")
+
+
 def concentration(df: pd.DataFrame) -> None:
     """신호가 **뭉쳐서** 나오면 슬롯 20개는 분산이 아니라 한 번의 베팅이다.
 
@@ -114,6 +146,9 @@ def main() -> int:
     p.add_argument("--trades", required=True)
     p.add_argument("--meta", required=True)
     p.add_argument("--out", default="")
+    p.add_argument("--tp-slip-bp", type=float, default=5.0,
+                   help="비관 시나리오에서 익절에 매길 슬리피지(bp). 조건부 주문이 "
+                        "트리거 후 시장가로 나가는 경우를 가정한다")
     p.add_argument("--tp-maker-bp", type=float, default=0.0,
                    help="익절이 테이커로 계산된 원장을 메이커로 되돌린다(편도 차 bp). "
                         "2026-08-20 이전 격자는 3.0 — 그날 하네스가 "
@@ -168,6 +203,8 @@ def main() -> int:
           f"· 거래당 {real['ret_pct'].mean():+.3f}%")
 
     concentration(real)
+
+    sensitivity(real, a.tp_maker_bp, a.tp_slip_bp)
 
     tabs = {k: table(real, rot, k, k) for k in keys}
 
