@@ -23,7 +23,7 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 
-from .kernel import DEFAULT_FEE_RATE, KernelConfig, KernelState
+from .kernel import DEFAULT_FEE_RATE, MARKET_FEES, KernelConfig, KernelState
 from .kernel import close as kernel_close
 from .kernel import step as kernel_step
 from .pipeline import Pipeline
@@ -88,12 +88,35 @@ class GenericBacktester:
         *,
         initial_capital: float = 1_000_000.0,
         size_pct: float = 0.95,
-        fee_rate: float = DEFAULT_FEE_RATE,
+        fee_rate: float | None = None,
+        fee_rate_maker: float | None = None,
+        market: str | None = None,
         apply_fee_to_short: bool = True,
     ) -> None:
+        # ⚠ 요율은 **반드시 정한다** — 기본값에 기대지 못하게 막는다.
+        #   2026-08-19: 요율을 안 넘긴 드라이버가 바이낸스 선물을 한국 주식
+        #   요율(1.5bp)로 계산해 왔다. 조용히 틀리는 종류라 오래 몰랐다.
+        #   `market=` 으로 고르거나 `fee_rate=` 로 직접 주거나, 둘 중 하나.
+        if fee_rate is None and market is None:
+            raise ValueError(
+                "수수료를 정하지 않았다 — market= 또는 fee_rate= 중 하나는 "
+                f"반드시 준다. 고를 수 있는 시장: {sorted(MARKET_FEES)}. "
+                "기본값에 기대면 한국 주식 요율로 계산된다(2026-08-19 사고)."
+            )
+        if market is not None:
+            if market not in MARKET_FEES:
+                raise ValueError(f"모르는 시장 {market!r} — {sorted(MARKET_FEES)}")
+            t, m = MARKET_FEES[market]
+            fee_rate = t if fee_rate is None else fee_rate
+            fee_rate_maker = m if fee_rate_maker is None else fee_rate_maker
         self.initial_capital = float(initial_capital)
         self.size_pct = float(size_pct)
+        self.market = market
         self.fee_rate = float(fee_rate)
+        # None 이면 커널이 fee_rate 를 양쪽에 쓴다 = 종전 동작. 명시한 드라이버만
+        # 메이커 요율을 따로 받는다 — 기존 산출물의 행동을 바꾸지 않기 위해서다.
+        self.fee_rate_maker = (None if fee_rate_maker is None
+                               else float(fee_rate_maker))
         # 2026-08-12: 숏에 수수료가 아예 부과되지 않던 결함을 고쳤다(최초 커밋
         # 70ffae67 이후 3개월간 방치). 롱 분기에만 fee_rate 가 곱해져 있었고
         # 숏은 진입·청산 모두 무료였다 — 실자금 전략(신상저격수)이 숏 전용이다.
@@ -285,6 +308,7 @@ class GenericBacktester:
         격차(D2)는 3b 에서 따로 다룬다. 2단계는 행동을 바꾸지 않는다.
         """
         return KernelConfig(size_pct=self.size_pct, fee_rate=self.fee_rate,
+                            fee_rate_maker=self.fee_rate_maker,
                             apply_fee_to_short=self.apply_fee_to_short,
                             default_sl_pct=None, default_tp_pct=None,
                             # 백테스트는 데이터 끝에서 잔여 포지션을 정리한다.

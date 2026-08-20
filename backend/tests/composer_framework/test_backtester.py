@@ -46,7 +46,7 @@ class TestStaticBacktest(unittest.TestCase):
             composer=LGBMComposerAdapter(),
             policy=LongOnlyThresholdPolicy(entry_threshold=0.001, sl_pct=0.05, tp_pct=0.1),
         )
-        bt = GenericBacktester(initial_capital=10_000)
+        bt = GenericBacktester(initial_capital=10_000, market="kr_equity")
         kpis = bt.run_static(pipeline=pipe, ctx=ctx, train_frac=0.5)
         self.assertEqual(kpis.symbol, "SYNTH")
         self.assertEqual(kpis.initial_capital, 10_000)
@@ -67,7 +67,7 @@ class TestWalkForward(unittest.TestCase):
             composer=LGBMComposerAdapter(),
             policy=LongOnlyThresholdPolicy(entry_threshold=0.001),
         )
-        bt = GenericBacktester(initial_capital=10_000)
+        bt = GenericBacktester(initial_capital=10_000, market="kr_equity")
         kpis = bt.run_walk_forward(
             pipeline=pipe, ctx=ctx,
             train_window_bars=100, retrain_step_bars=30,

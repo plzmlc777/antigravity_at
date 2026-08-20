@@ -59,6 +59,25 @@ FEE_MAKER_BINANCE_FUTURES = 0.0002
 FEE_KR_EQUITY = 0.00015
 DEFAULT_FEE_RATE = FEE_KR_EQUITY      # 종전 기본값 — 바꾸면 행동이 바뀐다
 
+# 시장별 요율 (테이커, 메이커). 드라이버가 `market=` 으로 고르면 여기서 온다.
+#
+# ⚠ 왜 만들었나 — 2026-08-19 사고
+#   DEFAULT_FEE_RATE 가 **한국 주식** 요율(1.5bp)인데, 요율을 안 넘긴 드라이버가
+#   바이낸스 선물을 그 값으로 계산했다. 바로 위에 FEE_TAKER_BINANCE_FUTURES 가
+#   정의돼 있는데도 쓰이지 않았다. 조용히 틀리는 종류라 몇 주간 몰랐다.
+#
+# ⚠ API 로 받아오지 않는 이유
+#   바이낸스 `/fapi/v1/commissionRate` 는 **계좌별 현재** 요율을 준다. 과거
+#   시점 요율이 아니고, VIP 등급이 30일마다 바뀐다. 그 값을 쓰면 같은 백테스트가
+#   날마다 다른 답을 내 골든 대조가 성립하지 않는다. 여기 값은 **VIP0 고정**이라
+#   재현 가능하고 보수적이다(실계좌가 더 좋은 등급이면 실전이 백테스트보다 낫다).
+#   실거래·페이퍼는 별개다 — orchestrator 가 session.fee_rate 로 따로 관리한다.
+MARKET_FEES: dict[str, tuple[float, float]] = {
+    "binance_futures": (FEE_TAKER_BINANCE_FUTURES, FEE_MAKER_BINANCE_FUTURES),
+    "kr_equity": (FEE_KR_EQUITY, FEE_KR_EQUITY),
+}
+
+
 
 @dataclass(frozen=True)
 class KernelConfig:
