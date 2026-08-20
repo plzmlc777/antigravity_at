@@ -95,14 +95,24 @@ def main() -> int:
     p.add_argument("--seeds", type=int, default=40)
     p.add_argument("--placebo", default="real")
     p.add_argument("--tp-maker-bp", type=float, default=0.0)
+    p.add_argument("--sl-slip-bp", type=float, default=0.0,
+                   help="손절 체결에 매길 슬리피지(bp). 하네스는 손절가에 "
+                        "**정확히** 체결된다고 본다 — 30bp 스톱에서 이건 "
+                        "낙관적이다. 스톱은 시장가로 나가고, 하필 여러 종목의 "
+                        "스톱이 동시에 터지는 날 가장 크게 밀린다")
     a = p.parse_args()
 
     T = pd.read_csv(a.trades)
     T = T[T["placebo"] == a.placebo].copy()
+    reason = T["exit_reason"].astype(str).str.lower()
     if a.tp_maker_bp:
-        istp = T["exit_reason"].astype(str).str.lower().eq("tp")
+        istp = reason.eq("tp")
         T.loc[istp, "ret_pct"] += a.tp_maker_bp / 100.0
         print(f"익절 {int(istp.sum()):,}건 +{a.tp_maker_bp:.1f}bp 되돌림")
+    if a.sl_slip_bp:
+        issl = reason.eq("sl")
+        T.loc[issl, "ret_pct"] -= a.sl_slip_bp / 100.0
+        print(f"손절 {int(issl.sum()):,}건 -{a.sl_slip_bp:.1f}bp 슬리피지 부과")
 
     # ⚠ pandas 2.x 는 CSV 시각을 **datetime64[us]** 로 읽는다. 그대로
     #   `.astype("int64")` 하면 마이크로초가 나오는데, 나노초 상수로 나누면
