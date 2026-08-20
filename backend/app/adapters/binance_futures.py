@@ -549,6 +549,16 @@ class BinanceFuturesAdapter(BinanceBaseAdapter, FuturesInterface):
         limit_price : 0 이면 STOP_MARKET / TAKE_PROFIT_MARKET (체결 보장, 가격 미보장).
                       >0 이면 STOP / TAKE_PROFIT (가격 보장, **체결 미보장**).
         close_position: True 면 전량 청산. quantity·reduceOnly 와 함께 못 쓴다.
+
+        ⚠ closePosition=true 는 **포지션이 있어야만** 등록된다 (실계좌 확인)
+            내부적으로 GTE_GTC(포지션 종료 전용 TIF)를 쓰므로, 포지션 없이
+            걸면 -4509 "TIF GTE can only be used with open positions" 로 막힌다.
+            거래소가 **고아 주문을 원천 차단**하는 설계다 — 포지션이 닫힌 뒤
+            남은 주문이 다음 진입을 엉뚱하게 청산하는 사고를 막아준다.
+            따라서 진입 **직후**에만 걸 수 있고, 사전에 미리 걸어둘 수 없다.
+
+        ⚠ 포지션 없이 시험하려면 close_position=False + quantity 를 쓴다
+            reduceOnly=true 여도 등록된다(2026-08-20 계좌 8 실측).
         price_protect : True 면 표시가·계약가 괴리가 임계를 넘을 때 **체결을 막는다**.
                         손절에 켜면 급락에 안 나갈 수 있다 — 기본 False.
         """
@@ -556,6 +566,9 @@ class BinanceFuturesAdapter(BinanceBaseAdapter, FuturesInterface):
         await self._ensure_exchange_info()
         kind = "TAKE_PROFIT" if take_profit else "STOP"
         params: Dict[str, Any] = {
+            # ⚠ algoType 은 **필수**다. 안 보내면 -1102 로 막힌다
+            #   (2026-08-20 실계좌 시험에서 확인). 허용값은 CONDITIONAL 하나.
+            "algoType": "CONDITIONAL",
             "symbol": symbol,
             "side": side,
             "type": kind if limit_price > 0 else f"{kind}_MARKET",
@@ -570,7 +583,18 @@ class BinanceFuturesAdapter(BinanceBaseAdapter, FuturesInterface):
         if close_position:
             params["closePosition"] = "true"
         else:
-            adj = self.adjust_quantity(symbol, quantity, price=trigger_price)
+            # ⚠ 수량 보정 기준은 **현재가**다. 트리거 가격을 넘기면 안 된다 —
+            #   손절 트리거는 현재가보다 한참 아래라 최소 명목금액 검사에서
+            #   수량이 0 으로 잘린다(2026-08-20 실계좌 시험에서 발생).
+            ref_px = trigger_price
+            try:
+                cp = await self.get_current_price(symbol)
+                v = float(cp.get("price", cp.get("current_price", 0)) or 0)
+                if v > 0:
+                    ref_px = v
+            except Exception:
+                pass
+            adj = self.adjust_quantity(symbol, quantity, price=ref_px)
             if adj <= 0:
                 return {"status": "failed", "message": f"수량 부족 {quantity} → {adj}"}
             params["quantity"] = str(adj)
