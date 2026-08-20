@@ -171,9 +171,17 @@ def fetch_range(sym: str, d0: date, d1: date) -> list[list]:
     return [r for r in uniq if lo <= r[0] < hi]
 
 
-def bulk_copy(conn_raw, table: str, sym: str, rows: list,
-              skip_delete: bool = False) -> int:
-    """COPY 로 한 종목을 통째로 넣는다.
+def bulk_copy(conn_raw, table: str, sym: str, rows: list) -> int:
+    """COPY 로 한 종목을 통째로 넣는다. **기존 행을 먼저 지운다.**
+
+    ⚠⚠ 2026-08-20 사고 — 이 삭제가 1억 행을 날렸다
+        `--tf 1m --bulk --from 2024-08-17 --to 2025-08-16` 로 **과거 1년을
+        붙이려다** 기존 1년(2025-08~2026-08)이 통째로 사라졌다.
+        삭제는 `WHERE symbol = %s` 뿐이라 **구간을 안 본다** — 삽입만 구간이다.
+        실행 전에 이 함수를 안 읽은 것이 원인이다. `--help` 는 삭제를 안 알렸다.
+
+        구간을 **덧붙이려면** 이 경로를 쓰지 마라. 임시 테이블에 COPY 한 뒤
+        `INSERT ... ON CONFLICT DO NOTHING` 으로 옮겨야 한다.
 
     ⚠ 유니크 제약이 없는 상태를 전제한다 — 적재 후 인덱스를 만든다.
       제약을 켜 놓고 COPY 하면 충돌 한 건에 전체가 죽는다.
@@ -187,11 +195,19 @@ def bulk_copy(conn_raw, table: str, sym: str, rows: list,
         buf.write(f"{sym}\t{t.isoformat(sep=' ')}\t{o}\t{h}\t{l}\t{c}\t{v}\n")
     buf.seek(0)
     cur = conn_raw.cursor()
-    # ⚠ 인덱스 없는 테이블에 이걸 매 종목 돌리면 **전체 스캔**이다. 2026-08-17
-    #   실측: 1분봉 1.99억 행 적재 중 33,176 → 5,521행/초로 6배 느려졌다.
-    #   빈 테이블에 처음 넣을 때는 `--fresh` 로 건너뛴다.
-    if not skip_delete:
-        cur.execute(f"DELETE FROM {table} WHERE symbol = %s", (sym,))
+    # ⚠ 2026-08-20 사고 방어 — 삭제로 **잃는 양**을 먼저 잰다
+    #   경고 문구는 읽어야 효과가 있지만 이 검사는 안 읽어도 막는다.
+    #   지금 넣는 행보다 기존 행이 많으면 순손실이다 → 멈춘다.
+    cur.execute(f"SELECT count(*) FROM {table} WHERE symbol = %s", (sym,))
+    have = cur.fetchone()[0] or 0
+    if have > len(rows):
+        cur.close()
+        raise SystemExit(
+            f"[{sym}] 삭제하면 {have:,}행을 잃고 {len(rows):,}행만 넣는다 — 중단.\n"
+            f"  --bulk 는 구간과 무관하게 **종목 전체**를 지운다.\n"
+            f"  구간을 덧붙이려면 임시 테이블 + ON CONFLICT DO NOTHING 을 써라\n"
+            f"  (예: scripts 에 둔 repair_1m.py 방식).")
+    cur.execute(f"DELETE FROM {table} WHERE symbol = %s", (sym,))
     cur.copy_expert(
         f"COPY {table} (symbol, ts, open, high, low, close, volume) FROM STDIN",
         buf)
@@ -212,12 +228,12 @@ def main() -> int:
                    help="최근 N시간을 REST 로 받는다 (아카이브 T+1 지연 보완)")
     p.add_argument("--limit", type=int, default=0)
     p.add_argument("--tf", default="1h", choices=["1h", "15m", "5m", "1m"])
-    p.add_argument("--fresh", action="store_true",
-                   help="빈 테이블 전제 — 종목별 DELETE 를 건너뛴다. "
-                        "인덱스 없는 큰 테이블에서 DELETE 는 전체 스캔이라 "
-                        "적재가 갈수록 느려진다(실측 6배)")
     p.add_argument("--bulk", action="store_true",
-                   help="COPY 로 대량 적재. 1분봉처럼 억 단위면 필수 — "
+                   help="⚠ 종목의 **기존 행을 전부 지우고** 넣는다. "
+                        "--from/--to 를 줘도 삭제는 전체다 — 구간만 남고 "
+                        "나머지가 사라진다(2026-08-20 실제 사고). "
+                        "기존 데이터를 지키려면 이 옵션을 쓰지 마라. "
+                        "COPY 로 대량 적재. 1분봉처럼 억 단위면 필수 — "
                         "행 단위 INSERT 는 실측 3,768행/초로 1년치가 14.7시간이다")
     a = p.parse_args()
 
@@ -281,7 +297,7 @@ def main() -> int:
             if not rows:
                 miss += 1
                 continue
-            total += bulk_copy(raw, table, sym, rows, a.fresh)
+            total += bulk_copy(raw, table, sym, rows)
             if i % 10 == 0 or i == len(targets):
                 el = time.time() - t0
                 log.info("[%d/%d] %s — 누적 %s행 · %.0f초 · %s행/초 · 남은 %.0f분",
