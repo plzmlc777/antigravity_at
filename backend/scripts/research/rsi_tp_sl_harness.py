@@ -481,6 +481,36 @@ def _bt(cfg):
                              fee_rate_maker=cfg.fee_rate_maker)
 
 
+def check_window(TR, a, where: str = "본실행") -> None:
+    """거래가 요청한 창 안에 있는지. **예비비행과 본실행이 같은 검사를 쓴다.**
+
+    ⚠ 2026-08-20~21 — 이 검사가 없었으면 창 밖 거래 632건이 든 결과를
+      그대로 보고했다. 있었더니 92분 재실행을 거부했다(고친 곳이 직렬
+      경로뿐이라 병렬이 우회했다). **검사는 맞았고 순서가 틀렸다** —
+      고친 직후 몇 종목으로 먼저 봤어야 했다. 그래서 `--preflight` 가 있다.
+    """
+    if not (a.start or a.end) or "entry_ts" not in TR.columns:
+        return
+    et = pd.to_datetime(TR["entry_ts"], utc=True, errors="coerce")
+    bad = 0
+    if a.start:
+        bad += int((et < pd.Timestamp(a.start, tz="UTC")).sum())
+    if a.end:
+        bad += int((et >= pd.Timestamp(a.end, tz="UTC")).sum())
+    if bad:
+        # ⚠ 저장만 막으면 몇 시간치 진단 근거까지 잃는다(실측: 92분).
+        OUT_DIR.mkdir(parents=True, exist_ok=True)
+        bad_path = OUT_DIR / f"INVALID_window_{a.tag or 'run'}.csv"
+        TR.to_csv(bad_path, index=False)
+        raise SystemExit(
+            f"[{where}] 창 밖 거래 {bad:,}/{len(TR):,}건 — 구간 인자가 적재까지 "
+            f"도달하지 않았다. 요청 {a.start}~{a.end} 인데 진입이 "
+            f"{et.min()}~{et.max()} 다. 정상 산출물은 저장하지 않았다. "
+            f"진단용: {bad_path}")
+    log.info("✔ 창 확인(%s) — 거래 %s건 전부 %s ~ %s 안",
+             where, f"{len(TR):,}", a.start or "beg", a.end or "end")
+
+
 def _partial(rows, a) -> None:
     """부분 저장. 끝에 한 번에 쓰면 중간에 죽을 때 전부 잃는다 (실측 5시간)."""
     try:
@@ -516,6 +546,9 @@ def main() -> int:
                    help="거래별 손익을 실어 저장 (상위 절삭 검정용)")
     p.add_argument("--workers", type=int, default=6)
     p.add_argument("--selftest", action="store_true")
+    p.add_argument("--preflight", type=int, default=3,
+                   help="본 실행 전에 N종목만 먼저 돌려 산출물 검사를 전부 "
+                        "통과하는지 본다(기본 3, 0이면 생략). 1분이면 끝난다")
     p.add_argument("--tag", default="")
     a = p.parse_args()
 
@@ -601,26 +634,63 @@ def main() -> int:
         fn, args = _args(sym)
         return fn(*args)
 
-    if a.workers <= 1:
-        for i, sym in enumerate(jobs, 1):
-            _collect(_dispatch(sym))
-            if i % 5 == 0:
-                log.info("[%d/%d종목] %.0f초", i, len(jobs),
-                         (datetime.now() - t0).total_seconds())
-                _partial(rows, a)
-    else:
+    def _run(syms: list) -> None:
+        """종목 묶음을 실행해 `rows`/`trade_rows` 에 쌓는다.
+
+        ⚠ 예비비행이 **직렬로만** 검사하면 방금 그 결함(병렬 경로가 인자를
+          버림)을 똑같이 놓친다. 그래서 예비비행도 본실행과 **같은 실행
+          방식**을 쓴다 — 워커 수까지 같다.
+        """
+        if a.workers <= 1:
+            for i, sym in enumerate(syms, 1):
+                _collect(_dispatch(sym))
+                if i % 5 == 0:
+                    log.info("[%d/%d종목] %.0f초", i, len(syms),
+                             (datetime.now() - t0).total_seconds())
+                    _partial(rows, a)
+            return
         from concurrent.futures import ProcessPoolExecutor, as_completed
         with ProcessPoolExecutor(max_workers=a.workers) as ex:
             fut = {}
-            for s_ in jobs:
+            for s_ in syms:
                 fn, args = _args(s_)          # 직렬과 **같은** 인자 묶음
                 fut[ex.submit(fn, *args)] = s_
             for i, f in enumerate(as_completed(fut), 1):
                 _collect(f.result())
                 if i % 5 == 0:
-                    log.info("[%d/%d종목] %.0f초", i, len(jobs),
+                    log.info("[%d/%d종목] %.0f초", i, len(syms),
                              (datetime.now() - t0).total_seconds())
                     _partial(rows, a)
+
+    # ⚠ **예비비행**. 코드를 고친 뒤 전체를 먼저 돌렸다가 92분을 잃었다
+    #   (2026-08-21). 있는 방법을 안 썼다 — 몇 종목이면 1분이다.
+    #   이제 규율이 아니라 도구가 강제한다. 본실행 전에 N종목을 돌려
+    #   **본실행과 같은 경로·같은 검사**를 통과하는지 본다.
+    if a.preflight > 0 and len(jobs) > a.preflight:
+        pre_rows: list = []
+        saved_trades = len(trade_rows)
+        t_pre = datetime.now()
+        log.info("예비비행 — %d종목으로 경로·창 검사 먼저", a.preflight)
+        saved_rows = len(rows)
+        _run(jobs[:a.preflight])              # 본실행과 같은 실행 방식
+        pre_rows = rows[saved_rows:]
+        pre_tr = trade_rows[saved_trades:]
+        if pre_tr:
+            check_window(pd.DataFrame(pre_tr), a, where="예비비행")
+        elif a.dump_trades:
+            log.warning("예비비행에서 거래가 0건 — 창 검사를 못 했다. "
+                        "--preflight 를 늘리거나 종목을 바꿔라")
+        errs = [r for r in pre_rows if r.get("error")]
+        if len(errs) == len(pre_rows):
+            raise SystemExit(f"예비비행 {len(pre_rows)}건 전부 실패 — "
+                             f"{errs[0].get('error')}")
+        log.info("✔ 예비비행 통과 %.0f초 (워커 %d, 본실행과 동일) — "
+                 "본실행 %d종목 착수",
+                 (datetime.now() - t_pre).total_seconds(), a.workers, len(jobs))
+        del trade_rows[saved_trades:]          # 본실행에서 다시 돈다
+        del rows[saved_rows:]
+
+    _run(jobs)
 
     P = pd.DataFrame(rows)
     OUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -633,27 +703,7 @@ def main() -> int:
         #   2026-08-20: `--start/--end` 가 1m 경로에서 무시됐는데 파일명엔
         #   창이 박혀 나갔다. 632거래(9.8%)가 창 밖이었고, 산출물만 보면
         #   알 길이 없었다. 이제 **조용히 지나가지 못한다**.
-        if (a.start or a.end) and "entry_ts" in TR.columns:
-            et = pd.to_datetime(TR["entry_ts"], utc=True, errors="coerce")
-            bad = 0
-            if a.start:
-                bad += int((et < pd.Timestamp(a.start, tz="UTC")).sum())
-            if a.end:
-                bad += int((et >= pd.Timestamp(a.end, tz="UTC")).sum())
-            if bad:
-                # ⚠ 저장만 막으면 몇 시간치 진단 근거까지 잃는다(실측: 92분).
-                #   창을 주장하지 않는 이름으로 남겨서 **무엇이 어긋났는지**
-                #   볼 수 있게 한다. 정상 이름으로는 절대 저장하지 않는다.
-                bad_path = OUT_DIR / f"INVALID_window_{a.tag or 'run'}.csv"
-                TR.to_csv(bad_path, index=False)
-                lo, hi = et.min(), et.max()
-                raise SystemExit(
-                    f"창 밖 거래 {bad:,}/{len(TR):,}건 — 구간 인자가 적재까지 "
-                    f"도달하지 않았다. 요청 {a.start}~{a.end} 인데 진입이 "
-                    f"{lo}~{hi} 다. 정상 산출물은 저장하지 않았다. "
-                    f"진단용: {bad_path}")
-            log.info("✔ 창 확인 — 거래 %s건 전부 %s ~ %s 안",
-                     f"{len(TR):,}", a.start or "beg", a.end or "end")
+        check_window(TR, a)
         TR.to_csv(OUT_DIR / f"trades_{stem}.csv", index=False)
         log.info("거래 덤프 %s행 저장", f"{len(trade_rows):,}")
 
