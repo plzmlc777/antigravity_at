@@ -61,6 +61,14 @@ class RsiConfig:
     placebo_seed: int = 0
     signal_lag_bars: int = 1     # 정본 장부 규약 — 신호 봉의 **다음 봉 시가** 체결
     eval_freq_minutes: int = 60
+    # ⚠ 요율을 **반드시 넘긴다**. GenericBacktester 기본값은
+    #   DEFAULT_FEE_RATE = FEE_KR_EQUITY = 1.5bp 편도 — **한국 주식** 요율이다.
+    #   커널에 FEE_TAKER_BINANCE_FUTURES(5bp)가 정의돼 있는데도 기본이 아니라,
+    #   안 넘기면 바이낸스 선물을 한국 주식 수수료로 계산한다.
+    #   2026-08-19 발견: 이 하네스가 저장소에서 요율을 안 넘긴 유일한 곳이었다
+    #   (GenericBacktester 사용처 13곳 중 12곳은 명시).
+    fee_rate: float = 0.0005          # 바이낸스 선물 테이커 편도
+    fee_rate_maker: float = 0.0002    # 메이커 편도 (익절 지정가)
 
     def __post_init__(self):
         if self.side not in ("long", "short"):
@@ -258,6 +266,23 @@ def selftest() -> None:
         raise SystemExit(f"구형 산출물에서 위약 복원 실패 — {set(A2.placebo)}")
     log.info("✔ 집계 확인 — 위약 분리 · 총손익은 합계 · 구형 파일은 key 로 복원")
 
+    # ⓖ 요율 **도달 증명** — 넘긴 값이 커널까지 가는지. 안 가면 조용히
+    #    DEFAULT_FEE_RATE(한국 주식 1.5bp) 로 계산된다. 2026-08-19 실제 사고.
+    from app.composer_framework.backtester import GenericBacktester
+    from app.composer_framework.kernel import (DEFAULT_FEE_RATE,
+                                               FEE_TAKER_BINANCE_FUTURES)
+    c0 = RsiConfig()
+    bt = GenericBacktester(fee_rate=c0.fee_rate)
+    kc = bt._kernel_config()
+    if abs(kc.fee_rate - c0.fee_rate) > 1e-12:
+        raise SystemExit(f"요율이 커널에 안 갔다 — {kc.fee_rate} vs {c0.fee_rate}")
+    if abs(c0.fee_rate - FEE_TAKER_BINANCE_FUTURES) > 1e-12:
+        raise SystemExit(f"설정 요율이 바이낸스 테이커가 아니다 — {c0.fee_rate}")
+    if abs(GenericBacktester()._kernel_config().fee_rate - DEFAULT_FEE_RATE) > 1e-12:
+        raise SystemExit("기본값 전제가 깨졌다 — 이 검사를 다시 설계해야 한다")
+    log.info("✔ 요율 도달 확인 — 커널 %.1fbp 편도 (안 넘기면 기본 %.1fbp = "
+             "한국 주식)", 1e4 * kc.fee_rate, 1e4 * DEFAULT_FEE_RATE)
+
     log.info("✔ 자기검사 통과")
 
 
@@ -368,7 +393,7 @@ def run_one(cfg: RsiConfig, sym: str, bars: pd.DataFrame,
     ctx = SourceContext(symbol=sym, eval_freq_minutes=cfg.eval_freq_minutes,
                         ohlcv_eval=bars)
     try:
-        kpi = GenericBacktester().run_rule_based(
+        kpi = GenericBacktester(fee_rate=cfg.fee_rate).run_rule_based(
             pipeline=pipe, ctx=ctx, signal_lag_bars=cfg.signal_lag_bars)
     except InsufficientSourceDataError as e:
         return {"symbol": sym, "error": str(e)}

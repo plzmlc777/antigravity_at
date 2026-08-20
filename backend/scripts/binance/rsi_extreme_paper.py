@@ -71,6 +71,28 @@ logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s [%(levelname)s] %(message)s")
 log = logging.getLogger("rsi_paper")
 
+from app.composer_framework.kernel import (FEE_MAKER_BINANCE_FUTURES,
+                                           FEE_TAKER_BINANCE_FUTURES,
+                                           KernelConfig, KernelState,
+                                           _forced_exit)
+from app.composer_framework.kernel import close as kernel_close
+from app.composer_framework.kernel import open_position as kernel_open
+from app.composer_framework.policy import Action
+from app.composer_framework.rules import MarketOpenFill, NotionalSizing
+
+# ⚠ 손익 회계는 **정본 커널**이 한다 — 여기서 다시 구현하지 않는다.
+#   이 저장소는 손익 구현체가 6개까지 늘었고 그중 4개가 오염됐다. 2026-08-14
+#   에 커널로 통합했고 그 뒤로 "커널 1곳"이 원칙이다. 그런데 이 스크립트는
+#   2026-08-19 까지 자체 계산을 썼고, 그 결과 **수수료가 0이었다**.
+#
+#   정본은 종목 하나 단위(orchestrator: "on one symbol")라 377종목 스캔과
+#   슬롯 배분 계층이 없다. 그 계층만 여기서 맡고, 포지션 회계는 커널에 준다:
+#       탐지(손절 우선) = _forced_exit   회계 = open_position / close
+#   체결 **가격**만 우리가 정한다(실측한 현재가). 커널은 받은 값으로 계산만 한다.
+KCFG = KernelConfig(size_pct=1.0,
+                    fee_rate=FEE_TAKER_BINANCE_FUTURES,      # 5bp 편도
+                    fee_rate_maker=FEE_MAKER_BINANCE_FUTURES)  # 2bp 편도
+
 REST = "https://fapi.binance.com/fapi/v1/klines"
 REST_TICKER = "https://fapi.binance.com/fapi/v1/ticker/price"
 TF_MS = {"1h": 3_600_000, "30m": 1_800_000, "15m": 900_000,
@@ -155,6 +177,10 @@ class PaperConfig:
 
 @dataclass
 class Position:
+    """커널 상태 + 이 계층만 아는 기록.
+
+    앞쪽 필드는 KernelState 를 그대로 담는다 — 직렬화·복원을 위해 펼쳐 둘 뿐,
+    회계는 커널이 한다. 여기서 값을 손으로 고치지 말 것."""
     symbol: str
     entry_ts: str
     entry_price: float
@@ -163,11 +189,27 @@ class Position:
     sl_price: float = 0.0
     signal_rsi: float = 0.0
     src: str = ""                # 어느 시간대가 낸 신호인가 (결합 세션용)
+    # ── 커널 상태 (KernelState 로 왕복한다)
+    cash: float = 0.0
+    qty: float = 0.0
+    entry_maker: bool = False
     # 지연의 대가 — 정본(신호 봉 종가) 대비 실제 체결가가 얼마나 불리했나.
     # 기본값을 둬야 새 필드가 없는 **기존 상태 파일**도 그대로 복원된다.
     ref_price: float = 0.0       # 정본 체결가 = 신호 봉 종가
     slip_bp: float = 0.0         # 1e4 * (체결가/정본 - 1). 롱이므로 +가 손해
     lag_s: float = 0.0           # 봉 마감 → 체결까지 실제 경과 초
+
+    def to_kernel(self) -> KernelState:
+        return KernelState(cash=self.cash, side="long", qty=self.qty,
+                           entry_price=self.entry_price, entry_ts=self.entry_ts,
+                           bars_held=self.bars_held, sl_price=self.sl_price,
+                           tp_price=self.tp_price, entry_maker=self.entry_maker)
+
+    def sync(self, st: KernelState) -> None:
+        self.cash, self.qty = st.cash, st.qty
+        self.entry_price, self.bars_held = st.entry_price, st.bars_held
+        self.sl_price, self.tp_price = st.sl_price, st.tp_price
+        self.entry_maker = st.entry_maker
 
 
 def wilder_rsi(close: pd.Series, period: int) -> pd.Series:
@@ -273,13 +315,12 @@ class RsiPaper:
                 continue
             last = b.iloc[-1]
             p.bars_held += 1
-            reason, ref = None, None
-            # ⚠ 불리한 쪽(손절)을 먼저 본다 — 한 봉 안의 순서를 모른다
-            if last.low <= p.sl_price:
-                reason, ref = "sl", p.sl_price
-            elif last.high >= p.tp_price:
-                reason, ref = "tp", p.tp_price
-            elif p.bars_held >= self.spec[src].max_hold_bars:
+            st = p.to_kernel()
+            # ⚠ 손절 우선 판정은 **커널의 _forced_exit** 이 한다. 여기서 다시
+            #   쓰면 백테스트와 갈린다 — 실제로 그래 왔다.
+            hit = _forced_exit(st, float(last.high), float(last.low))
+            reason, ref = (hit[1], hit[0]) if hit else (None, None)
+            if reason is None and p.bars_held >= self.spec[src].max_hold_bars:
                 reason, ref = "time", float(last.close)
             if reason:
                 # 익절은 **지정가**가 호가에 걸려 있다 — 그 값에 체결된다.
@@ -297,8 +338,11 @@ class RsiPaper:
                     slip = 1e4 * (1.0 - px / ref) if ref else 0.0  # +가 손해
                 self.exit_slip_sum += slip
                 self.n_exit_mkt += 0 if reason == "tp" else 1
-                ret = (px / p.entry_price - 1.0)
-                pnl = ret * self.cfg.notional_usd
+                # 회계는 커널이 한다 — 수수료(진입 테이커 5bp / 익절 메이커
+                # 2bp)도 여기서 함께 계상된다. 우리가 정하는 건 체결가뿐이다.
+                _, tr = kernel_close(st, px, cyc["ts"], reason, KCFG,
+                                     exit_maker=(reason == "tp"))
+                ret, pnl = tr.return_pct, tr.pnl_cash
                 self.equity += pnl
                 cyc["exits"].append({
                     "symbol": sym, "reason": reason, "exit_price": px,
@@ -372,14 +416,27 @@ class RsiPaper:
                 continue
             ref = c["close"]                       # 정본 체결가 = 신호 봉 종가
             slip = 1e4 * (px / ref - 1.0) if ref > 0 else 0.0
+            # 진입 회계도 커널이 한다. 체결가는 우리가 실측한 현재가를
+            # MarketOpenFill 로 그대로 넘긴다(바 네 값을 같은 값으로 준다).
+            ts_now = datetime.now(timezone.utc).isoformat()
+            act = Action(kind="enter_long",
+                         sl_price=px * (1 - spec.sl_pct),
+                         tp_price=px * (1 + spec.tp_pct),
+                         sizing=NotionalSizing(self.cfg.notional_usd),
+                         fill=MarketOpenFill())
+            st = kernel_open(
+                KernelState(cash=self.cfg.notional_usd * 2.0), "enter_long",
+                dict(open_price=px, high_price=px, low_price=px,
+                     close_price=px), ts_now, act, KCFG)
+            if st.side != "long" or st.qty <= 0:
+                self.n_pricefail += 1
+                continue
             p = Position(
-                symbol=c["symbol"],
-                entry_ts=datetime.now(timezone.utc).isoformat(),
-                entry_price=px,
-                tp_price=px * (1 + spec.tp_pct),
-                sl_price=px * (1 - spec.sl_pct),
+                symbol=c["symbol"], entry_ts=ts_now, entry_price=st.entry_price,
+                tp_price=st.tp_price, sl_price=st.sl_price,
                 signal_rsi=c["rsi"], src=c["src"], ref_price=ref, slip_bp=slip,
                 lag_s=max(0.0, (time.time() * 1000 - c["bar_close_ms"]) / 1000))
+            p.sync(st)
             self.pos[c["symbol"]] = p
             self.n_fill += 1
             self.slip_sum += slip
@@ -627,6 +684,60 @@ def selftest() -> None:
 
     if pp.n_signal < 2 or pp.n_skip < 0:
         raise SystemExit("신호 집계가 안 된다")
+    # ⓖ **정본 대조** — 같은 진입·청산을 백테스트 경로(GenericBacktester 가
+    #   쓰는 커널)에 넣어 손익이 일치하는지 본다.
+    #
+    #   이게 없어서 2026-08-19 까지 수수료 0 으로 돌았다. 스크립트가 제
+    #   규약대로 도는지만 검사했지, **정본과 같은 답을 내는지**는 한 번도
+    #   묻지 않았다. 클래스 검증도 경로 검증도 통과했는데 기준점이 없었다.
+    from app.composer_framework.kernel import KernelConfig as _KC
+    from app.composer_framework.kernel import KernelState as _KS
+    from app.composer_framework.kernel import close as _kclose
+    from app.composer_framework.kernel import open_position as _kopen
+
+    ENTRY, EXIT, NOTIONAL = 100.0, 105.0, 50.0
+    ref_act = Action(kind="enter_long", sl_price=ENTRY * 0.97,
+                     tp_price=ENTRY * 1.08,
+                     sizing=NotionalSizing(NOTIONAL), fill=MarketOpenFill())
+    ref_st = _kopen(_KS(cash=NOTIONAL * 2.0), "enter_long",
+                    dict(open_price=ENTRY, high_price=ENTRY, low_price=ENTRY,
+                         close_price=ENTRY), "t0", ref_act, KCFG)
+    _, ref_tr = _kclose(ref_st, EXIT, "t1", "tp", KCFG, exit_maker=True)
+
+    pp5 = RsiPaper(PaperConfig(slots=1, warmup_bars=50, notional_usd=NOTIONAL,
+                               tp_pct=0.08, sl_pct=0.03), ["A"], OUT_DIR)
+    pp5.price_fn = lambda sym: ENTRY
+    flat = pd.Series(np.linspace(140, 100, 120), index=idx)   # 하락 → RSI 0
+    pp5.step({"1h": {"A": mk(flat)}})
+    if "A" not in pp5.pos:
+        raise SystemExit("대조용 진입이 안 됐다")
+    win2 = mk(flat).copy()
+    win2.iloc[-1, win2.columns.get_loc("high")] = pp5.pos["A"].tp_price * 1.01
+    win2.iloc[-1, win2.columns.get_loc("low")] = pp5.pos["A"].sl_price * 1.01
+    pp5.price_fn = lambda sym: EXIT
+    cx = pp5.step({"1h": {"A": win2}})
+    ex2 = [x for x in cx["exits"] if x["symbol"] == "A"]
+    if not ex2:
+        raise SystemExit(f"대조용 청산이 안 났다 — {cx['exits']}")
+    # 익절가는 진입가의 1.08 배이므로 청산가가 다르다. 수익률 공식만 대조한다.
+    got = ex2[0]["ret_pct"] / 100.0
+    st_ref = _KS(cash=ref_st.cash, side="long", qty=ref_st.qty,
+                 entry_price=ref_st.entry_price, entry_ts="t0",
+                 sl_price=ref_st.sl_price, tp_price=ref_st.tp_price,
+                 entry_maker=ref_st.entry_maker)
+    _, want_tr = _kclose(st_ref, ex2[0]["exit_price"], "t1", "tp", KCFG,
+                         exit_maker=True)
+    if abs(got - want_tr.return_pct) > 1e-9:
+        raise SystemExit(f"정본과 손익이 다르다 — 페이퍼 {got:.8f} vs "
+                         f"정본 {want_tr.return_pct:.8f}")
+    # 수수료가 실제로 물리는지 — 안 물면 +8%% 가 그대로 나온다
+    gross = ex2[0]["exit_price"] / ex2[0]["entry_price"] - 1.0
+    if got >= gross:
+        raise SystemExit(f"수수료가 안 빠졌다 — 순 {got:.6f} >= 총 {gross:.6f}")
+    log.info("✔ 정본 대조 확인 — 손익이 커널과 일치 · 수수료 %.1fbp 반영 "
+             "(총 %.4f%% → 순 %.4f%%)", 1e4 * (gross - got), 100 * gross,
+             100 * got)
+
     log.info("✔ 자기검사 통과 — 신호 %d · 체결 %d · 미체결 %d",
              pp.n_signal, pp.n_fill, pp.n_skip)
 
