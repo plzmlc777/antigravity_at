@@ -293,9 +293,20 @@ class PaperConfig:
     def session_name(self) -> str:
         # 단일 소스는 **기존 경로 그대로** 둔다. 바꾸면 가동 중인 세션의
         # 보유 포지션과 누적 표본이 통째로 고아가 된다.
+        #
+        # ⚠ 2026-08-22 실제 사고 — 이름이 `tf` 와 `entry_rsi` 만 보므로
+        #   **손절·진입모드가 달라도 같은 이름**이 나왔다. 손절없음+cross_back
+        #   세션을 띄웠더니 손절0.3%+level 세션의 상태를 그대로 읽어
+        #   보유·누적을 물려받았다. 두 세션이 같은 파일에 쓰면 둘 다 오염된다.
+        #   기존 이름을 보존하려고 **기본 규약일 때만** 접미사를 생략한다.
         if len(self.sources) == 1:
             x = self.sources[0]
-            return f"{x.tf}_rsi{x.entry_rsi:g}"
+            n = f"{x.tf}_rsi{x.entry_rsi:g}"
+            if x.entry_mode != "level":
+                n += "_cb"
+            if x.sl_pct == 0:
+                n += "_nosl"
+            return n
         return "combo_" + "_".join(x.key for x in self.sources)
 
 
@@ -987,6 +998,17 @@ def selftest() -> None:
             raise SystemExit(f"cross_back 판정 오류 prev={prev} cur={cur}")
     log.info("✔ 새 설정 확인 — 손절 없음(sl_price=0) · cross_back · key %s",
              sp.key)
+    # 세션 이름이 규약을 구분하는가 — 안 그러면 **다른 설정이 같은 상태 파일**에
+    # 쓴다(2026-08-22 실제 사고). 기존 이름은 그대로여야 한다.
+    _old = PaperConfig(tf="5m", entry_rsi=10, tp_pct=0.05, sl_pct=0.003,
+                       max_hold_bars=288).session_name
+    _new = PaperConfig(tf="5m", entry_rsi=10, tp_pct=0.05, sl_pct=0.0,
+                       max_hold_bars=288, entry_mode="cross_back").session_name
+    if _old != "5m_rsi10":
+        raise SystemExit(f"기존 세션 이름이 바뀌었다 — {_old} (포지션 고아 위험)")
+    if _new == _old:
+        raise SystemExit(f"규약이 다른데 세션 이름이 같다 — {_new}")
+    log.info("✔ 세션 이름 확인 — 기존 %s · 새 규약 %s (분리됨)", _old, _new)
 
     log.info("✔ 자기검사 통과 — 신호 %d · 체결 %d · 미체결 %d",
              pp.n_signal, pp.n_fill, pp.n_skip)
