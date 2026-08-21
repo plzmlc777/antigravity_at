@@ -583,7 +583,10 @@ def main() -> int:
     p.add_argument("--thresholds", default="15,20,25,30,35,40,45,50")
     p.add_argument("--tps", default="0.01,0.02,0.03,0.05")
     p.add_argument("--sls", default="0.01,0.02,0.03,0.05")
-    p.add_argument("--hold", type=int, default=48)
+    p.add_argument("--hold", default="48",
+                   help="보유 상한(봉). 쉼표로 격자. 손절이 없으면 이게 유일한 "
+                        "손실 제어 수단이자 **자본 회전 속도**를 정한다 — "
+                        "실측: 지는 포지션이 슬롯 점유시간의 83.6%%를 먹는다")
     p.add_argument("--min-bars", type=int, default=8760)
     p.add_argument("--limit", type=int, default=0)
     p.add_argument("--symbols", default="")
@@ -620,7 +623,8 @@ def main() -> int:
     placebos = ["" if x in ("real", "none", "") else x for x in placebos]
     modes = [m.strip() for m in a.entry_modes.split(",") if m.strip()]
     grid = [RsiConfig(side=s, period=int(pp), entry_threshold=float(t),
-                      tp_pct=float(tp), sl_pct=float(sl), max_hold_bars=a.hold,
+                      tp_pct=float(tp), sl_pct=float(sl),
+                      max_hold_bars=int(hd),
                       entry_mode=em, placebo=pl, placebo_seed=a.seed,
                       eval_freq_minutes=TF_MIN[a.tf])
             for s in sides
@@ -628,6 +632,7 @@ def main() -> int:
             for t in a.thresholds.split(",")
             for tp in a.tps.split(",")
             for sl in a.sls.split(",")
+            for hd in a.hold.split(",")
             for em in modes
             for pl in placebos]
     verify_reaches(grid[0])
@@ -758,7 +763,9 @@ def main() -> int:
     P = pd.DataFrame(rows)
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     span = f"_{a.start or 'beg'}_{a.end or 'end'}" if (a.start or a.end) else ""
-    stem = f"{'_'.join(sides)}_{a.tf}{'from1m' if a.source=='1m' else ''}_h{a.hold}{span}" + (f"_{a.tag}" if a.tag else "")
+    holds = [h.strip() for h in a.hold.split(",") if h.strip()]
+    hlab = holds[0] if len(holds) == 1 else f"{len(holds)}holds"
+    stem = f"{'_'.join(sides)}_{a.tf}{'from1m' if a.source=='1m' else ''}_h{hlab}{span}" + (f"_{a.tag}" if a.tag else "")
     P.to_csv(OUT_DIR / f"persym_{stem}.csv", index=False)
     if trade_rows:
         TR = pd.DataFrame(trade_rows)
