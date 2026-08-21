@@ -191,18 +191,39 @@ class SourceSpec:
     #   그냥 통과한다. 실제로 한 주도 안 거래된 종목에서 +7.92% 익절이 났다.
     min_active_bars: int = 10     # RSI 창에서 거래대금>0 인 봉의 최소 개수
     min_distinct_closes: int = 5  # RSI 창의 서로 다른 종가 최소 개수
+    # level      : RSI <= 문턱인 **모든 봉**에서 후보 (기존)
+    # cross_back : 직전 봉이 문턱 아래, 이번 봉이 문턱 위 — **되돌아 나올 때**
+    #
+    # ⚠ 왜 (2026-08-22 백테스트 결론)
+    #   level 은 떨어지는 내내 발화해 급락 한복판에 진입한다. 손절이 걸리면
+    #   즉시 잘리고 RSI 는 아직 문턱 아래라 **다음 봉에 재진입** — 실측
+    #   거래의 39% 가 손절 직후 재진입이었고 최대 9연속이었다.
+    #   그 거래들이 급락 슬리피지를 다 맞는다(평균 155.9bp 대 57.1bp).
+    #   되돌아 나올 때 사면 이 연쇄가 구조적으로 불가능하다.
+    entry_mode: str = "level"
 
     def __post_init__(self):
         if self.tf not in TF_MS:
             raise SystemExit(f"tf 는 {list(TF_MS)} — 받은 값 {self.tf!r}")
         if not (0 < self.entry_rsi < 100):
             raise SystemExit(f"entry_rsi 는 (0,100) — {self.entry_rsi}")
-        if self.tp_pct <= 0 or self.sl_pct <= 0 or self.max_hold_bars < 1:
-            raise SystemExit("익절·손절·보유상한은 양수여야 한다")
+        if self.tp_pct <= 0 or self.max_hold_bars < 1:
+            raise SystemExit("익절·보유상한은 양수여야 한다")
+        # ⚠ 손절 0 = **손절 없음**. 커널이 `sl_price > 0` 으로 비활성 처리한다.
+        #   손절 0.3% 는 계획 손실 30bp 인데 실측 평균 손실이 134bp 였다 —
+        #   스톱은 시장가로 나가고 하필 급락 순간에 발동한다(슬리피지 평균
+        #   104bp · 최대 6,964bp). 폭을 0.3~5% 로 넓혀도 전부 적자였다.
+        #   손절을 빼면 시장가 청산이 시간 청산뿐이고, 그건 정해진 시각에
+        #   나가므로 슬리피지가 10 분의 1 이다(평균 8.6bp 실측).
+        if self.sl_pct < 0:
+            raise SystemExit(f"손절은 0(없음) 또는 양수 — {self.sl_pct}")
+        if self.entry_mode not in ("level", "cross_back"):
+            raise SystemExit(f"entry_mode 는 level|cross_back — {self.entry_mode!r}")
 
     @property
     def key(self) -> str:
-        return f"{self.tf}r{self.entry_rsi:g}"
+        m = "" if self.entry_mode == "level" else "cb"
+        return f"{self.tf}r{self.entry_rsi:g}{m}"
 
 
 @dataclass
@@ -214,6 +235,7 @@ class PaperConfig:
     sl_pct: float = 0.03
     max_hold_bars: int = 48
     tf: str = "1h"
+    entry_mode: str = "level"
     warmup_bars: int = 200
     # 세션 공용
     slots: int = 5
@@ -256,6 +278,7 @@ class PaperConfig:
             self.sources = [SourceSpec(
                 tf=self.tf, entry_rsi=self.entry_rsi, tp_pct=self.tp_pct,
                 sl_pct=self.sl_pct, max_hold_bars=self.max_hold_bars,
+                entry_mode=self.entry_mode,
                 rsi_period=self.rsi_period, warmup_bars=self.warmup_bars)]
         tfs = [x.tf for x in self.sources]
         if len(set(tfs)) != len(tfs):
@@ -484,9 +507,20 @@ class RsiPaper:
                         or w.nunique() < spec.min_distinct_closes:
                     self.n_dead += 1
                     continue
-                v = float(wilder_rsi(c, spec.rsi_period).iloc[-1])
-                if np.isnan(v) or v > spec.entry_rsi:
+                _r = wilder_rsi(c, spec.rsi_period)
+                v = float(_r.iloc[-1])
+                if np.isnan(v):
                     continue
+                if spec.entry_mode == "level":
+                    if v > spec.entry_rsi:
+                        continue
+                else:
+                    # 되돌아 나오는 봉 — 직전 봉은 문턱 아래, 이번 봉은 위.
+                    # 백테스트의 `cross_back` 과 같은 정의다.
+                    prev = float(_r.iloc[-2]) if len(_r) >= 2 else float("nan")
+                    if np.isnan(prev) or not (prev <= spec.entry_rsi
+                                              < v):
+                        continue
                 cands.append({"symbol": sym, "rsi": v, "src": tf,
                               "close": float(c.iloc[-1]),
                               "bar_close_ms": int(b.index[-1].timestamp()
@@ -556,8 +590,12 @@ class RsiPaper:
             # 진입 회계도 커널이 한다. 체결가는 우리가 실측한 현재가를
             # MarketOpenFill 로 그대로 넘긴다(바 네 값을 같은 값으로 준다).
             ts_now = datetime.now(timezone.utc).isoformat()
+            # ⚠ 손절 0 은 **없음**이다. `px * (1 - 0)` 을 넘기면 진입가가 되고
+            #   커널이 활성으로 읽어 **진입 즉시 손절**한다(2026-08-21 정본 결함
+            #   과 같은 자리). 0 을 명시적으로 만든다.
             act = Action(kind="enter_long",
-                         sl_price=px * (1 - spec.sl_pct),
+                         sl_price=(px * (1 - spec.sl_pct)
+                                   if spec.sl_pct > 0 else 0.0),
                          tp_price=px * (1 + spec.tp_pct),
                          sizing=NotionalSizing(self.cfg.notional_usd),
                          fill=MarketOpenFill())
@@ -928,6 +966,28 @@ def selftest() -> None:
              "(총 %.4f%% → 순 %.4f%%)", 1e4 * (gross - got), 100 * gross,
              100 * got)
 
+    # ⓞ **새 설정 도달** — 손절 없음 + cross_back (2026-08-22 백테스트 결론)
+    #    설정을 바꿔도 동작이 안 바뀌면 페이퍼는 옛 규약을 계속 돌린다.
+    sp = SourceSpec(tf="5m", entry_rsi=10, tp_pct=0.05, sl_pct=0.0,
+                    max_hold_bars=288, entry_mode="cross_back")
+    if sp.sl_pct != 0.0 or sp.entry_mode != "cross_back":
+        raise SystemExit("새 설정이 SourceSpec 에 안 들어갔다")
+    if not sp.key.endswith("cb"):
+        raise SystemExit(f"cross_back 이 key 에 안 보인다 — {sp.key}")
+    # 브래킷: 손절 0 은 **진입가가 아니라 0** 이어야 한다
+    _px = 100.0
+    _sl = (_px * (1 - sp.sl_pct)) if sp.sl_pct > 0 else 0.0
+    if _sl != 0.0:
+        raise SystemExit(f"손절 0 인데 sl_price={_sl} — 진입 즉시 청산된다")
+    # cross_back 발화 조건: 직전 봉 문턱 아래 · 이번 봉 문턱 위
+    for prev, cur, want in ((5.0, 12.0, True), (5.0, 8.0, False),
+                            (20.0, 30.0, False), (10.0, 10.5, True)):
+        got = bool(prev <= sp.entry_rsi < cur)
+        if got != want:
+            raise SystemExit(f"cross_back 판정 오류 prev={prev} cur={cur}")
+    log.info("✔ 새 설정 확인 — 손절 없음(sl_price=0) · cross_back · key %s",
+             sp.key)
+
     log.info("✔ 자기검사 통과 — 신호 %d · 체결 %d · 미체결 %d",
              pp.n_signal, pp.n_fill, pp.n_skip)
 
@@ -937,12 +997,17 @@ def main() -> int:
     p.add_argument("--tf", default="1h", choices=list(TF_MS),
                    help="봉 주기. 보유상한(--hold-bars)도 같이 맞춰라")
     p.add_argument("--sources", default="",
-                   help="결합 세션. 'tf:rsi:익절:손절:보유봉' 을 쉼표로. "
-                        "예 '15m:8:0.08:0.015:192,1h:12:0.08:0.03:48'. "
+                   help="결합 세션. 'tf:rsi:익절:손절:보유봉[:진입모드]' 를 "
+                        "쉼표로. 손절 0 = 없음, 진입모드 level|cross_back. "
+                        "예 '5m:10:0.05:0:288:cross_back'. "
                         "주면 --tf/--entry-rsi/--tp/--sl/--hold-bars 는 무시")
     p.add_argument("--hold-bars", type=int, default=48,
                    help="보유상한(봉). 물리 48시간이면 1h=48 · 15m=192 · 5m=576")
     p.add_argument("--slots", type=int, default=5)
+    p.add_argument("--entry-mode", default="level",
+                   choices=["level", "cross_back"],
+                   help="단일 세션의 진입 모드. cross_back = 문턱 밖으로 "
+                        "되돌아 나오는 봉에서만 진입")
     p.add_argument("--entry-rsi", type=float, default=12.0)
     p.add_argument("--tp", type=float, default=0.08)
     p.add_argument("--sl", type=float, default=0.03)
@@ -966,17 +1031,19 @@ def main() -> int:
         specs = []
         for chunk in a.sources.split(","):
             f = chunk.strip().split(":")
-            if len(f) != 5:
-                raise SystemExit(f"--sources 항목은 tf:rsi:익절:손절:보유봉 — {chunk!r}")
+            if len(f) not in (5, 6):
+                raise SystemExit("--sources 항목은 tf:rsi:익절:손절:보유봉 "
+                                 f"[:진입모드] — {chunk!r}")
             specs.append(SourceSpec(tf=f[0], entry_rsi=float(f[1]),
                                     tp_pct=float(f[2]), sl_pct=float(f[3]),
-                                    max_hold_bars=int(f[4])))
+                                    max_hold_bars=int(f[4]),
+                                    entry_mode=(f[5] if len(f) == 6 else "level")))
         cfg = PaperConfig(slots=a.slots, notional_usd=a.notional,
                           sources=specs, cycle_offset_s=a.offset,
                           fetch_workers=a.workers, feed_mode=a.feed)
     else:
         cfg = PaperConfig(slots=a.slots, entry_rsi=a.entry_rsi, tf=a.tf,
-                          max_hold_bars=a.hold_bars,
+                          max_hold_bars=a.hold_bars, entry_mode=a.entry_mode,
                           tp_pct=a.tp, sl_pct=a.sl, notional_usd=a.notional,
                           cycle_offset_s=a.offset, fetch_workers=a.workers,
                           feed_mode=a.feed)
