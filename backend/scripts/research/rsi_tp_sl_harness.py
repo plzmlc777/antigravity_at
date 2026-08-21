@@ -116,7 +116,8 @@ class RsiConfig:
         pl = self.placebo or "real"
         return (f"{self.side}_p{self.period}_t{self.entry_threshold:g}"
                 f"_tp{self.tp_pct:g}_sl{self.sl_pct:g}_h{self.max_hold_bars}"
-                f"_{self.entry_mode}_{pl}")
+                f"_{self.entry_mode}_{pl}"
+                + (f"_s{self.placebo_seed}" if self.placebo else ""))
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -167,7 +168,14 @@ def aggregate(P: "pd.DataFrame") -> "pd.DataFrame":
         raise ValueError(f"집계에 필요한 열이 없다: {sorted(missing)}")
     if "placebo" not in P.columns:      # 구형 산출물 — key 끝에 박혀 있다
         P = P.assign(placebo=P.key.str.rsplit("_", n=1).str[-1])
-    G = ["side", "period", "thr", "tp", "sl", "placebo"]
+    # ⚠ 격자 축을 **하나라도 빠뜨리면 그 축이 통째로 뭉개진다.**
+    #   2026-08-19 에 `placebo` 가 빠져 실측과 위약이 섞였고, 2026-08-22 에
+    #   `entry_mode`·`hold`·`seed` 를 새로 넣고도 **여기를 또 잊었다**
+    #   (CB 8칸이 4행, HOLD 8칸이 2행으로 나왔다).
+    #   그래서 이제 **있는 축은 자동으로 전부** 넣는다. 새 축을 추가해도
+    #   이 자리를 고칠 필요가 없다.
+    G = [c for c in ("side", "period", "thr", "tp", "sl", "hold",
+                     "entry_mode", "placebo", "seed") if c in P.columns]
     agg = (P[P.n_trades.notna()].groupby(G)
            .agg(n_sym=("symbol", "nunique"), trades=("n_trades", "sum"),
                 sum_pct_tot=("sum_pct", "sum"),        # ← 총손익 (판정 주축)
@@ -319,7 +327,27 @@ def selftest() -> None:
     A2 = aggregate(P.drop(columns=["placebo"]))
     if set(A2.placebo) != {"real", "rotate"}:
         raise SystemExit(f"구형 산출물에서 위약 복원 실패 — {set(A2.placebo)}")
-    log.info("✔ 집계 확인 — 위약 분리 · 총손익은 합계 · 구형 파일은 key 로 복원")
+    # 새 축(entry_mode·hold·seed)이 뭉개지지 않는지. 예전엔 조용히 합쳐졌다.
+    P2 = pd.DataFrame({
+        "symbol": ["A", "A", "A", "A"], "n_trades": [1, 1, 1, 1],
+        "sum_pct": [10.0, 20.0, 30.0, 40.0], "win_rate_calc": [100.0] * 4,
+        "avg_pct": [1.0] * 4, "payoff": [1.5] * 4,
+        "side": ["long"] * 4, "period": [14] * 4,
+        "thr": [10] * 4, "tp": [0.05] * 4, "sl": [0.0] * 4,
+        "hold": [24, 288, 24, 288],
+        "entry_mode": ["level", "level", "cross_back", "cross_back"],
+        "placebo": ["real"] * 4, "seed": [1] * 4,
+        "key": ["k1", "k2", "k3", "k4"]})
+    A2 = aggregate(P2)
+    if len(A2) != 4:
+        raise SystemExit(f"집계가 축을 뭉갰다 — 4칸인데 {len(A2)}행 "
+                         f"(entry_mode/hold 가 묶음 키에 없다)")
+    P3 = P2.assign(placebo=["real", "real", "rotate", "rotate"],
+                   seed=[1, 1, 7, 9], hold=288, entry_mode="level")
+    if len(aggregate(P3)) != 3:
+        raise SystemExit("씨앗이 뭉개졌다 — 최대통계량 귀무분포가 가짜가 된다")
+    log.info("✔ 집계 확인 — 위약·모드·보유·씨앗 전부 분리 · 총손익은 합계 · "
+             "구형 파일은 key 로 복원")
 
     # ⓖ 요율 **도달 증명** — 넘긴 값이 커널까지 가는지. 안 가면 조용히
     #    DEFAULT_FEE_RATE(한국 주식 1.5bp) 로 계산된다. 2026-08-19 실제 사고.
@@ -603,7 +631,10 @@ def main() -> int:
                         "한복판을 피한다")
     p.add_argument("--placebos", default="real",
                    help="real,rotate,random — 진입 대조군 축")
-    p.add_argument("--seed", type=int, default=20260816)
+    p.add_argument("--seed", default="20260816",
+                   help="위약 씨앗. 쉼표로 여러 개를 주면 **같은 격자를 씨앗마다** "
+                        "돈다 — 최대통계량 귀무분포용(교훈 #95). 칸별 위약은 "
+                        "이미 선택된 칸이라 통과한다")
     p.add_argument("--dump-trades", action="store_true",
                    help="거래별 손익을 실어 저장 (상위 절삭 검정용)")
     p.add_argument("--workers", type=int, default=6)
@@ -622,10 +653,11 @@ def main() -> int:
     placebos = [x.strip() for x in a.placebos.split(",")]
     placebos = ["" if x in ("real", "none", "") else x for x in placebos]
     modes = [m.strip() for m in a.entry_modes.split(",") if m.strip()]
+    seeds = [x.strip() for x in str(a.seed).split(",") if x.strip()]
     grid = [RsiConfig(side=s, period=int(pp), entry_threshold=float(t),
                       tp_pct=float(tp), sl_pct=float(sl),
                       max_hold_bars=int(hd),
-                      entry_mode=em, placebo=pl, placebo_seed=a.seed,
+                      entry_mode=em, placebo=pl, placebo_seed=int(sd),
                       eval_freq_minutes=TF_MIN[a.tf])
             for s in sides
             for pp in a.periods.split(",")
@@ -634,7 +666,9 @@ def main() -> int:
             for sl in a.sls.split(",")
             for hd in a.hold.split(",")
             for em in modes
-            for pl in placebos]
+            for pl in placebos
+            # 실측은 씨앗과 무관하므로 한 번만. 위약만 씨앗마다 돈다.
+            for sd in (seeds if pl else seeds[:1])]
     verify_reaches(grid[0])
     log.info("격자 %d칸", len(grid))
 
@@ -678,7 +712,7 @@ def main() -> int:
         r.update({"side": cfg.side, "period": cfg.period,
                   "thr": cfg.entry_threshold, "tp": cfg.tp_pct,
                   "sl": cfg.sl_pct, "hold": cfg.max_hold_bars,
-                  "entry_mode": cfg.entry_mode,
+                  "entry_mode": cfg.entry_mode, "seed": cfg.placebo_seed,
                   "placebo": cfg.placebo or "real", "key": cfg.key()})
         return r
 
