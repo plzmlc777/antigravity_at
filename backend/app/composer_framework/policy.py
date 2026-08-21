@@ -86,6 +86,23 @@ class PolicyContext:
     features: Mapping[str, Any] = field(default_factory=dict)
 
 
+def _bracket(price: float, pct: float, sign: int) -> float:
+    """브래킷 가격. **0 은 "없음" 이지 "진입가" 가 아니다.**
+
+    ⚠ 2026-08-21 실측 결함 — 손절 0%(=손절 없음)를 주면
+      `open_price * (1 - 0.0)` = **진입가**가 되고, 커널은 `sl_price > 0` 을
+      활성으로 읽어 **진입 봉에서 즉시 손절**한다. 실측: 손절 0 으로 돌린
+      4종목 96거래 중 89건이 정확히 -0.09995%(왕복 수수료)로 청산됐다.
+      커널은 0 을 비활성으로 다루는데 정책이 0 을 못 만들어 냈다.
+
+    이 정책들을 쓰는 모든 곳의 잠복 결함이었다 — 브래킷을 끄는 방법이
+    없었던 셈이다.
+    """
+    if pct <= 0:
+        return 0.0
+    return float(price) * (1.0 + sign * float(pct))
+
+
 class TradingPolicy(ABC):
     @abstractmethod
     def decide(self, ctx: PolicyContext) -> Action:
@@ -122,8 +139,8 @@ class LongOnlyThresholdPolicy(TradingPolicy):
             return Action.exit_("policy_no_short")
         if not c.in_position and not np.isnan(c.prediction):
             if c.prediction > self.entry_threshold:
-                sl = c.open_price * (1 - self.sl_pct)
-                tp = c.open_price * (1 + self.tp_pct)
+                sl = _bracket(c.open_price, self.sl_pct, -1)
+                tp = _bracket(c.open_price, self.tp_pct, +1)
                 return Action(kind="enter_long", sl_price=sl, tp_price=tp)
         return Action.hold()
 
@@ -153,14 +170,14 @@ class LongShortThresholdPolicy(TradingPolicy):
             if c.prediction > self.entry_threshold:
                 return Action(
                     kind="enter_long",
-                    sl_price=c.open_price * (1 - self.sl_pct),
-                    tp_price=c.open_price * (1 + self.tp_pct),
+                    sl_price=_bracket(c.open_price, self.sl_pct, -1),
+                    tp_price=_bracket(c.open_price, self.tp_pct, +1),
                 )
             if c.prediction < -self.entry_threshold:
                 return Action(
                     kind="enter_short",
-                    sl_price=c.open_price * (1 + self.sl_pct),
-                    tp_price=c.open_price * (1 - self.tp_pct),
+                    sl_price=_bracket(c.open_price, self.sl_pct, +1),
+                    tp_price=_bracket(c.open_price, self.tp_pct, -1),
                 )
         return Action.hold()
 
@@ -213,8 +230,9 @@ class LifecycleDecayEarlyExitPolicy(TradingPolicy):
             if c.prediction <= -self.entry_threshold:
                 return Action(
                     kind="enter_short",
-                    sl_price=c.open_price * (1 + self.sl_pct),
-                    tp_price=c.open_price * (1 - self.tp_pct) if self.tp_pct < 1.0 else 0.0,
+                    sl_price=_bracket(c.open_price, self.sl_pct, +1),
+                    tp_price=(_bracket(c.open_price, self.tp_pct, -1)
+                              if self.tp_pct < 1.0 else 0.0),
                 )
         return Action.hold()
 
@@ -257,14 +275,14 @@ class FundingReversalPolicy(TradingPolicy):
                 # exits via z-near-zero before any tp would matter)
                 return Action(
                     kind="enter_long",
-                    sl_price=c.open_price * (1 - self.sl_pct),
+                    sl_price=_bracket(c.open_price, self.sl_pct, -1),
                     tp_price=c.open_price * 100.0,
                 )
             if c.prediction < -self.entry_threshold:
                 # tp sentinel: 0 — short never triggers (low > 0 always)
                 return Action(
                     kind="enter_short",
-                    sl_price=c.open_price * (1 + self.sl_pct),
+                    sl_price=_bracket(c.open_price, self.sl_pct, +1),
                     tp_price=0.0,
                 )
         return Action.hold()

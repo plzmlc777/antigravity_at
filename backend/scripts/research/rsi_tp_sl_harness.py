@@ -75,8 +75,23 @@ class RsiConfig:
             raise SystemExit(f"side 는 long|short — {self.side!r}")
         if not (0.0 < self.entry_threshold < 100.0):
             raise SystemExit(f"문턱은 (0,100) — {self.entry_threshold!r}")
-        if self.tp_pct <= 0 or self.sl_pct <= 0:
-            raise SystemExit("익절·손절은 양수여야 한다")
+        if self.tp_pct <= 0:
+            raise SystemExit("익절은 양수여야 한다")
+        # ⚠ 손절 0 = **손절 없음**(커널이 `sl_price > 0` 으로 비활성 처리).
+        #   음수는 여전히 거부한다 — 오타를 조용히 통과시키면 안 된다.
+        #
+        #   왜 손절 없음을 검정하는가 (2026-08-21)
+        #   손절은 시장가로 나가고, 하필 급락 순간에 걸린다. 실측 슬리피지
+        #   중앙 0bp · 평균 104bp · 최대 6,964bp. 손절 폭을 0.3~5% 로
+        #   넓혀봐도 다섯 폭 전부 적자였다 — 넓히면 슬리피지 맞는 횟수는
+        #   줄지만(86%→34%) 엣지가 같이 사라진다.
+        #   보호용 손절을 **지정가로 거는 방법은 없다**. 시장가 아래 매도
+        #   지정가는 즉시 체결되고, 스톱-리밋은 급락 때 체결이 안 돼 손실이
+        #   무한대로 열린다. 슬리피지 위험을 미체결 위험으로 바꿀 뿐이다.
+        #   체결이 보장되는 지정가는 **익절**뿐이다. 그래서 손절을 빼고
+        #   익절 지정가 + 시간 청산만으로 돌려본다.
+        if self.sl_pct < 0:
+            raise SystemExit(f"손절은 0(없음) 또는 양수 — {self.sl_pct!r}")
 
     def pipeline_spec(self) -> dict:
         return {
