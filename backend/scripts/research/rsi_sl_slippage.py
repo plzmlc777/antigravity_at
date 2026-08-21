@@ -40,9 +40,14 @@ Q = text("SELECT ts, high, low, close FROM ohlcv_1m "
 
 
 def one(row) -> tuple[float, float] | None:
-    """(낙관 슬리피지 bp, 비관 슬리피지 bp). 양수 = 손해."""
-    sym, en, ex, entry_px, sl_pct = row
-    stop = entry_px * (1.0 - sl_pct)
+    """(낙관 슬리피지 bp, 비관 슬리피지 bp). 양수 = 손해.
+
+    ⚠ 손절가는 **원장의 `exit_price` 를 그대로 쓴다.** 커널이 손절로 청산할
+      때 체결가가 곧 손절가다. 이렇게 하면 손절 폭이 격자마다 달라도
+      (0.3% / 1% / 3% …) 같은 코드가 그대로 돈다. `--sl` 로 하나를 못 박으면
+      폭이 섞인 원장에서 전부 틀린다.
+    """
+    sym, en, ex, stop = row[:4]
     with engine.connect() as c:
         r = c.execute(Q, {"s": sym, "a": en, "b": ex}).fetchall()
     if not r:
@@ -59,11 +64,16 @@ def main() -> int:
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--trades", required=True)
-    p.add_argument("--sl", type=float, default=0.003, help="손절 폭(비율)")
+    p.add_argument("--sl", type=float, default=0.003,
+                   help="(미사용 — 손절가는 원장 exit_price 에서 읽는다)")
     p.add_argument("--sample", type=int, default=1500,
                    help="손절 거래 표본 수(전수는 DB 부담이 크다)")
     p.add_argument("--workers", type=int, default=4)
     p.add_argument("--seed", type=int, default=20260821)
+    p.add_argument("--out", default="",
+                   help="거래별 실측 슬리피지를 CSV 로 남긴다. 대표값(평균·중앙)은 "
+                        "분포를 못 담는다 — 중앙 25bp 인데 99분위가 2,843bp 다. "
+                        "꼬리가 진짜 위험이므로 **거래별로** 붙여 돌려야 한다")
     a = p.parse_args()
     logging.basicConfig(level=logging.INFO,
                         format="%(asctime)s [%(levelname)s] %(message)s")
@@ -76,14 +86,39 @@ def main() -> int:
         T = T.sample(a.sample, random_state=a.seed)
         log.info("표본 %s건 추출", f"{len(T):,}")
 
+    if "exit_price" not in T.columns:
+        raise SystemExit("원장에 exit_price 가 없다 — 손절가를 알 수 없다")
     rows = list(zip(T["symbol"], pd.to_datetime(T["entry_ts"]),
                     pd.to_datetime(T["exit_ts"]),
-                    T["entry_price"].astype(float),
-                    np.full(len(T), a.sl)))
+                    T["exit_price"].astype(float)))
+    widths = (1e4 * (1.0 - T["exit_price"].astype(float)
+                     / T["entry_price"].astype(float))).round(0)
+    log.info("원장의 손절 폭 분포(bp): %s",
+             dict(widths.value_counts().head(8).sort_index()))
+    raw = []
     with ThreadPoolExecutor(max_workers=a.workers) as ex:
-        out = [r for r in ex.map(one, rows) if r is not None]
+        # ⚠ 진행 로그가 없어 남은 시간을 못 알렸다(2026-08-21). N건마다 찍는다.
+        for i, r in enumerate(ex.map(one, rows), 1):
+            raw.append(r)
+            if i % 500 == 0:
+                log.info("[%s/%s건]", f"{i:,}", f"{len(rows):,}")
+    out = [r for r in raw if r is not None]
     if not out:
         raise SystemExit("측정 가능한 거래가 없다 — 1분봉 구간을 확인하라")
+
+    if a.out:
+        # 거래 식별자를 그대로 실어 원장과 붙일 수 있게 한다.
+        rec = pd.DataFrame({
+            "symbol": T["symbol"].to_numpy(),
+            "entry_ts": T["entry_ts"].to_numpy(),
+            "exit_ts": T["exit_ts"].to_numpy(),
+            "slip_opt_bp": [r[0] if r else np.nan for r in raw],
+            "slip_pes_bp": [r[1] if r else np.nan for r in raw],
+        })
+        rec.to_csv(a.out, index=False)
+        log.info("거래별 슬리피지 저장 %s (측정 %d / 미측정 %d)",
+                 a.out, int(rec["slip_pes_bp"].notna().sum()),
+                 int(rec["slip_pes_bp"].isna().sum()))
 
     opt = np.array([o for o, _ in out])
     pes = np.array([p for _, p in out])
@@ -94,9 +129,10 @@ def main() -> int:
         q = np.percentile(v, [50, 75, 90, 99])
         print(f"{lab:<10}{q[0]:>8.1f}{v.mean():>8.1f}{q[1]:>8.1f}"
               f"{q[2]:>8.1f}{q[3]:>9.1f}{v.max():>10.1f}   (bp)")
-    print(f"\n손절 폭 {1e4*a.sl:.0f}bp 대비 — 비관 중앙이 "
-          f"{100*np.median(pes)/(1e4*a.sl):.0f}%, 평균이 "
-          f"{100*pes.mean()/(1e4*a.sl):.0f}%")
+    w = float(widths.median())
+    if w > 0:
+        print(f"\n손절 폭 중앙 {w:.0f}bp 대비 — 비관 중앙이 "
+              f"{100*np.median(pes)/w:.0f}%, 평균이 {100*pes.mean()/w:.0f}%")
     print("※ 1분봉도 그 안의 체결 순서를 모른다. 상한·하한이지 실측이 아니다.")
     print("   진짜 실측은 페이퍼의 exit_slip_bp — 현재 표본 0건.")
     return 0

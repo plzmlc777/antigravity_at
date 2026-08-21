@@ -95,6 +95,17 @@ def main() -> int:
     p.add_argument("--seeds", type=int, default=40)
     p.add_argument("--placebo", default="real")
     p.add_argument("--tp-maker-bp", type=float, default=0.0)
+    p.add_argument("--slip-file", default="",
+                   help="rsi_sl_slippage --out 가 만든 거래별 실측 슬리피지. "
+                        "대표값 대신 **분포 그대로** 붙인다")
+    p.add_argument("--slip-mode", default="pes", choices=["opt", "pes", "mid"],
+                   help="낙관=1분 종가 / 비관=1분 저가 / 중간=둘의 평균. "
+                        "진짜 체결은 둘 사이에 있다")
+    p.add_argument("--slip-missing", default="impute",
+                   choices=["impute", "zero", "drop"],
+                   help="미측정 손절 거래(약 22%%) 처리. impute=측정 분포에서 "
+                        "무작위 추출(기본) / zero=슬리피지 0 으로 간주(낙관) / "
+                        "drop=거래 제외(생존 편향 주의)")
     p.add_argument("--sl-slip-bp", type=float, default=0.0,
                    help="손절 체결에 매길 슬리피지(bp). 하네스는 손절가에 "
                         "**정확히** 체결된다고 본다 — 30bp 스톱에서 이건 "
@@ -113,6 +124,46 @@ def main() -> int:
         issl = reason.eq("sl")
         T.loc[issl, "ret_pct"] -= a.sl_slip_bp / 100.0
         print(f"손절 {int(issl.sum()):,}건 -{a.sl_slip_bp:.1f}bp 슬리피지 부과")
+
+    if a.slip_file:
+        # ⚠ 대표값은 이 분포를 못 담는다 — 실측 중앙 24.9bp 인데 99분위가
+        #   3,282bp 다. 평균을 쓰면 과하고 중앙을 쓰면 꼬리를 지운다.
+        #   **거래별로 그대로** 붙인다.
+        S = pd.read_csv(a.slip_file)
+        col = {"opt": "slip_opt_bp", "pes": "slip_pes_bp"}.get(a.slip_mode)
+        if a.slip_mode == "mid":
+            S["slip_bp"] = S[["slip_opt_bp", "slip_pes_bp"]].mean(axis=1)
+        else:
+            S["slip_bp"] = S[col]
+        key = ["symbol", "entry_ts", "exit_ts"]
+        for k in key:
+            S[k] = S[k].astype(str)
+            T[k] = T[k].astype(str)
+        S = S.drop_duplicates(key)
+        T = T.merge(S[key + ["slip_bp"]], on=key, how="left")
+        issl = T["exit_reason"].astype(str).str.lower().eq("sl")
+        miss = issl & T["slip_bp"].isna()
+        pool = T.loc[issl & T["slip_bp"].notna(), "slip_bp"].to_numpy()
+        n_miss = int(miss.sum())
+        if n_miss and a.slip_missing == "impute":
+            if not len(pool):
+                raise SystemExit("측정된 슬리피지가 하나도 없어 대체 불가")
+            rng = np.random.default_rng(20260821)
+            T.loc[miss, "slip_bp"] = rng.choice(pool, size=n_miss, replace=True)
+        elif n_miss and a.slip_missing == "zero":
+            T.loc[miss, "slip_bp"] = 0.0
+        elif n_miss and a.slip_missing == "drop":
+            T = T[~miss].copy()
+            issl = T["exit_reason"].astype(str).str.lower().eq("sl")
+        T.loc[~issl, "slip_bp"] = 0.0
+        T["slip_bp"] = T["slip_bp"].fillna(0.0)
+        T["ret_pct"] = T["ret_pct"] - T["slip_bp"] / 100.0
+        sl_slip = T.loc[issl, "slip_bp"]
+        print(f"거래별 슬리피지 적용 — 방식 {a.slip_mode} · 미측정 {n_miss:,}건 "
+              f"{a.slip_missing}")
+        print(f"  손절 {len(sl_slip):,}건 슬리피지 중앙 {sl_slip.median():.1f}bp "
+              f"· 평균 {sl_slip.mean():.1f}bp · 90% "
+              f"{sl_slip.quantile(0.9):.1f}bp · 최대 {sl_slip.max():.0f}bp")
 
     # ⚠ pandas 2.x 는 CSV 시각을 **datetime64[us]** 로 읽는다. 그대로
     #   `.astype("int64")` 하면 마이크로초가 나오는데, 나노초 상수로 나누면
