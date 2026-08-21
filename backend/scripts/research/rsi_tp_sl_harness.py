@@ -57,6 +57,7 @@ class RsiConfig:
     tp_pct: float = 0.03
     sl_pct: float = 0.02
     max_hold_bars: int = 48      # 1h 봉 기준 2일
+    entry_mode: str = "level"    # level | cross_back (되돌아 나올 때 진입)
     placebo: str = ""            # "" | rotate | random  (진입 대조군)
     placebo_seed: int = 0
     signal_lag_bars: int = 1     # 정본 장부 규약 — 신호 봉의 **다음 봉 시가** 체결
@@ -99,6 +100,7 @@ class RsiConfig:
                          "kwargs": {"period": self.period,
                                     "entry_threshold": self.entry_threshold,
                                     "side": self.side,
+                                    "entry_mode": self.entry_mode,
                                     "placebo": self.placebo,
                                     "placebo_seed": self.placebo_seed}}],
             "composer": {"type": "passthrough",
@@ -113,7 +115,8 @@ class RsiConfig:
     def key(self) -> str:
         pl = self.placebo or "real"
         return (f"{self.side}_p{self.period}_t{self.entry_threshold:g}"
-                f"_tp{self.tp_pct:g}_sl{self.sl_pct:g}_h{self.max_hold_bars}_{pl}")
+                f"_tp{self.tp_pct:g}_sl{self.sl_pct:g}_h{self.max_hold_bars}"
+                f"_{self.entry_mode}_{pl}")
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -130,6 +133,8 @@ def verify_reaches(cfg: RsiConfig) -> None:
         bad.append(("side", src.side, cfg.side))
     if src.placebo != cfg.placebo:
         bad.append(("placebo", src.placebo, cfg.placebo))
+    if getattr(src, "entry_mode", None) != cfg.entry_mode:
+        bad.append(("entry_mode", getattr(src, "entry_mode", None), cfg.entry_mode))
     pol = pipe.policy
     for k, want in (("sl_pct", cfg.sl_pct), ("tp_pct", cfg.tp_pct),
                     ("max_hold_bars", cfg.max_hold_bars)):
@@ -254,6 +259,41 @@ def selftest() -> None:
     verify_reaches(RsiConfig(side="short", period=7, entry_threshold=25,
                              tp_pct=0.05, sl_pct=0.01, max_hold_bars=12))
     verify_reaches(RsiConfig(side="long", entry_threshold=20, placebo="rotate"))
+    verify_reaches(RsiConfig(side="long", entry_threshold=20,
+                             entry_mode="cross_back"))
+    # ⓖ 진입 모드 — level 은 구간 **안 모든 봉**, cross_back 은 **나오는 봉**.
+    #    같은 값이 나오면 모드가 도달하지 않은 것이다.
+    from app.composer_framework.sources.rsi_threshold_source import (
+        RsiThresholdSource)
+    from app.composer_framework.signal_source import SourceContext as _SC
+    _n = 400
+    _rng = np.random.default_rng(7)
+    _px = pd.Series(100 * np.exp(np.cumsum(_rng.normal(0, 0.01, _n))),
+                    index=pd.date_range("2025-01-01", periods=_n, freq="1h"))
+    _bars = pd.DataFrame({"open": _px, "high": _px * 1.001,
+                          "low": _px * 0.999, "close": _px, "volume": 1.0})
+    _ctx = _SC(symbol="T", eval_freq_minutes=60, ohlcv_eval=_bars)
+    _lv = RsiThresholdSource(period=14, entry_threshold=35, side="long",
+                             entry_mode="level").build_features(_ctx)
+    _cb = RsiThresholdSource(period=14, entry_threshold=35, side="long",
+                             entry_mode="cross_back").build_features(_ctx)
+    _nl = int((_lv.rsi_signal > 0).sum())
+    _nc = int((_cb.rsi_signal > 0).sum())
+    if _nl == 0 or _nc == 0:
+        raise SystemExit(f"모드 검사 표본 부족 — level {_nl} / cross_back {_nc}")
+    if _nc >= _nl:
+        raise SystemExit(f"cross_back 이 level 보다 적어야 한다 — {_nc} vs {_nl}")
+    # 발화 시점이 **겹치면 안 된다**: level 은 구간 안, cross_back 은 구간 밖
+    _both = int(((_lv.rsi_signal > 0) & (_cb.rsi_signal > 0)).sum())
+    if _both:
+        raise SystemExit(f"두 모드가 같은 봉에서 발화했다 — {_both}봉")
+    # cross_back 발화 봉의 **직전 봉**은 반드시 level 발화 봉이어야 한다
+    _prev_ok = ((_cb.rsi_signal > 0) &
+                (_lv.rsi_signal > 0).shift(1).fillna(False))
+    if int(_prev_ok.sum()) != _nc:
+        raise SystemExit("cross_back 발화 직전 봉이 구간 안이 아니다")
+    log.info("✔ 진입 모드 확인 — level %d봉 / cross_back %d봉 · 겹침 0 · "
+             "cross_back 은 항상 구간 직후", _nl, _nc)
     # ⓕ 집계가 **위약을 분리**하는지. 안 하면 실측 칸에 위약 행이 섞여
     #    모든 수치가 둘의 혼합이 된다 — 2026-08-19 이전 산출물의 결함이다.
     P = pd.DataFrame({
@@ -554,6 +594,10 @@ def main() -> int:
                    help="시간대. 보유상한(--hold)은 **봉 수**이니 같이 바꿔라")
     p.add_argument("--start", default="", help="구간 시작 YYYY-MM-DD (포함)")
     p.add_argument("--end", default="", help="구간 끝 YYYY-MM-DD (미포함)")
+    p.add_argument("--entry-modes", default="level",
+                   help="level | cross_back | 둘 다(쉼표). cross_back 은 과열 "
+                        "구간을 **되돌아 나오는 봉**에서만 진입한다 — 급락 "
+                        "한복판을 피한다")
     p.add_argument("--placebos", default="real",
                    help="real,rotate,random — 진입 대조군 축")
     p.add_argument("--seed", type=int, default=20260816)
@@ -574,15 +618,17 @@ def main() -> int:
     sides = ["long", "short"] if a.side == "both" else [a.side]
     placebos = [x.strip() for x in a.placebos.split(",")]
     placebos = ["" if x in ("real", "none", "") else x for x in placebos]
+    modes = [m.strip() for m in a.entry_modes.split(",") if m.strip()]
     grid = [RsiConfig(side=s, period=int(pp), entry_threshold=float(t),
                       tp_pct=float(tp), sl_pct=float(sl), max_hold_bars=a.hold,
-                      placebo=pl, placebo_seed=a.seed,
+                      entry_mode=em, placebo=pl, placebo_seed=a.seed,
                       eval_freq_minutes=TF_MIN[a.tf])
             for s in sides
             for pp in a.periods.split(",")
             for t in a.thresholds.split(",")
             for tp in a.tps.split(",")
             for sl in a.sls.split(",")
+            for em in modes
             for pl in placebos]
     verify_reaches(grid[0])
     log.info("격자 %d칸", len(grid))
@@ -619,6 +665,7 @@ def main() -> int:
         for tr in r.pop("_trades", []):
             tr.update({"key": cfg.key(), "side": cfg.side, "thr": cfg.entry_threshold,
                        "tp": cfg.tp_pct, "sl": cfg.sl_pct,
+                       "entry_mode": cfg.entry_mode,
                        "placebo": cfg.placebo or "real"})
             trade_rows.append(tr)
         # ⚠ placebo 를 빼면 아래 집계가 **실측과 위약을 한 그룹에 섞는다**.
@@ -626,6 +673,7 @@ def main() -> int:
         r.update({"side": cfg.side, "period": cfg.period,
                   "thr": cfg.entry_threshold, "tp": cfg.tp_pct,
                   "sl": cfg.sl_pct, "hold": cfg.max_hold_bars,
+                  "entry_mode": cfg.entry_mode,
                   "placebo": cfg.placebo or "real", "key": cfg.key()})
         return r
 

@@ -64,7 +64,7 @@ class RsiThresholdSource(SignalSource):
 
     def __init__(self, period: int = 14, entry_threshold: float = 30.0,
                  side: str = "long", placebo: str = "",
-                 placebo_seed: int = 0) -> None:
+                 placebo_seed: int = 0, entry_mode: str = "level") -> None:
         if side not in ("long", "short"):
             raise ValueError(f"side 는 long|short — 받은 값 {side!r}")
         if not (0.0 < entry_threshold < 100.0):
@@ -73,11 +73,24 @@ class RsiThresholdSource(SignalSource):
             raise ValueError(f"period 는 2 이상 — {period!r}")
         if placebo not in ("", "rotate", "random"):
             raise ValueError(f"placebo 는 ''|rotate|random — {placebo!r}")
+        # level      : 조건 안에 있는 **모든 봉**에서 발화(기존 동작)
+        # cross_back : 조건 밖으로 **되돌아 나오는 봉**에서만 발화
+        #
+        # ⚠ 왜 cross_back 이 필요한가 (2026-08-21)
+        #   level 은 떨어지는 내내 발화해서 **급락 한복판에 진입**한다.
+        #   실측: 손절 슬리피지 최악 15건 중 13건이 `2025-10-10 21:20`
+        #   한 시각이었다 — 그 분에 물려 있었기 때문이다.
+        #   되돌아 나올 때 사면 그 순간을 통째로 피한다.
+        #   대가는 진입가가 높아지는 것 — 거래당 익절 %는 그대로지만
+        #   **거기서 익절까지 갈 확률**이 달라진다. 그게 검정할 지점이다.
+        if entry_mode not in ("level", "cross_back"):
+            raise ValueError(f"entry_mode 는 level|cross_back — {entry_mode!r}")
         self.period = int(period)
         self.entry_threshold = float(entry_threshold)
         self.side = side
         self.placebo = placebo
         self.placebo_seed = int(placebo_seed)
+        self.entry_mode = entry_mode
 
     def _apply_placebo(self, sig: pd.Series) -> pd.Series:
         """진입 대조군.
@@ -129,15 +142,23 @@ class RsiThresholdSource(SignalSource):
                 f"(RSI {self.period} 워밍업)")
 
         rsi = wilder_rsi(df["close"], self.period)
+        # `inside` = 과열 구간 안에 있는가. 방향은 여기서만 갈린다.
         if self.side == "long":
-            hit = rsi <= self.entry_threshold
+            inside = (rsi <= self.entry_threshold).fillna(False)
             val = 1.0
         else:
-            hit = rsi >= (100.0 - self.entry_threshold)
+            inside = (rsi >= (100.0 - self.entry_threshold)).fillna(False)
             val = -1.0
 
+        if self.entry_mode == "level":
+            hit = inside
+        else:
+            # 되돌아 나오는 봉 — 직전 봉은 구간 안, 이번 봉은 구간 밖.
+            # t-1 과 t 만 본다(미래 없음). 체결은 커널이 t+1 시가에 한다.
+            hit = (~inside) & inside.shift(1).fillna(False)
+
         sig = pd.Series(0.0, index=df.index)
-        sig.loc[hit.fillna(False)] = val
+        sig.loc[hit] = val
         sig = self._apply_placebo(sig)
 
         eval_idx = pd.to_datetime(ctx.ohlcv_eval.index)

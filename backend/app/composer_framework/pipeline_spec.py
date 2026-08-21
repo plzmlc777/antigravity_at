@@ -295,14 +295,30 @@ def _build_bn_wick_reversal_multibar(kwargs: dict, runtime: dict) -> SignalSourc
 @register_source("rsi_threshold")
 def _build_rsi_threshold(kwargs: dict, runtime: dict) -> SignalSource:
     """⚠ 인자를 하나라도 버리면 격자를 돌려도 판정이 안 바뀐다 (교훈 #88).
-    세 인자 전부 넘기고, 하네스가 `spec_sink` 로 도달을 확인한다."""
+    전부 넘기고, 하네스가 `verify_reaches` 로 도달을 확인한다.
+
+    ⚠ 2026-08-21 재발 — `entry_mode` 를 소스에 추가했는데 **여기 목록에
+      안 넣어서** 도달하지 않았다. 인자를 하나하나 적는 구조라 새 인자를
+      추가할 때마다 이 자리를 잊는다. 주석까지 달려 있었는데도 잊었다.
+      그래서 이제 **모르는 인자가 오면 소리내어 죽는다** — 조용히 버리지
+      않는다. 하네스의 도달 검사가 두 번째 방어선이다.
+    """
     from .sources import RsiThresholdSource
+    known = {"period", "entry_threshold", "side", "placebo", "placebo_seed",
+             "entry_mode"}
+    unknown = set(kwargs) - known
+    if unknown:
+        raise KeyError(
+            f"rsi_threshold 가 모르는 인자 {sorted(unknown)} — 소스에 추가했다면 "
+            f"이 팩토리의 `known` 과 생성자 호출에도 넣어라. 조용히 버리면 "
+            f"격자를 돌려도 판정이 안 바뀐다(교훈 #88).")
     return RsiThresholdSource(
         period=int(kwargs.get("period", 14)),
         entry_threshold=float(kwargs.get("entry_threshold", 30.0)),
         side=str(kwargs.get("side", "long")),
         placebo=str(kwargs.get("placebo", "")),
         placebo_seed=int(kwargs.get("placebo_seed", 0)),
+        entry_mode=str(kwargs.get("entry_mode", "level")),
     )
 
 
