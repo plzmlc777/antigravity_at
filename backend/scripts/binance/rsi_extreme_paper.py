@@ -236,6 +236,11 @@ class PaperConfig:
     max_hold_bars: int = 48
     tf: str = "1h"
     entry_mode: str = "level"
+    # ⚠ 실거래는 **다른 폴더**를 써야 한다. 2026-08-22 드라이런에서 실거래
+    #   세션이 페이퍼 세션의 상태를 그대로 읽고 이어 쌓았다 — 그대로 뒀으면
+    #   진행 중인 페이퍼 전진 검정이 실거래 데이터로 오염됐다.
+    #   같은 날 아침 규약 구분을 넣으면서 **이 축을 빠뜨렸다.**
+    live: bool = False
     warmup_bars: int = 200
     # 세션 공용
     slots: int = 5
@@ -306,8 +311,9 @@ class PaperConfig:
                 n += "_cb"
             if x.sl_pct == 0:
                 n += "_nosl"
-            return n
-        return "combo_" + "_".join(x.key for x in self.sources)
+            return n + ("_LIVE" if self.live else "")
+        return ("combo_" + "_".join(x.key for x in self.sources)
+                + ("_LIVE" if self.live else ""))
 
 
 @dataclass
@@ -434,6 +440,10 @@ class RsiPaper:
         # 자기검사가 시세를 안 건드리고 체결 경로를 확인할 수 있도록 주입 가능
         self.price_fn = fetch_mark_price
         self.spec = {x.tf: x for x in cfg.sources}   # 시간대 → 규약
+        # 실거래 브로커. None 이면 전진 시뮬레이터(기존 동작) 그대로다.
+        # ⚠ 붙는 순간 **회계는 그대로 커널이** 하고, 브로커는 체결가만 바꾼다.
+        #   그래야 백테스트·페이퍼·실거래가 같은 장부를 쓴다.
+        self.broker = None
 
     # ── 한 사이클: 마감 봉 기준으로 청산 먼저, 그 다음 진입 ──────
     def step(self, bars_by_tf: dict, closed: set | None = None) -> dict:
@@ -449,6 +459,29 @@ class RsiPaper:
         cyc = {"ts": datetime.now(timezone.utc).isoformat(),
                "closed_tf": sorted(closed),
                "signals": [], "fills": [], "exits": []}
+
+        # ①-0 실거래: **익절은 거래소가 채운다.** 봉으로 판정하지 않고
+        #      포지션 대조로 알아챈다 — 우리가 "닿았다"고 보는 것과 실제
+        #      체결은 다르다. 채워진 건 여기서 장부를 닫는다.
+        if self.broker is not None and self.pos:
+            for sym, tp_px in self.broker.detect_tp_fills(set(self.pos)).items():
+                p = self.pos.get(sym)
+                if p is None:
+                    continue
+                px = tp_px if tp_px > 0 else (self.price_fn(sym) or p.entry_price)
+                _, tr = kernel_close(p.to_kernel(), px, cyc["ts"], "tp", KCFG,
+                                     exit_maker=(tp_px > 0))
+                self.equity += tr.pnl_cash
+                cyc["exits"].append({
+                    "symbol": sym, "reason": "tp", "exit_price": px,
+                    "entry_price": p.entry_price, "entry_ts": p.entry_ts,
+                    "bars_held": p.bars_held, "ret_pct": 100 * tr.return_pct,
+                    "pnl_usd": tr.pnl_cash, "signal_rsi": p.signal_rsi,
+                    "src": p.src, "slip_bp": p.slip_bp,
+                    "ref_exit_price": tp_px, "exit_slip_bp": 0.0})
+                log.info("%s 익절 체결(거래소) — %.8g · %+.2f%% · $%+.2f",
+                         sym, px, 100 * tr.return_pct, tr.pnl_cash)
+                del self.pos[sym]
 
         # ① 청산 — 보유분부터. 슬롯을 먼저 비워야 그 자리에 새로 들어간다
         for sym in list(self.pos):
@@ -476,8 +509,21 @@ class RsiPaper:
                 #   미끄러지고, 이 세션은 봉 마감 뒤에야 알아채니 더 미끄러진다.
                 #   정본값(ref)과 실제값을 **둘 다** 남겨야 그 대가를 잰다.
                 #   손절 비중이 80%를 넘는 설정에서는 이 한 숫자가 판정을 가른다.
+                if self.broker is not None and reason == "tp":
+                    # 실거래에서 익절은 **위 ①-0 이 거래소 대조로** 닫는다.
+                    # 봉이 닿았다고 여기서 닫으면 거래소엔 포지션이 남아
+                    # 장부가 갈린다 — 다음 사이클로 넘긴다.
+                    continue
                 if reason == "tp":
                     px, slip = ref, 0.0
+                elif self.broker is not None:
+                    # 시간만료·손절 — 익절 지정가를 걷고 시장가로 나간다.
+                    got = self.broker.close_long(sym)
+                    if got is None:
+                        log.error("%s 실거래 청산 실패 — 포지션을 남긴다", sym)
+                        continue
+                    px = got
+                    slip = 1e4 * (1.0 - px / ref) if ref else 0.0
                 else:
                     now = self.price_fn(sym)
                     px = now if (now and now > 0) else ref
@@ -601,6 +647,15 @@ class RsiPaper:
             # 진입 회계도 커널이 한다. 체결가는 우리가 실측한 현재가를
             # MarketOpenFill 로 그대로 넘긴다(바 네 값을 같은 값으로 준다).
             ts_now = datetime.now(timezone.utc).isoformat()
+            if self.broker is not None:
+                # 실거래 — 체결가·수량을 **거래소 응답에서** 받는다.
+                # 실패는 정상 흐름이다(최소 명목 미달·유동성). 조용히 넘긴다.
+                got = self.broker.open_long(c["symbol"], px)
+                if not got:
+                    self.n_pricefail += 1
+                    continue
+                px = float(got["price"])
+                slip = 1e4 * (px / ref - 1.0) if ref > 0 else 0.0
             # ⚠ 손절 0 은 **없음**이다. `px * (1 - 0)` 을 넘기면 진입가가 되고
             #   커널이 활성으로 읽어 **진입 즉시 손절**한다(2026-08-21 정본 결함
             #   과 같은 자리). 0 을 명시적으로 만든다.
@@ -616,7 +671,22 @@ class RsiPaper:
                      close_price=px), ts_now, act, KCFG)
             if st.side != "long" or st.qty <= 0:
                 self.n_pricefail += 1
+                if self.broker is not None:
+                    # 거래소엔 이미 들어갔는데 장부가 안 열리면 **고아**가 된다.
+                    log.error("%s 커널 진입 실패 — 거래소 포지션을 되돌린다",
+                              c["symbol"])
+                    self.broker.close_long(c["symbol"])
                 continue
+            if self.broker is not None:
+                # 진입 **직후** 익절 지정가를 호가에 얹는다. 이 전략의 엣지가
+                # 여기 달려 있다 — 늦으면 그 사이 익절가를 지나칠 수 있다.
+                tp_px = px * (1 + spec.tp_pct)
+                if not self.broker.arm_take_profit(
+                        c["symbol"], float(got["quantity"]), tp_px):
+                    log.error("%s 익절 지정가 실패 — 진입을 되돌린다", c["symbol"])
+                    self.broker.close_long(c["symbol"])
+                    self.n_pricefail += 1
+                    continue
             p = Position(
                 symbol=c["symbol"], entry_ts=ts_now, entry_price=st.entry_price,
                 tp_price=st.tp_price, sl_price=st.sl_price,
@@ -1008,7 +1078,14 @@ def selftest() -> None:
         raise SystemExit(f"기존 세션 이름이 바뀌었다 — {_old} (포지션 고아 위험)")
     if _new == _old:
         raise SystemExit(f"규약이 다른데 세션 이름이 같다 — {_new}")
-    log.info("✔ 세션 이름 확인 — 기존 %s · 새 규약 %s (분리됨)", _old, _new)
+    _lv = PaperConfig(tf="5m", entry_rsi=10, tp_pct=0.05, sl_pct=0.0,
+                      max_hold_bars=288, entry_mode="cross_back",
+                      live=True).session_name
+    if _lv == _new:
+        raise SystemExit(f"실거래와 페이퍼 세션 이름이 같다 — {_lv} "
+                         f"(페이퍼 전진 검정이 오염된다)")
+    log.info("✔ 세션 이름 확인 — 기존 %s · 새 규약 %s · 실거래 %s (전부 분리)",
+             _old, _new, _lv)
 
     log.info("✔ 자기검사 통과 — 신호 %d · 체결 %d · 미체결 %d",
              pp.n_signal, pp.n_fill, pp.n_skip)
@@ -1042,6 +1119,12 @@ def main() -> int:
     p.add_argument("--feed", default="rest", choices=["rest", "ws"],
                    help="시세 공급원. ws = 체결 웹소켓 (REST weight 0)")
     p.add_argument("--once", action="store_true", help="한 사이클만 (점검용)")
+    p.add_argument("--live", action="store_true",
+                   help="⚠ **실거래**. 거래소에 실제 주문을 낸다. --account 필수")
+    p.add_argument("--account", type=int, default=0,
+                   help="exchange_accounts.id (실거래 계좌)")
+    p.add_argument("--dry-run", action="store_true",
+                   help="--live 와 함께 — 주문 대신 로그만 남긴다")
     p.add_argument("--selftest", action="store_true")
     a = p.parse_args()
 
@@ -1062,13 +1145,14 @@ def main() -> int:
                                     entry_mode=(f[5] if len(f) == 6 else "level")))
         cfg = PaperConfig(slots=a.slots, notional_usd=a.notional,
                           sources=specs, cycle_offset_s=a.offset,
-                          fetch_workers=a.workers, feed_mode=a.feed)
+                          fetch_workers=a.workers, feed_mode=a.feed,
+                          live=bool(a.live))
     else:
         cfg = PaperConfig(slots=a.slots, entry_rsi=a.entry_rsi, tf=a.tf,
                           max_hold_bars=a.hold_bars, entry_mode=a.entry_mode,
                           tp_pct=a.tp, sl_pct=a.sl, notional_usd=a.notional,
                           cycle_offset_s=a.offset, fetch_workers=a.workers,
-                          feed_mode=a.feed)
+                          feed_mode=a.feed, live=bool(a.live))
     syms = [s.strip().upper() for s in Path(a.universe).read_text().split()
             if s.strip()]
     log.info("유니버스 %d종목 · 슬롯 %d **공유** · 슬롯당 $%.0f · 세션 %s",
@@ -1079,6 +1163,32 @@ def main() -> int:
                  x.max_hold_bars)
     pp = RsiPaper(cfg, syms, OUT_DIR / cfg.session_name)
     pp.load_state()
+
+    if a.live:
+        # ⚠ 여기부터 **실제 돈**이다.
+        if not a.account:
+            raise SystemExit("--live 에는 --account 가 필요하다")
+        from scripts.binance.rsi_live_broker import LiveBroker
+        pp.broker = LiveBroker(account_id=a.account,
+                               notional_usd=cfg.notional_usd,
+                               dry_run=a.dry_run)
+        pp.broker.connect()
+        # 재시작 대조 — 거래소가 진실이다. 우리 장부에 없는 포지션은 손대지
+        # 않고 **드러내기만** 한다(수동 개입일 수 있다).
+        onx = pp.broker.reconcile()
+        for sym in onx:
+            if sym not in pp.pos:
+                log.warning("거래소에 %s 포지션이 있는데 우리 장부엔 없다 "
+                            "— 이 세션은 건드리지 않는다", sym)
+        for sym in list(pp.pos):
+            if sym not in onx:
+                log.warning("장부엔 %s 가 있는데 거래소엔 없다 — 장부에서 뺀다",
+                            sym)
+                del pp.pos[sym]
+        log.warning("*** 실거래 모드 *** 계좌 %s · 슬롯 %d × $%.1f = $%.0f%s",
+                    a.account, cfg.slots, cfg.notional_usd,
+                    cfg.slots * cfg.notional_usd,
+                    " · DRY-RUN" if a.dry_run else "")
 
     feed = None
     if cfg.feed_mode == "ws":
