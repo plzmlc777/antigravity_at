@@ -266,14 +266,38 @@ class BinanceBaseAdapter:
         return adjust_qty(quantity, exchange_name=exchange_name, price=price, symbol_filters=filters)
 
     def adjust_price(self, symbol: str, price: float) -> float:
-        """Round price to symbol's tickSize precision."""
+        """호가단위(tickSize)에 맞춘 가격.
+
+        ⚠ 2026-08-22 실계좌에서 드러난 결함 — 이 함수가 **0.0 을 반환**했다.
+            tick_size = float("0.000010")  → 1e-05
+            str(1e-05) == '1e-05'          → **점이 없다**
+            그래서 `'.' in str(tick_size)` 가 False 가 되어 decimals=0,
+            `round(0.09618, 0)` = **0.0**. 거래소는 -4001 "Price less than 0"
+            으로 거절한다.
+
+          **틱이 0.0001 보다 작은 모든 종목**(저가 알트 대부분)에서 지정가
+          주문이 전부 막혀 있었다. 드러나지 않은 건 실거래가 시장가·조건부
+          주문만 썼기 때문이다 — 익절 지정가를 처음 쓰면서 발견했다.
+
+          `app/core/qty_rules._count_decimals` 가 이 함정을 이미 대응하고
+          있었다(주석에 `str(0.00001) → '1e-05'` 라고 적혀 있다). 자체
+          구현 대신 그걸 쓴다 — 같은 계산이 두 곳에 있으면 한 곳만 틀린다.
+        """
+        from app.core.qty_rules import _count_decimals
         precision = self.get_symbol_precision(symbol)
         tick_size = float(precision.get("tickSize", "0.01"))
-        if tick_size <= 0:
+        if tick_size <= 0 or price <= 0:
             return price
-        adjusted = round(price / tick_size) * tick_size
-        decimals = max(0, len(str(tick_size).rstrip('0').split('.')[-1])) if '.' in str(tick_size) else 0
-        return round(adjusted, decimals)
+        dec = _count_decimals(tick_size)
+        adjusted = round(round(price / tick_size) * tick_size, dec)
+        # ⚠ 양수 가격이 **0 으로 내려가면 안 된다.** 0 은 이 저장소에서
+        #   "시장가" 신호로 읽힌다(`_place_order` 의 `if price > 0`). 지정가로
+        #   내려던 주문이 조용히 시장가가 되면 슬리피지 전제가 통째로 깨진다.
+        #   틱보다 작은 가격은 **한 틱으로 올린다** — 거래소가 거절하게 두는
+        #   편이 조용히 시장가로 나가는 것보다 낫다.
+        if adjusted <= 0:
+            adjusted = round(tick_size, dec)
+        return adjusted
 
     # ── Listener Pattern (same as Kiwoom adapter) ──
 

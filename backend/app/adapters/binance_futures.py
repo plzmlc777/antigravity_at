@@ -131,6 +131,52 @@ class BinanceFuturesAdapter(BinanceBaseAdapter, FuturesInterface):
         """Place a sell order (close long or take profit)."""
         return await self._place_order(symbol, "SELL", price, quantity)
 
+    async def place_reduce_only_limit(self, symbol: str, side: str,
+                                      price: float, quantity: float
+                                      ) -> Dict[str, Any]:
+        """**호가에 얹어 두는** 지정가 청산 주문. 익절 전용.
+
+        왜 따로 두는가 (2026-08-22)
+            RSI 전략의 엣지는 **익절이 지정가로 채워지는 것**에 달려 있다.
+            백테스트가 익절가 정확 체결 · 메이커 2bp · 슬리피지 0 을 전제한다.
+            조건부 주문(`place_algo_stop`)은 트리거 후 **시장가**라 테이커에
+            슬리피지가 붙어 전제가 깨진다. 그래서 평범한 LIMIT GTC 를 미리
+            얹어 둔다 — 가격에 닿으면 우리가 메이커다.
+
+        ⚠ `reduceOnly` 는 **필수**다. 없으면 포지션이 이미 닫힌 뒤 남은
+          지정가가 **반대 포지션을 새로 연다**. 거래소가 막아주는 유일한 장치다.
+
+        ⚠ 체결 확인을 하지 않는다. 이 주문은 **안 채워지는 게 정상**이다.
+          `_place_order` 는 즉시 체결을 전제해 avgPrice=0 이면 오류를 찍는다.
+        """
+        await self._ensure_time_sync()
+        await self._ensure_exchange_info()
+        adj_qty = self.adjust_quantity(symbol, quantity, price=price)
+        if adj_qty <= 0:
+            return {"status": "failed",
+                    "message": f"수량이 최소단위 미만 — {quantity} → {adj_qty}"}
+        params = {
+            "symbol": symbol,
+            "side": side,
+            "type": "LIMIT",
+            "timeInForce": "GTC",
+            "price": str(self.adjust_price(symbol, price)),
+            "quantity": str(adj_qty),
+            "reduceOnly": "true",
+            "newOrderRespType": "RESULT",
+        }
+        try:
+            r = await self._signed_post(f"{FAPI}/order", params)
+            logger.info("%s 익절 지정가 등록 — %s %s @ %s (id=%s)",
+                        symbol, side, adj_qty, params["price"], r.get("orderId"))
+            return {"status": "success", "order_id": str(r.get("orderId", "")),
+                    "symbol": symbol, "side": side.lower(),
+                    "price": float(params["price"]), "quantity": adj_qty,
+                    "order_status": r.get("status", "NEW")}
+        except Exception as e:
+            logger.error("%s 익절 지정가 등록 실패: %s", symbol, e)
+            return {"status": "failed", "message": str(e)}
+
     async def get_outstanding_orders(self) -> list:
         """Get open futures orders."""
         await self._ensure_time_sync()
