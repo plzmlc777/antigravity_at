@@ -3,10 +3,14 @@
 셋 다 정본 커널로 회계하지만 체결가를 정하는 주체가 다르다. 그 차이가
 이 트랙의 측정 대상이다.
 
-    진입 체결가   백테 다음 봉 시가 / 페이퍼 봉마감 직후 현재가 / 실거래 거래소
-    익절 체결     백테·페이퍼 익절가 정확 / 실거래 **거래소 지정가**
-    시간 청산     백테 봉 종가 / 페이퍼 현재가 / 실거래 거래소 시장가
-    슬리피지      백테 0(사후추정) / 페이퍼 진입만 / 실거래 **전부 실측**
+    진입 체결가   백테·그림자 봉 종가(정본) / 실거래 거래소 체결가
+    익절 체결     백테·그림자 익절가 정확   / 실거래 **거래소 지정가**
+    시간 청산     백테·그림자 봉 종가       / 실거래 거래소 시장가
+    슬리피지      백테 0(사후추정)·그림자 0 / 실거래 **전부 실측**
+
+**그림자**는 1군과 **같은 후보**를 받아쓰고 체결만 정본대로 한다. 그래서
+`그림자 − 실거래` 가 곧 **체결 비용**이다 — 주문 거절 · 익절 지정가 미체결 ·
+슬롯 포화로 1군이 놓친 몫. 페이퍼(독립 신호)와는 다른 물건이다.
 
 ⚠ 연율로 환산하지 마라. 실거래 표본이 백테스트 3,439건에 한참 못 미치는
    동안은 어떤 차이도 잡음이다. **같은 거래 수**에서 자른 뒤 비교한다.
@@ -30,7 +34,7 @@ import pandas as pd
 BT_TRADES = "runs/research_track/rsi_tp_sl/cbtrades_sl0_cross_back.csv"
 BT_SLIP = "runs/research_track/rsi_tp_sl/cbslip_sl0_cross_back.csv"
 SESS = Path("runs/paper_sessions/rsi_extreme")
-PAPER = "5m_rsi10_cb_nosl"
+SHADOW = "5m_rsi10_cb_nosl_SHADOW"
 LIVE = "5m_rsi10_cb_nosl_LIVE"
 
 
@@ -193,7 +197,7 @@ def main() -> int:
     out["백테스트"]["구간"] = "2025-08-17~2026-08-17"
 
     # ── 페이퍼 · 실거래 ──
-    for label, name in (("페이퍼", PAPER), ("실거래", LIVE)):
+    for label, name in (("그림자", SHADOW), ("실거래", LIVE)):
         exits, st = _load_session(name)
         rr = np.array([float(e.get("ret_pct", 0)) for e in exits])
         if a.cap:
@@ -215,7 +219,7 @@ def main() -> int:
     print(f"{'':<8}{'실현':>11}{'경과':>9}{'주간':>11}{'월간':>11}{'연간':>11}"
           f"{'표본':>7}   비고")
     for label, info in (("백테스트", _bt_period()),
-                        ("페이퍼", _sess_period(PAPER)),
+                        ("그림자", _sess_period(SHADOW)),
                         ("실거래", _sess_period(LIVE))):
         if not info:
             print(f"{label:<8}{'—':>11}{'—':>9}{'—':>11}{'—':>11}{'—':>11}"
@@ -249,6 +253,11 @@ def main() -> int:
         print(f"  같은 수로 비교하려면 --cap {n_live}")
     print("\n기준선(백테스트) — 수익종목 73.2% · 익절비중 39.4% · "
           "청산slip 8.6bp · 포착률 74.3%")
+    g = out.get("그림자", {}).get("총손익%p")
+    l = out.get("실거래", {}).get("총손익%p")
+    if g and l is not None:
+        print(f"체결 비용 = 그림자 − 실거래 = {g:,.2f} − {l:,.2f} = "
+              f"{g - l:+,.2f}%p   (1군이 놓친 몫)")
     return 0
 
 
