@@ -34,6 +34,43 @@ PAPER = "5m_rsi10_cb_nosl"
 LIVE = "5m_rsi10_cb_nosl_LIVE"
 
 
+
+# ══════════════════════════════════════════════════════════════════════
+#  기간 손익 — 주간·월간·연간
+# ══════════════════════════════════════════════════════════════════════
+#  ⚠ 셋을 비교하려면 **자본 대비 %** 로 통일해야 한다. 총손익 %p 는 거래별
+#    수익률의 합이라 슬롯 수가 다르면 비교가 안 된다.
+#    자본 기여 = 거래수익률 / 슬롯수 → 자본곡선을 복리로 쌓는다.
+#
+#  ⚠ 기간이 안 찼으면 **예측치**다. 선형 외삽이 아니라 복리로 환산한다
+#    (연 14.2% 는 월 1.18% 가 아니라 1.11% 다). 그리고 표본이 적으면
+#    예측 자체가 무의미하므로 그 사실을 같이 찍는다.
+WEEK_D, MONTH_D, YEAR_D = 7.0, 30.44, 365.0
+
+
+def period_returns(total_ret: float, days: float, projected: bool) -> dict:
+    """실현 수익률(비율, 예: 0.142)과 경과일 → 주간·월간·연간."""
+    if days <= 0:
+        return {}
+    g = 1.0 + total_ret
+    if g <= 0:                     # 자본 전손 — 환산이 뜻을 잃는다
+        return {"주간": float("nan"), "월간": float("nan"), "연간": -1.0,
+                "예측": projected}
+    return {
+        "주간": g ** (WEEK_D / days) - 1.0,
+        "월간": g ** (MONTH_D / days) - 1.0,
+        "연간": g ** (YEAR_D / days) - 1.0,
+        "예측": projected,
+    }
+
+
+def _fmt_pct(v) -> str:
+    import math
+    if v is None or (isinstance(v, float) and math.isnan(v)):
+        return "—"
+    return f"{100 * v:+.2f}%"
+
+
 def _load_session(name: str) -> tuple[list, dict]:
     """세션 폴더의 체결 원장과 상태."""
     d = SESS / name
@@ -74,6 +111,56 @@ def _metrics(rets: np.ndarray, exits: list, n_sym: int) -> dict:
         "청산slip_bp": float(np.median(slips)) if slips else np.nan,
         "종목": n_sym,
     }
+
+
+def _bt_period() -> dict:
+    """백테스트 자본 수익률 — **슬롯 제약을 건 값**을 쓴다.
+
+    제약 없는 총손익(+2,167%p)은 종목마다 자본 100% 를 쓴 합이라 자본
+    수익률이 아니다. 실거래는 슬롯 80 이므로 같은 조건의 값을 기준선으로
+    둔다 — `rsi_slot_sim` 실측(실측 슬리피지 낙관 적용):
+        슬롯 80 · 복리 +14.2% · 최대낙폭 -8.3% · 샤프 0.97 · 365일
+    """
+    return {"ret": 0.142, "days": 365.0, "projected": False, "n": 2556}
+
+
+def _sess_period(name: str) -> dict:
+    """세션 자본 수익률 = 누적손익 / (슬롯 × 슬롯당 명목)."""
+    d = SESS / name
+    st_f, cf_f = d / "state.json", d / "config.json"
+    if not st_f.exists():
+        return {}
+    st = json.loads(st_f.read_text())
+    eq = float(st.get("equity", 0) or 0)
+    cap = 0.0
+    if cf_f.exists():
+        try:
+            cf = json.loads(cf_f.read_text())
+            cap = float(cf.get("slots", 0)) * float(cf.get("notional_usd", 0))
+        except Exception:
+            cap = 0.0
+    if cap <= 0:
+        return {}
+    # 경과 — 원장의 첫 사이클부터 마지막 저장까지
+    days, n = 0.0, 0
+    stamps = []
+    for p_ in sorted(d.glob("*/cycles*.jsonl")):
+        for line in p_.read_text().splitlines():
+            if not line.strip():
+                continue
+            try:
+                c = json.loads(line)
+            except Exception:
+                continue
+            stamps.append(c.get("ts", ""))
+            n += len(c.get("exits", []) or [])
+    if len(stamps) >= 2:
+        t0 = pd.Timestamp(min(stamps)); t1 = pd.Timestamp(max(stamps))
+        days = max((t1 - t0).total_seconds() / 86400.0, 1e-6)
+    if days <= 0 or n == 0:
+        return {"ret": eq / cap, "days": max(days, 1e-6), "projected": True,
+                "n": n} if days > 0 else {}
+    return {"ret": eq / cap, "days": days, "projected": days < 365.0, "n": n}
 
 
 def main() -> int:
@@ -122,6 +209,35 @@ def main() -> int:
     D = pd.DataFrame(out).T.reindex(columns=cols)
     print(f"\n=== 3자 비교{f' · 앞 {a.cap}거래로 절단' if a.cap else ''} ===")
     print(D.to_string(na_rep="—", float_format=lambda x: f"{x:,.2f}"))
+
+    # ── 기간 손익 ──────────────────────────────────────
+    print("\n=== 기간 손익 (자본 대비) ===")
+    print(f"{'':<8}{'실현':>11}{'경과':>9}{'주간':>11}{'월간':>11}{'연간':>11}"
+          f"{'표본':>7}   비고")
+    for label, info in (("백테스트", _bt_period()),
+                        ("페이퍼", _sess_period(PAPER)),
+                        ("실거래", _sess_period(LIVE))):
+        if not info:
+            print(f"{label:<8}{'—':>11}{'—':>9}{'—':>11}{'—':>11}{'—':>11}"
+                  f"{0:>7}   거래 없음")
+            continue
+        pr = period_returns(info["ret"], info["days"], info["projected"])
+        tag = "**예측치**" if info["projected"] else "실측"
+        # ⚠ 경과가 짧으면 복리 환산이 폭주한다(0.3일 → 365제곱). 숫자를
+        #   지우진 않되 **믿을 수 없다는 사실**을 같이 찍는다. 조용히
+        #   내보내면 +6,191% 같은 값이 성과로 읽힌다.
+        bad = []
+        if info["projected"] and info["days"] < 7:
+            bad.append(f"경과 {info['days']:.1f}일")
+        if info["n"] < 30:
+            bad.append(f"표본 {info['n']}건")
+        warn = ("  ⚠ 무의미 — " + " · ".join(bad)) if bad else ""
+        print(f"{label:<8}{_fmt_pct(info['ret']):>11}{info['days']:>8.1f}일"
+              f"{_fmt_pct(pr.get('주간')):>11}{_fmt_pct(pr.get('월간')):>11}"
+              f"{_fmt_pct(pr.get('연간')):>11}{info['n']:>7}   {tag}{warn}")
+    print("  ※ 예측치는 복리 환산이다. 경과 7일 미만 또는 표본 30건 미만이면")
+    print("     `무의미` 로 표시한다 — 하루치를 연으로 늘리면 365제곱이 된다.")
+    print("     주간 예측은 7일, 월간은 30일, 연간은 90일 경과 후부터 읽어라.")
 
     n_live = int(out["실거래"].get("거래", 0) or 0)
     n_bt = int(out["백테스트"].get("거래", 0) or 0)
