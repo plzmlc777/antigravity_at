@@ -155,16 +155,36 @@ class LongShortThresholdPolicy(TradingPolicy):
         sl_pct: float = 0.04,
         tp_pct: float = 0.10,
         max_hold_bars: int = 5,
+        exit_rsi_below: float = 0.0,
+        rsi_feature: str = "rsi_value",
     ) -> None:
         self.entry_threshold = float(entry_threshold)
         self.sl_pct = float(sl_pct)
         self.tp_pct = float(tp_pct)
         self.max_hold_bars = int(max_hold_bars)
+        # ⚠ **RSI 기반 청산** (2026-08-22 대표님 제안)
+        #   `cross_back` 으로 진입한 뒤 RSI 가 다시 문턱 아래로 떨어지면
+        #   되돌림이 무산된 것이므로 나간다.
+        #
+        #   왜 가격 손절과 다른가 — 가격 손절은 **급락이 발동시키는** 주문이라
+        #   마찰 꼬리에 조건부로 노출된다(실측 평균 104bp · 최대 6,964bp).
+        #   RSI 청산은 **봉 마감에 판정**하므로 시간 청산과 같은 성질이다
+        #   (실측 평균 8.6bp). 같은 시장가라도 **언제 나가느냐**가 비용을 정한다.
+        #
+        #   0 이면 비활성 — 기존 동작 그대로다.
+        self.exit_rsi_below = float(exit_rsi_below)
+        self.rsi_feature = str(rsi_feature)
 
     def decide(self, c: PolicyContext) -> Action:
         if c.in_position:
             if c.bars_held >= self.max_hold_bars:
                 return Action.exit_("time")
+            if self.exit_rsi_below > 0:
+                v = (c.features or {}).get(self.rsi_feature)
+                # NaN 은 판정하지 않는다 — 워밍업 구간에서 조용히 청산되면
+                # 보유상한 검사가 무의미해진다
+                if v is not None and v == v and float(v) <= self.exit_rsi_below:
+                    return Action.exit_("rsi")
             return Action.hold()
         if not np.isnan(c.prediction):
             if c.prediction > self.entry_threshold:

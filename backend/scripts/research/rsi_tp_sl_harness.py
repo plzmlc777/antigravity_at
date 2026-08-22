@@ -51,13 +51,34 @@ OUT_DIR = ROOT / "runs" / "research_track" / "rsi_tp_sl"
 # ══════════════════════════════════════════════════════════════════════
 @dataclass
 class RsiConfig:
+    # ⚠ 신호원 축 (2026-08-22 추가)
+    #   `rsi`  — RSI 문턱 (기존)
+    #   `band` — 볼린저 밴드 극단. 중복도 검사에서 RSI 와 가장 안 겹친 지표
+    #            (자카드 0.170 · 눈금 0.835/0.676 대비 한참 아래).
+    #   손익 커널은 **하나**를 그대로 쓴다 — 신호원만 갈아끼운다. 새 백테스터를
+    #   만드는 순간 손익 구현체가 또 갈라진다(이 저장소 6개 중 4개가 그렇게
+    #   오염됐다).
+    #   `volcap` — 거래량 항복. 중복도 검사에서 **유일하게 어느 지표와도
+    #            안 뭉친 축**(최대 0.337). 파라미터가 둘이라 축이 하나 늘어난다
+    #            — `entry_threshold`=거래량 z, `ret_threshold`=수익률 문턱.
+    signal: str = "rsi"
     side: str = "long"           # long = 과매도 진입 / short = 과매수 진입
     period: int = 14
-    entry_threshold: float = 30.0   # 롱이면 RSI<=이 값, 숏이면 RSI>=100-이 값
+    entry_threshold: float = 30.0   # rsi: RSI 문턱 / band: sigma / volcap: 거래량 z
+    # ⚠ volcap 전용 축. 다른 신호원에서는 쓰이지 않지만 **key·집계에는 항상**
+    #   들어간다 — 축을 빠뜨리면 그 축이 통째로 뭉개진다(이 파일에서 두 번 났다).
+    ret_threshold: float = -0.03
+    ret_bars: int = 5
+    # volcap 전용. 방아쇠(side)와 **포지션**을 가른다.
+    #   reversion = 급락에 매수 / continuation = 급락에 매도
+    direction: str = "reversion"
     tp_pct: float = 0.03
     sl_pct: float = 0.02
     max_hold_bars: int = 48      # 1h 봉 기준 2일
     entry_mode: str = "level"    # level | cross_back (되돌아 나올 때 진입)
+    # RSI 가 이 값 아래로 다시 떨어지면 청산. 0 = 비활성.
+    # 가격 손절과 달리 **봉 마감에 판정**하므로 마찰이 시간청산 수준이다.
+    exit_rsi_below: float = 0.0
     placebo: str = ""            # "" | rotate | random  (진입 대조군)
     placebo_seed: int = 0
     signal_lag_bars: int = 1     # 정본 장부 규약 — 신호 봉의 **다음 봉 시가** 체결
@@ -72,10 +93,23 @@ class RsiConfig:
     fee_rate_maker: float = 0.0002    # 메이커 편도 (익절 지정가)
 
     def __post_init__(self):
+        if self.signal not in ("rsi", "band", "volcap"):
+            raise SystemExit(f"signal 은 rsi|band|volcap — {self.signal!r}")
         if self.side not in ("long", "short"):
             raise SystemExit(f"side 는 long|short — {self.side!r}")
-        if not (0.0 < self.entry_threshold < 100.0):
-            raise SystemExit(f"문턱은 (0,100) — {self.entry_threshold!r}")
+        if self.signal == "rsi" and not (0.0 < self.entry_threshold < 100.0):
+            raise SystemExit(f"RSI 문턱은 (0,100) — {self.entry_threshold!r}")
+        if self.signal == "band" and not (0.0 < self.entry_threshold < 10.0):
+            raise SystemExit(f"밴드 sigma 는 (0,10) — {self.entry_threshold!r}")
+        if self.signal == "volcap":
+            if not (0.0 < self.entry_threshold < 20.0):
+                raise SystemExit(f"거래량 z 는 (0,20) — {self.entry_threshold!r}")
+            if not (self.ret_threshold < 0.0):
+                raise SystemExit(f"수익률 문턱은 음수(롱 기준 급락) — "
+                                 f"{self.ret_threshold!r}")
+            if self.direction not in ("reversion", "continuation"):
+                raise SystemExit(f"direction 은 reversion|continuation — "
+                                 f"{self.direction!r}")
         if self.tp_pct <= 0:
             raise SystemExit("익절은 양수여야 한다")
         # ⚠ 손절 0 = **손절 없음**(커널이 `sl_price > 0` 으로 비활성 처리).
@@ -94,29 +128,59 @@ class RsiConfig:
         if self.sl_pct < 0:
             raise SystemExit(f"손절은 0(없음) 또는 양수 — {self.sl_pct!r}")
 
+    @property
+    def feature_col(self) -> str:
+        return {"rsi": "rsi_signal", "band": "band_signal",
+                "volcap": "volcap_signal"}[self.signal]
+
     def pipeline_spec(self) -> dict:
+        if self.signal == "rsi":
+            src = {"type": "rsi_threshold",
+                   "kwargs": {"period": self.period,
+                              "entry_threshold": self.entry_threshold,
+                              "side": self.side,
+                              "entry_mode": self.entry_mode,
+                              "placebo": self.placebo,
+                              "placebo_seed": self.placebo_seed}}
+        elif self.signal == "volcap":
+            src = {"type": "volume_capitulation",
+                   "kwargs": {"vol_window": self.period,
+                              "vol_z_min": self.entry_threshold,
+                              "ret_bars": self.ret_bars,
+                              "ret_threshold": self.ret_threshold,
+                              "side": self.side,
+                              "direction": self.direction,
+                              "entry_mode": self.entry_mode,
+                              "placebo": self.placebo,
+                              "placebo_seed": self.placebo_seed}}
+        else:
+            src = {"type": "band_extreme",
+                   "kwargs": {"period": self.period,
+                              "sigma": self.entry_threshold,
+                              "side": self.side,
+                              "entry_mode": self.entry_mode,
+                              "placebo": self.placebo,
+                              "placebo_seed": self.placebo_seed}}
         return {
-            "sources": [{"type": "rsi_threshold",
-                         "kwargs": {"period": self.period,
-                                    "entry_threshold": self.entry_threshold,
-                                    "side": self.side,
-                                    "entry_mode": self.entry_mode,
-                                    "placebo": self.placebo,
-                                    "placebo_seed": self.placebo_seed}}],
+            "sources": [src],
             "composer": {"type": "passthrough",
-                         "kwargs": {"feature_col": "rsi_signal"}},
+                         "kwargs": {"feature_col": self.feature_col}},
             "policy": {"type": "long_short_threshold",
                        "kwargs": {"entry_threshold": 0.5,
                                   "sl_pct": self.sl_pct,
                                   "tp_pct": self.tp_pct,
-                                  "max_hold_bars": self.max_hold_bars}},
+                                  "max_hold_bars": self.max_hold_bars,
+                                  "exit_rsi_below": self.exit_rsi_below}},
         }
 
     def key(self) -> str:
         pl = self.placebo or "real"
-        return (f"{self.side}_p{self.period}_t{self.entry_threshold:g}"
-                f"_tp{self.tp_pct:g}_sl{self.sl_pct:g}_h{self.max_hold_bars}"
-                f"_{self.entry_mode}_{pl}"
+        vc = (f"_r{self.ret_threshold:g}b{self.ret_bars}_{self.direction[:3]}"
+              if self.signal == "volcap" else "")
+        return (f"{self.signal}_{self.side}_p{self.period}"
+                f"_t{self.entry_threshold:g}" + vc
+                + f"_tp{self.tp_pct:g}_sl{self.sl_pct:g}_h{self.max_hold_bars}"
+                + f"_{self.entry_mode}_{pl}"
                 + (f"_s{self.placebo_seed}" if self.placebo else ""))
 
 
@@ -127,9 +191,29 @@ def verify_reaches(cfg: RsiConfig) -> None:
     from app.composer_framework.pipeline_spec import build_pipeline
     pipe = build_pipeline(cfg.pipeline_spec())
     src = pipe.sources[0]
-    checks = [("period", src.period, cfg.period),
-              ("entry_threshold", src.entry_threshold, cfg.entry_threshold)]
+    want_name = {"rsi": "rsi_threshold", "band": "band_extreme",
+                 "volcap": "volume_capitulation"}[cfg.signal]
+    if getattr(src, "name", None) != want_name:
+        raise SystemExit(f"신호원이 안 갈렸다 — 스펙={getattr(src,'name',None)!r} "
+                         f"설정={cfg.signal!r}")
+    if cfg.signal == "rsi":
+        got_thr, got_per = src.entry_threshold, src.period
+    elif cfg.signal == "band":
+        got_thr, got_per = src.sigma, src.period
+    else:
+        got_thr, got_per = src.vol_z_min, src.vol_window
+    checks = [("period", got_per, cfg.period),
+              ("entry_threshold", got_thr, cfg.entry_threshold)]
+    if cfg.signal == "volcap":
+        checks += [("ret_threshold", src.ret_threshold, cfg.ret_threshold),
+                   ("ret_bars", src.ret_bars, cfg.ret_bars)]
+        if src.direction != cfg.direction:
+            bad_dir = True
+        else:
+            bad_dir = False
     bad = [(k, g, w) for k, g, w in checks if abs(float(g) - float(w)) > 1e-9]
+    if cfg.signal == "volcap" and bad_dir:
+        bad.append(("direction", src.direction, cfg.direction))
     if src.side != cfg.side:
         bad.append(("side", src.side, cfg.side))
     if src.placebo != cfg.placebo:
@@ -138,7 +222,8 @@ def verify_reaches(cfg: RsiConfig) -> None:
         bad.append(("entry_mode", getattr(src, "entry_mode", None), cfg.entry_mode))
     pol = pipe.policy
     for k, want in (("sl_pct", cfg.sl_pct), ("tp_pct", cfg.tp_pct),
-                    ("max_hold_bars", cfg.max_hold_bars)):
+                    ("max_hold_bars", cfg.max_hold_bars),
+                    ("exit_rsi_below", cfg.exit_rsi_below)):
         got = getattr(pol, k, None)
         if got is None or abs(float(got) - float(want)) > 1e-9:
             bad.append((k, got, want))
@@ -146,9 +231,11 @@ def verify_reaches(cfg: RsiConfig) -> None:
         raise SystemExit(
             "**설정이 스펙에 도달하지 않았다** — 값을 바꿔도 판정이 안 바뀐다:\n"
             + "\n".join(f"  {k}: 스펙={g!r} 설정={w!r}" for k, g, w in bad))
-    log.info("✔ 도달 확인 — RSI %d / 문턱 %g / %s / 익절 %.1f%% / 손절 %.1f%% / "
-             "보유 %d봉", cfg.period, cfg.entry_threshold, cfg.side,
-             100 * cfg.tp_pct, 100 * cfg.sl_pct, cfg.max_hold_bars)
+    log.info("✔ 도달 확인 — %s %d / 문턱 %g / %s / %s / 익절 %.1f%% / "
+             "손절 %.1f%% / 보유 %d봉",
+             cfg.signal, cfg.period, cfg.entry_threshold, cfg.side,
+             cfg.entry_mode, 100 * cfg.tp_pct, 100 * cfg.sl_pct,
+             cfg.max_hold_bars)
 
 
 def aggregate(P: "pd.DataFrame") -> "pd.DataFrame":
@@ -163,6 +250,9 @@ def aggregate(P: "pd.DataFrame") -> "pd.DataFrame":
     """
     need = {"n_trades", "sum_pct", "symbol", "side", "period", "thr",
             "tp", "sl"}
+    P = P.copy()
+    if "signal" not in P.columns:            # 구형 산출물은 전부 RSI 였다
+        P["signal"] = "rsi"
     missing = need - set(P.columns)
     if missing:                         # 거래 0건으로 끝난 실행 등
         raise ValueError(f"집계에 필요한 열이 없다: {sorted(missing)}")
@@ -174,7 +264,8 @@ def aggregate(P: "pd.DataFrame") -> "pd.DataFrame":
     #   (CB 8칸이 4행, HOLD 8칸이 2행으로 나왔다).
     #   그래서 이제 **있는 축은 자동으로 전부** 넣는다. 새 축을 추가해도
     #   이 자리를 고칠 필요가 없다.
-    G = [c for c in ("side", "period", "thr", "tp", "sl", "hold",
+    G = [c for c in ("signal", "side", "period", "thr", "retthr", "retbars",
+                     "direction", "tp", "sl", "hold",
                      "entry_mode", "placebo", "seed") if c in P.columns]
     agg = (P[P.n_trades.notna()].groupby(G)
            .agg(n_sym=("symbol", "nunique"), trades=("n_trades", "sum"),
@@ -378,9 +469,161 @@ def selftest() -> None:
         pass
     else:
         raise SystemExit("요율 미지정이 거절되지 않는다 — 기본값 강제가 풀렸다")
+    # ⓟ **RSI 청산이 실제로 발화하는가.** 도달 확인은 값이 갔는지만 본다 —
+    #    동작은 따로 재야 한다(교훈 #88).
+    from app.composer_framework.policy import (LongShortThresholdPolicy,
+                                               PolicyContext as _PC)
+    _pol = LongShortThresholdPolicy(entry_threshold=0.5, sl_pct=0.0, tp_pct=0.05,
+                                    max_hold_bars=288, exit_rsi_below=10.0)
+    # ⚠ 이름 주의 — 이 자기검사는 `_ctx` 를 이미 SourceContext 로 쓰고 있다.
+    #   같은 이름을 쓰면 뒤 항목이 조용히 깨진다(실제로 겪었다).
+    def _rsictx(rsi, held=5):
+        return _PC(timestamp=None, prediction=0.0, in_position=True, side="long",
+                   entry_price=100.0, bars_held=held, open_price=100.0,
+                   high_price=100.0, low_price=100.0, close_price=100.0,
+                   features={"rsi_value": rsi})
+    if _pol.decide(_rsictx(9.9)).kind != "exit":
+        raise SystemExit("RSI 9.9 인데 청산 안 한다 — 규칙이 동작하지 않는다")
+    if _pol.decide(_rsictx(10.1)).kind == "exit":
+        raise SystemExit("RSI 10.1 인데 청산한다 — 문턱이 틀렸다")
+    if _pol.decide(_rsictx(float("nan"))).kind == "exit":
+        raise SystemExit("RSI 가 NaN 인데 청산한다 — 워밍업에서 조용히 나간다")
+    _off = LongShortThresholdPolicy(entry_threshold=0.5, sl_pct=0.0, tp_pct=0.05,
+                                    max_hold_bars=288)
+    if _off.decide(_rsictx(0.1)).kind == "exit":
+        raise SystemExit("비활성(0)인데 청산한다 — 기존 동작이 바뀐다")
+    if _pol.decide(_rsictx(50.0, held=288)).note != "time":
+        raise SystemExit("보유상한이 RSI 청산에 가려졌다")
+    log.info("✔ RSI 청산 확인 — 9.9 청산 / 10.1 유지 / NaN 유지 / 0=비활성 / "
+             "보유상한 우선")
+
     log.info("✔ 요율 도달 확인 — 테이커 %.1fbp / 메이커 %.1fbp 편도 "
              "(익절은 메이커, 손절·시간은 테이커)",
              1e4 * kc.fee_rate, 1e4 * kc.fee_rate_maker)
+
+    # ⓘ **볼린저 신호원** — 새 축이 들어왔으니 여기도 같은 관문을 통과해야
+    #    한다. 소스만 만들고 하네스 자기검사를 안 늘리면, 그 소스는
+    #    검증 없이 격자를 돈다.
+    from app.composer_framework.sources.band_extreme_source import (
+        BandExtremeSource, band_z)
+    _bz = band_z(_px, 20)
+    if not (abs(float(_bz.dropna().mean())) < 0.5):
+        raise SystemExit(f"z 평균이 0 근처가 아니다 — {_bz.dropna().mean():.3f}")
+    _cnt = {}
+    for _sg in (1.5, 2.0, 3.0):
+        _f = BandExtremeSource(20, _sg, "long",
+                               entry_mode="level").build_features(_ctx)
+        _cnt[_sg] = int((_f["band_signal"] > 0).sum())
+    if not (_cnt[3.0] <= _cnt[2.0] <= _cnt[1.5]) or _cnt[3.0] == _cnt[1.5]:
+        raise SystemExit(f"**sigma 가 신호를 안 바꾼다** — {_cnt}")
+    log.info("✔ 밴드 sigma 감응 — 3.0:%d ≤ 2.0:%d ≤ 1.5:%d",
+             _cnt[3.0], _cnt[2.0], _cnt[1.5])
+    _bl = BandExtremeSource(20, 2.0, "long").build_features(_ctx)["band_signal"]
+    _bs = BandExtremeSource(20, 2.0, "short").build_features(_ctx)["band_signal"]
+    if _bs.max() > 0 or _bs.min() >= 0:
+        raise SystemExit("밴드 숏 신호가 음수가 아니다")
+    if int(((_bl != 0) & (_bs != 0)).sum()):
+        raise SystemExit("밴드 롱·숏이 같은 봉에서 켜졌다")
+    _blv = BandExtremeSource(20, 2.0, "long",
+                             entry_mode="level").build_features(_ctx)["band_signal"]
+    if not (int((_bl > 0).sum()) < int((_blv > 0).sum())):
+        raise SystemExit("밴드 cross_back 이 level 보다 적지 않다")
+    if int(((_bl > 0) & (_blv > 0)).sum()):
+        raise SystemExit("밴드 두 모드가 같은 봉에서 발화했다")
+    if int(((_bl > 0) & (_blv > 0).shift(1).fillna(False)).sum()) != int((_bl > 0).sum()):
+        raise SystemExit("밴드 cross_back 직전 봉이 밴드 밖이 아니다")
+    log.info("✔ 밴드 방향·모드 확인 — 롱 %d / 숏 %d · 겹침 0 · "
+             "cross_back %d < level %d",
+             int((_bl != 0).sum()), int((_bs != 0).sum()),
+             int((_bl > 0).sum()), int((_blv > 0).sum()))
+    verify_reaches(RsiConfig(signal="band", side="short", period=20,
+                             entry_threshold=2.5, tp_pct=0.08, sl_pct=0.0,
+                             max_hold_bars=288, entry_mode="cross_back"))
+    # 두 신호원이 **같은 커널·같은 요율**을 쓰는지
+    _cb = RsiConfig(signal="band", entry_threshold=2.0, sl_pct=0.0)
+    if _bt(_cb)._kernel_config().fee_rate_maker != \
+       _bt(RsiConfig(signal="rsi"))._kernel_config().fee_rate_maker:
+        raise SystemExit("신호원마다 요율이 갈렸다")
+    log.info("✔ 신호원 교체 확인 — 커널·요율 동일, 신호만 갈림")
+
+    # ⓙ **거래량 항복** — 가격만으로는 성립 안 하는 첫 신호원이라 관문이 하나
+    #    더 있다: volume 열이 없으면 조용한 0이 아니라 예외여야 한다.
+    from app.composer_framework.sources.volume_capitulation_source import (
+        VolumeCapitulationSource, volume_z)
+    _n2 = 3000
+    _r2 = np.random.default_rng(3)
+    _ret = _r2.normal(0, 0.004, _n2)
+    _vol = _r2.lognormal(10, 0.4, _n2)
+    for _c0 in _r2.choice(np.arange(400, _n2 - 40), size=25, replace=False):
+        _L = int(_r2.integers(4, 10))
+        _ret[_c0:_c0 + _L] -= _r2.uniform(0.008, 0.025, _L)
+        _vol[_c0:_c0 + _L] *= _r2.uniform(10, 40)
+        _ret[_c0 + _L:_c0 + _L + 5] += _r2.uniform(0.004, 0.015, 5)
+    _p2 = pd.Series(100 * np.exp(np.cumsum(_ret)),
+                    index=pd.date_range("2025-01-01", periods=_n2, freq="5min"))
+    _b2 = pd.DataFrame({"open": _p2, "high": _p2 * 1.001, "low": _p2 * 0.999,
+                        "close": _p2, "volume": _vol})
+    _ctx2 = _SC(symbol="V", eval_freq_minutes=5, ohlcv_eval=_b2)
+    _vz = volume_z(_b2["volume"], 96)
+    if not (abs(float(_vz.dropna().mean())) < 0.5):
+        raise SystemExit(f"거래량 z 평균이 0 근처가 아니다 — {_vz.dropna().mean():.3f}")
+    _c2 = {}
+    for _z in (2.0, 3.0, 4.0):
+        _f2 = VolumeCapitulationSource(96, _z, 5, -0.03, "long",
+                                       entry_mode="level").build_features(_ctx2)
+        _c2[_z] = int((_f2["volcap_signal"] > 0).sum())
+    if not (_c2[4.0] <= _c2[3.0] <= _c2[2.0]) or _c2[4.0] == _c2[2.0]:
+        raise SystemExit(f"**거래량 z 가 신호를 안 바꾼다** — {_c2}")
+    _c3 = {}
+    for _rt in (-0.01, -0.03, -0.06):
+        _f3 = VolumeCapitulationSource(96, 2.0, 5, _rt, "long",
+                                       entry_mode="level").build_features(_ctx2)
+        _c3[_rt] = int((_f3["volcap_signal"] > 0).sum())
+    if not (_c3[-0.06] <= _c3[-0.03] <= _c3[-0.01]) or _c3[-0.06] == _c3[-0.01]:
+        raise SystemExit(f"**수익률 문턱이 신호를 안 바꾼다** — {_c3}")
+    log.info("✔ 항복 감응 — 거래량z 4.0:%d ≤ 3.0:%d ≤ 2.0:%d · "
+             "급락 6%%:%d ≤ 3%%:%d ≤ 1%%:%d",
+             _c2[4.0], _c2[3.0], _c2[2.0],
+             _c3[-0.06], _c3[-0.03], _c3[-0.01])
+    _vl = VolumeCapitulationSource(96, 2.0, 5, -0.03, "long").build_features(_ctx2)["volcap_signal"]
+    _vs = VolumeCapitulationSource(96, 2.0, 5, -0.03, "short").build_features(_ctx2)["volcap_signal"]
+    if _vs.max() > 0 or int(((_vl != 0) & (_vs != 0)).sum()):
+        raise SystemExit("항복 롱·숏이 어긋났다")
+    log.info("✔ 항복 방향 확인 — 롱 %d / 숏 %d · 겹침 0",
+             int((_vl != 0).sum()), int((_vs != 0).sum()))
+    # 거래량 열이 없으면 **조용한 0 이 아니라 예외**
+    try:
+        VolumeCapitulationSource().build_features(
+            _SC(symbol="V", eval_freq_minutes=5,
+                ohlcv_eval=_b2.drop(columns=["volume"])))
+    except InsufficientSourceDataError:
+        log.info("✔ 항복 결손 처리 — volume 없으면 조용한 0 대신 예외")
+    else:
+        raise SystemExit("**volume 이 없는데 예외가 안 났다** — 조용한 0 위험")
+    # 부호 실수 방어 — 롱 기준 양수 문턱은 거부되어야 한다
+    try:
+        VolumeCapitulationSource(96, 3.0, 5, +0.03)
+    except ValueError:
+        log.info("✔ 항복 부호 방어 — 양수 급락문턱 거부")
+    else:
+        raise SystemExit("양수 ret_threshold 가 통과했다 — 급등 진입이 된다")
+    # 방아쇠는 같고 **포지션만** 뒤집혀야 한다 — 발화 봉이 같고 부호가 반대.
+    _vr = VolumeCapitulationSource(96, 2.0, 5, -0.03, "long",
+                                   direction="reversion").build_features(_ctx2)["volcap_signal"]
+    _vc = VolumeCapitulationSource(96, 2.0, 5, -0.03, "long",
+                                   direction="continuation").build_features(_ctx2)["volcap_signal"]
+    if not np.array_equal((_vr != 0).to_numpy(), (_vc != 0).to_numpy()):
+        raise SystemExit("**방아쇠가 같이 바뀌었다** — direction 은 포지션만 "
+                         "뒤집어야 한다")
+    if not ((_vr + _vc).abs().sum() == 0):
+        raise SystemExit("continuation 부호가 반대가 아니다")
+    log.info("✔ 방아쇠/포지션 분리 확인 — 발화 봉 동일(%d) · 부호만 반대",
+             int((_vr != 0).sum()))
+    verify_reaches(RsiConfig(signal="volcap", side="short", period=96,
+                             entry_threshold=3.5, ret_threshold=-0.05,
+                             ret_bars=24, direction="continuation",
+                             tp_pct=0.08, sl_pct=0.0,
+                             max_hold_bars=288, entry_mode="cross_back"))
 
     log.info("✔ 자기검사 통과")
 
@@ -606,6 +849,17 @@ def _partial(rows, a) -> None:
 
 def main() -> int:
     p = argparse.ArgumentParser(description="RSI × 익절 × 손절 격자")
+    p.add_argument("--signal", default="rsi",
+                   help="rsi | band | volcap (쉼표로 여러 개). "
+                        "--thresholds 의 뜻이 신호원마다 다르다 — rsi=RSI 문턱, "
+                        "band=sigma, volcap=거래량 z")
+    p.add_argument("--ret-thresholds", default="-0.03",
+                   help="volcap 전용. 급락 문턱(음수). 쉼표로 격자")
+    p.add_argument("--ret-bars", default="5",
+                   help="volcap 전용. 수익률을 재는 봉 수. 쉼표로 격자")
+    p.add_argument("--directions", default="reversion",
+                   help="volcap 전용. reversion(급락에 매수) | "
+                        "continuation(급락에 매도) | 둘 다(쉼표)")
     p.add_argument("--side", default="both", choices=["long", "short", "both"])
     p.add_argument("--periods", default="14")
     p.add_argument("--thresholds", default="15,20,25,30,35,40,45,50")
@@ -625,6 +879,10 @@ def main() -> int:
                    help="시간대. 보유상한(--hold)은 **봉 수**이니 같이 바꿔라")
     p.add_argument("--start", default="", help="구간 시작 YYYY-MM-DD (포함)")
     p.add_argument("--end", default="", help="구간 끝 YYYY-MM-DD (미포함)")
+    p.add_argument("--exit-rsi-below", default="0",
+                   help="RSI 가 이 값 아래로 다시 떨어지면 청산(쉼표로 격자). "
+                        "0=비활성. 가격 손절과 달리 봉 마감 판정이라 마찰이 "
+                        "시간청산 수준(실측 8.6bp)이다")
     p.add_argument("--entry-modes", default="level",
                    help="level | cross_back | 둘 다(쉼표). cross_back 은 과열 "
                         "구간을 **되돌아 나오는 봉**에서만 진입한다 — 급락 "
@@ -654,11 +912,21 @@ def main() -> int:
     placebos = ["" if x in ("real", "none", "") else x for x in placebos]
     modes = [m.strip() for m in a.entry_modes.split(",") if m.strip()]
     seeds = [x.strip() for x in str(a.seed).split(",") if x.strip()]
-    grid = [RsiConfig(side=s, period=int(pp), entry_threshold=float(t),
+    xrs = [x.strip() for x in str(a.exit_rsi_below).split(",") if x.strip()]
+    signals = [x.strip() for x in a.signal.split(",") if x.strip()]
+    grid = [RsiConfig(signal=sg, side=s, period=int(pp),
+                      entry_threshold=float(t),
+                      ret_threshold=float(rt), ret_bars=int(rb),
+                      direction=dr,
                       tp_pct=float(tp), sl_pct=float(sl),
                       max_hold_bars=int(hd),
-                      entry_mode=em, placebo=pl, placebo_seed=int(sd),
+                      entry_mode=em, exit_rsi_below=float(xr),
+                      placebo=pl, placebo_seed=int(sd),
                       eval_freq_minutes=TF_MIN[a.tf])
+            for sg in signals
+            for rt in (a.ret_thresholds.split(",") if sg == "volcap" else ["-0.03"])
+            for rb in (a.ret_bars.split(",") if sg == "volcap" else ["5"])
+            for dr in (a.directions.split(",") if sg == "volcap" else ["reversion"])
             for s in sides
             for pp in a.periods.split(",")
             for t in a.thresholds.split(",")
@@ -666,6 +934,7 @@ def main() -> int:
             for sl in a.sls.split(",")
             for hd in a.hold.split(",")
             for em in modes
+            for xr in xrs
             for pl in placebos
             # 실측은 씨앗과 무관하므로 한 번만. 위약만 씨앗마다 돈다.
             for sd in (seeds if pl else seeds[:1])]
@@ -702,17 +971,24 @@ def main() -> int:
 
     def tag(cfg, r):
         for tr in r.pop("_trades", []):
-            tr.update({"key": cfg.key(), "side": cfg.side, "thr": cfg.entry_threshold,
+            tr.update({"key": cfg.key(), "signal": cfg.signal,
+                       "side": cfg.side, "thr": cfg.entry_threshold,
+                       "retthr": cfg.ret_threshold, "retbars": cfg.ret_bars,
+                  "direction": cfg.direction,
+                       "direction": cfg.direction,
                        "tp": cfg.tp_pct, "sl": cfg.sl_pct,
-                       "entry_mode": cfg.entry_mode,
+                       "entry_mode": cfg.entry_mode, "xr": cfg.exit_rsi_below,
                        "placebo": cfg.placebo or "real"})
             trade_rows.append(tr)
         # ⚠ placebo 를 빼면 아래 집계가 **실측과 위약을 한 그룹에 섞는다**.
         #   거래 행(위)엔 붙는데 여기만 빠져 있었다 — 2026-08-19 발견.
-        r.update({"side": cfg.side, "period": cfg.period,
+        r.update({"signal": cfg.signal, "side": cfg.side, "period": cfg.period,
+                  "retthr": cfg.ret_threshold, "retbars": cfg.ret_bars,
+                  "direction": cfg.direction,
                   "thr": cfg.entry_threshold, "tp": cfg.tp_pct,
                   "sl": cfg.sl_pct, "hold": cfg.max_hold_bars,
-                  "entry_mode": cfg.entry_mode, "seed": cfg.placebo_seed,
+                  "entry_mode": cfg.entry_mode, "xr": cfg.exit_rsi_below,
+                  "seed": cfg.placebo_seed,
                   "placebo": cfg.placebo or "real", "key": cfg.key()})
         return r
 
