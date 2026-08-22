@@ -106,7 +106,7 @@ echo "[binance-paper] exit_code=${EC}" | tee -a "${LOG_FILE}"
 #   (2) reconcile 의 --include-real     → REAL 주문 실행
 # 하나만 끄면 세션은 계속 생기거나(1 누락), 주문이 계속 나간다(2 누락).
 # REAL 재개 시 두 플래그를 같이 되살릴 것.
-echo "[binance-paper] lifecycle auto-link new listings (paper + REAL)..." | tee -a "${LOG_FILE}"
+echo "[binance-paper] lifecycle auto-link new listings (paper only)..." | tee -a "${LOG_FILE}"
 # ── 2026-08-12: 추종 신호 earlyexit_d14 → **earlyexit_d7** (대표님 지시) ──
 #
 # `--name-filter` 기본값이 earlyexit_d14 라 지금까지 실계좌는 d14 를 따랐다.
@@ -126,10 +126,22 @@ echo "[binance-paper] lifecycle auto-link new listings (paper + REAL)..." | tee 
 # 참고: 거래 **단위** 백테스트(251건)에서는 d7 이 base 대비 -14.08%p(t -3.05)로
 # 최악이었다. 포트폴리오에서 뒤집힌 이유는 조기청산이 기회를 두 배로 늘리기
 # 때문이다. 거래당 지표만으로 판정하면 안 된다는 사례다.
+# ── 2026-08-22: REAL 트랙 완전 정지 (대표님 승인) ────────────────────
+#
+# 신상저격수를 2군(페이퍼)으로 내리고 계좌 8 자본 $752 를 RSI 극단 되돌림
+# (1군 `5m_rsi10_cb_nosl_LIVE`)에 재배치했다. 강등 당일 점검에서 이 파일의
+# 위 주석이 요구한 **두 플래그 중 하나도 꺼져 있지 않았다** — 세션 상태만
+# STOPPED 로 내렸을 뿐이라, 다음 사이클에 신규 상장이 잡히면 계좌 8 에
+# REAL 세션이 새로 생기고 지갑의 20%($150)를 가져갈 수 있었다.
+#
+#   · `--real-account-id 8` 제거  → 신규 상장 REAL 세션 자동 생성 중단
+#   · `--include-real` 제거(아래) → REAL 주문 실행 중단
+#
+# 페이퍼(계좌 12) 트랙은 그대로 둔다 — 2군에서 계속 검증한다.
+# REAL 재개 시 두 플래그를 **같이** 되살릴 것.
 PYTHONPATH=. python3 scripts/binance/lifecycle_live_provision.py \
   --auto-link --name-filter earlyexit_d7 \
   --account-id 12 --notional 200 --initial-capital 10000 \
-  --real-account-id 8 \
   --commit 2>&1 | tee -a "${LOG_FILE}"
 # ── 실행기 사전 관문 (통합 실행기 계획 5단계, 2026-08-13) ──────────────
 #
@@ -152,10 +164,11 @@ echo "[binance-paper] 실행기 사전 관문..." | tee -a "${LOG_FILE}"
 GATE_RC=${PIPESTATUS[0]}
 
 if [ "${GATE_RC}" -eq 0 ]; then
-  # reconcile: System-2 의 현재 side 를 링크된 PAPER + REAL 세션에 미러링.
-  echo "[binance-paper] lifecycle live signal reconcile (paper + REAL)..." | tee -a "${LOG_FILE}"
+  # reconcile: System-2 의 현재 side 를 링크된 PAPER 세션에 미러링.
+  # 2026-08-22 — `--include-real` 제거. REAL 주문은 나가지 않는다(위 주석 참조).
+  echo "[binance-paper] lifecycle live signal reconcile (paper only)..." | tee -a "${LOG_FILE}"
   PYTHONPATH=. python3 scripts/binance/lifecycle_live_signal_driver.py \
-    --submit --include-real 2>&1 | tee -a "${LOG_FILE}"
+    --submit 2>&1 | tee -a "${LOG_FILE}"
 else
   echo "[binance-paper] **관문 실패 — reconcile/주문 건너뜀**" | tee -a "${LOG_FILE}"
 fi
