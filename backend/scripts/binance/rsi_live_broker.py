@@ -254,3 +254,106 @@ class LiveBroker:
                 log.warning("%s 고아 주문 발견 — 취소한다", sym)
                 self.cancel_take_profit(sym)
         return pos
+
+
+# ══════════════════════════════════════════════════════════════════════
+#  세션 등록 — 감시·비상정지 체계 안으로 들어간다
+# ══════════════════════════════════════════════════════════════════════
+@dataclass
+class SessionRegistry:
+    """실거래 세션을 `live_bot_sessions` 에 등록하고 매 사이클 갱신한다.
+
+    ⚠ 왜 필요한가 (2026-08-22) — RSI 실거래는 독립 PM2 프로세스라 DB 조회로는
+      "실거래 세션 0건" 으로 보였다. 대시보드·`ops-monitor`·**DB 비상정지**가
+      전부 이 세션을 못 봤다. 실거래인데 감시 체계 밖에 있는 셈이다.
+
+    비상정지 규약 — `orders_enabled=false` 또는 `status != 'RUNNING'`
+        **신규 진입만 막는다. 청산은 계속한다.**
+        진입만 막고 청산도 막으면 포지션이 갇힌다 — 그게 더 위험하다.
+    """
+    session_id: str
+    account_id: int
+    symbol_label: str
+    strategy_name: str
+    interval: str
+    config: dict
+    initial_capital: float
+
+    def _engine(self):
+        import sys
+        from pathlib import Path
+        sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+        from app.db.session import engine
+        return engine
+
+    def register(self) -> None:
+        import json
+        from sqlalchemy import text
+        with self._engine().begin() as c:
+            row = c.execute(text("select id from live_bot_sessions where id=:i"),
+                            {"i": self.session_id}).fetchone()
+            if row:
+                c.execute(text("""update live_bot_sessions
+                    set status='RUNNING', is_active=true, stopped_at=null,
+                        is_paper=false, account_id=:a, strategy_config=:cfg,
+                        initial_capital=:cap
+                    where id=:i"""),
+                          {"i": self.session_id, "a": self.account_id,
+                           "cfg": json.dumps(self.config, ensure_ascii=False),
+                           "cap": self.initial_capital})
+                log.info("세션 등록 갱신 — %s", self.session_id)
+                return
+            c.execute(text("""insert into live_bot_sessions
+                (id, symbol, strategy_name, strategy_config, interval, status,
+                 started_at, initial_capital, current_capital, orders_enabled,
+                 is_paper, is_active, account_id)
+                values (:i, :sym, :nm, :cfg, :iv, 'RUNNING', now(), :cap, :cap,
+                        true, false, true, :a)"""),
+                      {"i": self.session_id, "sym": self.symbol_label,
+                       "nm": self.strategy_name,
+                       "cfg": json.dumps(self.config, ensure_ascii=False),
+                       "iv": self.interval, "cap": self.initial_capital,
+                       "a": self.account_id})
+            log.info("세션 신규 등록 — %s (계좌 %s · 실거래)",
+                     self.session_id, self.account_id)
+
+    def entries_allowed(self) -> bool:
+        """비상정지 확인. 조회 실패 시 **막는 쪽**으로 판단한다."""
+        from sqlalchemy import text
+        try:
+            with self._engine().connect() as c:
+                r = c.execute(text("select status, orders_enabled, is_active "
+                                   "from live_bot_sessions where id=:i"),
+                              {"i": self.session_id}).fetchone()
+        except Exception as e:                        # noqa: BLE001
+            log.error("비상정지 상태 조회 실패 — 진입을 막는다: %s", e)
+            return False
+        if not r:
+            log.error("세션 %s 가 DB 에 없다 — 진입을 막는다", self.session_id)
+            return False
+        ok = (str(r[0]) == "RUNNING") and bool(r[1]) and bool(r[2])
+        if not ok:
+            log.warning("비상정지 — status=%s orders_enabled=%s is_active=%s "
+                        "(청산은 계속한다)", r[0], r[1], r[2])
+        return ok
+
+    def heartbeat(self, capital: float, n_pos: int) -> None:
+        from sqlalchemy import text
+        try:
+            with self._engine().begin() as c:
+                c.execute(text("update live_bot_sessions set current_capital=:c "
+                               "where id=:i"),
+                          {"c": capital, "i": self.session_id})
+        except Exception as e:                        # noqa: BLE001
+            log.warning("세션 갱신 실패: %s", e)
+
+    def mark_stopped(self) -> None:
+        from sqlalchemy import text
+        try:
+            with self._engine().begin() as c:
+                c.execute(text("update live_bot_sessions set status='STOPPED', "
+                               "stopped_at=now() where id=:i"),
+                          {"i": self.session_id})
+            log.info("세션 종료 표시 — %s", self.session_id)
+        except Exception as e:                        # noqa: BLE001
+            log.warning("세션 종료 표시 실패: %s", e)

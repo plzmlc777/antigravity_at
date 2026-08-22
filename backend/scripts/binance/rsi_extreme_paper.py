@@ -444,6 +444,8 @@ class RsiPaper:
         # ⚠ 붙는 순간 **회계는 그대로 커널이** 하고, 브로커는 체결가만 바꾼다.
         #   그래야 백테스트·페이퍼·실거래가 같은 장부를 쓴다.
         self.broker = None
+        # 실거래 세션 등록부. 비상정지(`orders_enabled=false`)를 여기서 읽는다.
+        self.registry = None
 
     # ── 한 사이클: 마감 봉 기준으로 청산 먼저, 그 다음 진입 ──────
     def step(self, bars_by_tf: dict, closed: set | None = None) -> dict:
@@ -587,6 +589,13 @@ class RsiPaper:
                                            * math.sqrt(24 * 365))})
         self.n_signal += len(cands)
         cyc["signals"] = cands
+
+        # ②-b 비상정지 — **신규 진입만** 막는다. 청산(①)은 이미 끝났다.
+        #     진입만 막고 청산도 막으면 포지션이 갇힌다 — 그게 더 위험하다.
+        if self.registry is not None and not self.registry.entries_allowed():
+            cyc["halted"] = True
+            self.save_state()
+            return cyc
 
         # ③ 선택 — 빈 슬롯만큼 **무작위**. 결합 세션은 두 시간대 후보를
         #    **한 통에 합쳐서** 뽑는다 (시간대 우선순위를 두지 않는다).
@@ -1189,6 +1198,27 @@ def main() -> int:
                     a.account, cfg.slots, cfg.notional_usd,
                     cfg.slots * cfg.notional_usd,
                     " · DRY-RUN" if a.dry_run else "")
+        if not a.dry_run:
+            # 감시·비상정지 체계 안으로 들어간다. 등록하지 않으면 대시보드도
+            # ops-monitor 도 DB 비상정지도 이 세션을 못 본다.
+            from scripts.binance.rsi_live_broker import SessionRegistry
+            pp.registry = SessionRegistry(
+                session_id=cfg.session_name, account_id=a.account,
+                symbol_label=f"MULTI({len(syms)})",
+                strategy_name="rsi_extreme_cb_nosl",
+                interval=cfg.base_tf,
+                config={"sources": [{"tf": x.tf, "entry_rsi": x.entry_rsi,
+                                     "tp_pct": x.tp_pct, "sl_pct": x.sl_pct,
+                                     "max_hold_bars": x.max_hold_bars,
+                                     "entry_mode": x.entry_mode}
+                                    for x in cfg.sources],
+                        "slots": cfg.slots, "notional_usd": cfg.notional_usd,
+                        "universe": len(syms)},
+                initial_capital=cfg.slots * cfg.notional_usd)
+            pp.registry.register()
+            log.info("비상정지 — DB 에서 `update live_bot_sessions set "
+                     "orders_enabled=false where id='%s'` (청산은 계속된다)",
+                     cfg.session_name)
 
     feed = None
     if cfg.feed_mode == "ws":
@@ -1290,12 +1320,16 @@ def main() -> int:
 
         cyc = pp.step(bars_by_tf, closed)
         pp.persist(cyc)
+        if pp.registry is not None:
+            pp.registry.heartbeat(
+                (cfg.slots * cfg.notional_usd) + pp.equity, len(pp.pos))
         log.info("사이클 %.0fs · 마감 %s · 신호 %d · 진입 %d · 청산 %d · "
-                 "보유 %d/%d · 누적 $%.2f · 지연대가 %+.1fbp",
+                 "보유 %d/%d · 누적 $%.2f · 지연대가 %+.1fbp%s",
                  time.time() - t0, ",".join(sorted(closed)),
                  len(cyc["signals"]), len(cyc["fills"]), len(cyc["exits"]),
                  len(pp.pos), cfg.slots, pp.equity,
-                 pp.slip_sum / pp.n_fill if pp.n_fill else 0.0)
+                 pp.slip_sum / pp.n_fill if pp.n_fill else 0.0,
+                 "  ⛔정지" if cyc.get("halted") else "")
         if a.once:
             return 0
 
