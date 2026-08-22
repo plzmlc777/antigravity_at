@@ -241,6 +241,15 @@ class PaperConfig:
     #   진행 중인 페이퍼 전진 검정이 실거래 데이터로 오염됐다.
     #   같은 날 아침 규약 구분을 넣으면서 **이 축을 빠뜨렸다.**
     live: bool = False
+    # 그림자 — 1군 실거래 세션의 **결정 스트림**을 받아쓰는 대조 세션.
+    #
+    # ⚠ 왜 자기 신호로 돌면 안 되는가 (2026-08-22)
+    #   진입 선택이 `rng.permutation(len(cands))[:free]` 라 **빈 슬롯 수에
+    #   의존**한다. 실거래가 한 건 거절당하면 그 순간부터 free 가 달라지고,
+    #   같은 씨앗이어도 다음 사이클부터 다른 종목을 뽑는다. 한 번 어긋나면
+    #   영구히 다른 포트폴리오라, 짝지어 비교할 수 없다.
+    #   그래서 그림자는 **후보 집합을 스스로 만들지 않고 받아쓴다.**
+    shadow: bool = False
     warmup_bars: int = 200
     # 세션 공용
     slots: int = 5
@@ -311,9 +320,15 @@ class PaperConfig:
                 n += "_cb"
             if x.sl_pct == 0:
                 n += "_nosl"
-            return n + ("_LIVE" if self.live else "")
-        return ("combo_" + "_".join(x.key for x in self.sources)
-                + ("_LIVE" if self.live else ""))
+            return n + self.suffix
+        return "combo_" + "_".join(x.key for x in self.sources) + self.suffix
+
+    @property
+    def suffix(self) -> str:
+        """실거래·그림자·페이퍼는 **절대** 같은 폴더를 쓰지 않는다."""
+        if self.live and self.shadow:
+            raise SystemExit("실거래와 그림자를 동시에 켤 수 없다")
+        return "_LIVE" if self.live else ("_SHADOW" if self.shadow else "")
 
 
 @dataclass
@@ -419,6 +434,77 @@ def fetch_mark_price(symbol: str) -> float | None:
         return None
 
 
+def _edge_ms(bars: dict, tf: str) -> int:
+    """이 시간대에서 방금 마감된 봉의 **끝** epoch ms.
+
+    아무 종목이나 하나면 된다 — 바이낸스 봉은 UTC epoch 에 정렬돼 있어
+    같은 시간대면 경계가 같다. 봉이 하나도 없으면 0 (그림자는 이때 건너뛴다)."""
+    for b in bars.values():
+        try:
+            return int(b.index[-1].timestamp() * 1000) + TF_MS[tf]
+        except Exception:                                     # noqa: BLE001
+            continue
+    return 0
+
+
+class SignalTap:
+    """1군 실거래 세션의 원장에서 **같은 봉의 후보 집합**을 읽어 온다.
+
+    왜 원장을 읽나 — 실거래 프로세스를 **고치지 않기 위해서**다. 그림자를
+    위해 라이브에 배선을 더하면 실자금 경로에 위험이 생긴다. 라이브는 이미
+    사이클마다 후보 전부(`signals`, 종목·RSI·정본종가·봉경계 포함)를
+    남기므로, 읽기만 하면 된다.
+
+    ⚠ 못 읽으면 None 을 준다. 호출부는 **건너뛰어야** 하고 자기 후보로
+      폴백하면 안 된다 — 그 순간 짝이 깨진다."""
+
+    def __init__(self, live_dir, base_tf: str, wait_s: float = 90.0,
+                 poll_s: float = 3.0):
+        self.dir = Path(live_dir)
+        self.base_tf = base_tf
+        self.wait_s = wait_s
+        self.poll_s = poll_s
+
+    def _scan(self, edge_ms: int):
+        """오늘·어제 원장을 뒤에서부터 훑는다 (자정 경계 대비)."""
+        now = datetime.now(timezone.utc)
+        days = {now.strftime("%Y-%m-%d"),
+                (now - timedelta(days=1)).strftime("%Y-%m-%d")}
+        for day in sorted(days, reverse=True):
+            f = self.dir / day / "cycles.jsonl"
+            if not f.exists():
+                continue
+            try:
+                lines = f.read_text(encoding="utf-8").splitlines()
+            except Exception as exc:                          # noqa: BLE001
+                log.warning("1군 원장 읽기 실패 %s: %s", f, exc)
+                continue
+            for ln in reversed(lines[-40:]):
+                try:
+                    row = json.loads(ln)
+                except Exception:                             # noqa: BLE001
+                    continue
+                if int((row.get("bars") or {}).get(self.base_tf, 0)) == edge_ms:
+                    return row
+        return None
+
+    def signals_for(self, edge_ms: int):
+        if not edge_ms:
+            return None
+        deadline = time.time() + self.wait_s
+        while True:
+            row = self._scan(edge_ms)
+            if row is not None:
+                if row.get("halted"):
+                    # 1군이 비상정지 중이면 그림자도 진입하지 않는다 —
+                    # 안 그러면 정지 기간에만 그림자가 앞서 나간다.
+                    return []
+                return row.get("signals", [])
+            if time.time() >= deadline:
+                return None
+            time.sleep(self.poll_s)
+
+
 class RsiPaper:
     def __init__(self, cfg: PaperConfig, symbols: list, out_dir: Path):
         self.cfg = cfg
@@ -437,6 +523,24 @@ class RsiPaper:
         self.n_exit_mkt = 0          # 시장가로 나간 청산 건수
         self.n_dead = 0              # 거래 멈춘 종목이라 거른 신호
         self.n_slipreject = 0        # 괴리 상한 초과로 거부한 체결
+        # ⚠ 2026-08-22 — 예전엔 아래 넷이 전부 n_pricefail 한 통에 들어갔다.
+        #   시세를 못 받은 것과 거래소가 거절한 것이 같은 숫자로 섞이면
+        #   포착률이 왜 떨어졌는지 **원인을 귀속시킬 수 없다**. 그림자와
+        #   짝지어 "기회 손실"을 재려면 사유가 갈려 있어야 한다.
+        self.n_reject_order = 0      # 거래소가 진입 주문을 거절 (마진·최소수량)
+        self.n_reject_tp = 0         # 익절 지정가 거절 → 진입을 되돌림
+        self.n_kernelfail = 0        # 커널이 장부를 못 연 경우
+        self.n_tapmiss = 0           # 그림자: 1군 결정을 못 읽어 건너뛴 사이클
+        # 그림자 세션의 신호 탭. None 이면 스스로 후보를 만든다(기존 동작).
+        self.tap = None
+        # 그림자는 **정본 판본**이다 — 진입도 시간청산도 봉 종가로 채운다.
+        #
+        # ⚠ 왜 현재가가 아닌가 (2026-08-22)
+        #   그림자는 1군보다 늦게 깨어난다(1군 결정을 기다려야 하므로).
+        #   현재가로 채우면 **그림자 자신의 지연**이 측정에 섞여, 1군과의
+        #   차이가 기회 손실인지 그림자가 늦은 탓인지 못 가른다.
+        #   1군의 지연 대가는 이미 1군 장부의 slip_bp 가 따로 재고 있다.
+        self.fill_at_ref = False
         # 자기검사가 시세를 안 건드리고 체결 경로를 확인할 수 있도록 주입 가능
         self.price_fn = fetch_mark_price
         self.spec = {x.tf: x for x in cfg.sources}   # 시간대 → 규약
@@ -460,7 +564,11 @@ class RsiPaper:
         closed = set(bars_by_tf) if closed is None else set(closed)
         cyc = {"ts": datetime.now(timezone.utc).isoformat(),
                "closed_tf": sorted(closed),
-               "signals": [], "fills": [], "exits": []}
+               # 봉 경계 — 그림자가 "같은 봉"을 짚으려면 이게 있어야 한다.
+               # 신호가 0건인 사이클엔 signals 로 봉을 알 수 없다.
+               "bars": {tf: _edge_ms(bars_by_tf.get(tf, {}), tf)
+                        for tf in sorted(closed)},
+               "signals": [], "fills": [], "exits": [], "rejects": []}
 
         # ①-0 실거래: **익절은 거래소가 채운다.** 봉으로 판정하지 않고
         #      포지션 대조로 알아챈다 — 우리가 "닿았다"고 보는 것과 실제
@@ -526,6 +634,8 @@ class RsiPaper:
                         continue
                     px = got
                     slip = 1e4 * (1.0 - px / ref) if ref else 0.0
+                elif self.fill_at_ref:
+                    px, slip = ref, 0.0        # 정본 = 봉 종가로 청산
                 else:
                     now = self.price_fn(sym)
                     px = now if (now and now > 0) else ref
@@ -587,6 +697,27 @@ class RsiPaper:
                               "rv7": float(c.pipe(np.log).diff()
                                            .rolling(24 * 7).std().iloc[-1]
                                            * math.sqrt(24 * 365))})
+        # 그림자 — 스스로 만든 후보를 **버리고** 1군의 것을 쓴다.
+        # 못 읽으면 이번 사이클은 건너뛴다. 자기 후보로 폴백하면 그림자가
+        # 조용히 독립 세션이 되고, 그때부터 비교는 짝을 잃는다.
+        if self.tap is not None:
+            mine = {c["symbol"] for c in cands}
+            tapped = self.tap.signals_for(cyc["bars"].get(self.cfg.base_tf, 0))
+            if tapped is None:
+                self.n_tapmiss += 1
+                cyc["tapmiss"] = True
+                log.warning("1군 결정을 못 읽었다 — 이번 사이클 건너뜀 "
+                            "(누적 %d회)", self.n_tapmiss)
+                self.save_state()
+                return cyc
+            theirs = {c["symbol"] for c in tapped}
+            if mine != theirs:
+                # 정보로만 남긴다 — 판정은 1군 것으로 한다.
+                log.info("신호 불일치 — 1군 %d · 자체 %d · 교집합 %d",
+                         len(theirs), len(mine), len(mine & theirs))
+                cyc["tap_divergence"] = {"live_only": sorted(theirs - mine),
+                                         "shadow_only": sorted(mine - theirs)}
+            cands = tapped
         self.n_signal += len(cands)
         cyc["signals"] = cands
 
@@ -627,7 +758,10 @@ class RsiPaper:
         #     불리하게 잡힐 수 있다 — 정본과 같은 방향(보수적)이라 둔다.
         # 체결가는 **동시에** 받는다 — 순차면 20종목에 2초, 그만큼 더 밀린다
         px_map: dict = {}
-        if picked:
+        if picked and self.fill_at_ref:
+            # 정본 판본 — 시세를 아예 안 부른다(호출 자체가 지연이다).
+            px_map = {c["symbol"]: c["close"] for c in picked}
+        elif picked:
             with cf.ThreadPoolExecutor(max_workers=min(20, len(picked))) as ex:
                 fut = {ex.submit(self.price_fn, c["symbol"]): c["symbol"]
                        for c in picked}
@@ -644,6 +778,8 @@ class RsiPaper:
             px = px_map.get(c["symbol"])
             if px is None or px <= 0:
                 self.n_pricefail += 1
+                cyc["rejects"].append({"symbol": c["symbol"],
+                                       "reason": "no_price"})
                 continue
             ref = c["close"]                       # 정본 체결가 = 신호 봉 종가
             slip = 1e4 * (px / ref - 1.0) if ref > 0 else 0.0
@@ -661,7 +797,12 @@ class RsiPaper:
                 # 실패는 정상 흐름이다(최소 명목 미달·유동성). 조용히 넘긴다.
                 got = self.broker.open_long(c["symbol"], px)
                 if not got:
-                    self.n_pricefail += 1
+                    # 거래소 거절 — 마진 부족(-2019)·최소 명목·수량 단위.
+                    # **그림자에는 없는 손실**이라 따로 센다.
+                    self.n_reject_order += 1
+                    cyc["rejects"].append({"symbol": c["symbol"],
+                                           "reason": "order_rejected",
+                                           "ref": ref, "px": px})
                     continue
                 px = float(got["price"])
                 slip = 1e4 * (px / ref - 1.0) if ref > 0 else 0.0
@@ -679,7 +820,9 @@ class RsiPaper:
                 dict(open_price=px, high_price=px, low_price=px,
                      close_price=px), ts_now, act, KCFG)
             if st.side != "long" or st.qty <= 0:
-                self.n_pricefail += 1
+                self.n_kernelfail += 1
+                cyc["rejects"].append({"symbol": c["symbol"],
+                                       "reason": "kernel_open_failed"})
                 if self.broker is not None:
                     # 거래소엔 이미 들어갔는데 장부가 안 열리면 **고아**가 된다.
                     log.error("%s 커널 진입 실패 — 거래소 포지션을 되돌린다",
@@ -694,7 +837,9 @@ class RsiPaper:
                         c["symbol"], float(got["quantity"]), tp_px):
                     log.error("%s 익절 지정가 실패 — 진입을 되돌린다", c["symbol"])
                     self.broker.close_long(c["symbol"])
-                    self.n_pricefail += 1
+                    self.n_reject_tp += 1
+                    cyc["rejects"].append({"symbol": c["symbol"],
+                                           "reason": "tp_limit_rejected"})
                     continue
             p = Position(
                 symbol=c["symbol"], entry_ts=ts_now, entry_price=st.entry_price,
@@ -740,6 +885,10 @@ class RsiPaper:
               "n_pricefail": self.n_pricefail, "slip_sum": self.slip_sum,
               "exit_slip_sum": self.exit_slip_sum, "n_exit_mkt": self.n_exit_mkt,
               "n_dead": self.n_dead, "n_slipreject": self.n_slipreject,
+              "n_reject_order": self.n_reject_order,
+              "n_reject_tp": self.n_reject_tp,
+              "n_kernelfail": self.n_kernelfail,
+              "n_tapmiss": self.n_tapmiss,
               "saved_at": datetime.now(timezone.utc).isoformat()}
         tmp = self.state_path.with_suffix(".tmp")
         tmp.parent.mkdir(parents=True, exist_ok=True)
@@ -766,6 +915,10 @@ class RsiPaper:
         self.n_exit_mkt = int(st.get("n_exit_mkt", 0))
         self.n_dead = int(st.get("n_dead", 0))
         self.n_slipreject = int(st.get("n_slipreject", 0))
+        self.n_reject_order = int(st.get("n_reject_order", 0))
+        self.n_reject_tp = int(st.get("n_reject_tp", 0))
+        self.n_kernelfail = int(st.get("n_kernelfail", 0))
+        self.n_tapmiss = int(st.get("n_tapmiss", 0))
         log.info("상태 복원 — 보유 %d · 누적 $%.2f · 신호 %d · 체결 %d (저장 %s)",
                  len(self.pos), self.equity, self.n_signal, self.n_fill,
                  st.get("saved_at", "?")[:19])
@@ -784,6 +937,10 @@ class RsiPaper:
                         "n_exit_mkt": self.n_exit_mkt,
                         "n_dead": self.n_dead,
                         "n_slipreject": self.n_slipreject,
+                        "n_reject_order": self.n_reject_order,
+                        "n_reject_tp": self.n_reject_tp,
+                        "n_kernelfail": self.n_kernelfail,
+                        "n_tapmiss": self.n_tapmiss,
                         "exit_slip_bp_mean":
                             round(self.exit_slip_sum / self.n_exit_mkt, 2)
                             if self.n_exit_mkt else 0.0}
@@ -1096,11 +1253,89 @@ def selftest() -> None:
     log.info("✔ 세션 이름 확인 — 기존 %s · 새 규약 %s · 실거래 %s (전부 분리)",
              _old, _new, _lv)
 
+    # ⓟ **그림자 규약** (2026-08-22)
+    #    ⚠ 여기 검사가 없었으면 놓칠 뻔했다 — main() 의 PaperConfig 생성이
+    #      두 갈래(--sources / 단일)인데 한쪽에만 shadow 를 넣었었다.
+    #      클래스가 맞아도 **경로로 값이 안 가면 없는 기능**이다(교훈 #88).
+    import argparse as _ap
+    _p = _build_parser()
+    for argv, want in (
+            (["--tf", "5m"], ""),
+            (["--tf", "5m", "--shadow-of", "X_LIVE"], "_SHADOW"),
+            (["--tf", "5m", "--live", "--account", "8"], "_LIVE"),
+            (["--sources", "5m:10:0.05:0:288:cross_back",
+              "--shadow-of", "X_LIVE"], "_SHADOW")):
+        _a = _p.parse_args(argv)
+        _c = _cfg_from_args(_a)
+        if _c.suffix != want:
+            raise SystemExit(f"인자 {argv} → 접미사 {_c.suffix!r}, 기대 {want!r} "
+                             "(그림자·실거래가 페이퍼 폴더에 쓴다)")
+    _sh = _cfg_from_args(_p.parse_args(["--tf", "5m", "--entry-rsi", "10",
+                                        "--tp", "0.05", "--sl", "0",
+                                        "--entry-mode", "cross_back",
+                                        "--shadow-of", "X_LIVE"]))
+    if _sh.session_name != "5m_rsi10_cb_nosl_SHADOW":
+        raise SystemExit(f"그림자 세션 이름이 틀렸다 — {_sh.session_name}")
+    log.info("✔ 그림자 접미사 확인 — 네 갈래 인자 전부 인스턴스까지 도달")
+
+    # 탭: 같은 봉이 없으면 **None**(건너뜀), 있으면 그 후보를 준다.
+    import tempfile as _tf_
+    with _tf_.TemporaryDirectory() as _d:
+        _dir = Path(_d) / "5m_rsi10_cb_nosl_LIVE"
+        _day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        (_dir / _day).mkdir(parents=True)
+        _rows = [{"ts": "t", "bars": {"5m": 1000}, "signals": [{"symbol": "Q"}]},
+                 {"ts": "t", "bars": {"5m": 2000}, "signals": [],
+                  "halted": True}]
+        with open(_dir / _day / "cycles.jsonl", "w") as _fh:
+            for _r in _rows:
+                _fh.write(json.dumps(_r) + "\n")
+        _tap = SignalTap(_dir, "5m", wait_s=0.0, poll_s=0.01)
+        if [c["symbol"] for c in _tap.signals_for(1000)] != ["Q"]:
+            raise SystemExit("탭이 같은 봉의 후보를 못 읽는다")
+        if _tap.signals_for(2000) != []:
+            raise SystemExit("1군 비상정지 사이클인데 그림자가 진입하려 한다")
+        if _tap.signals_for(3000) is not None:
+            raise SystemExit("없는 봉인데 None 이 아니다 — 그림자가 "
+                             "자기 후보로 폴백하면 짝이 깨진다")
+        if _tap.signals_for(0) is not None:
+            raise SystemExit("봉 경계 0(봉 없음)인데 None 이 아니다")
+    log.info("✔ 신호 탭 확인 — 같은 봉만 받아쓰고, 없으면 건너뛴다(폴백 없음)")
+
+    # 거절 사유가 갈려 있는가 — 한 통이면 기회 손실을 귀속시킬 수 없다
+    _pp = RsiPaper(PaperConfig(slots=1, warmup_bars=50), ["A"], OUT_DIR)
+    for _n in ("n_reject_order", "n_reject_tp", "n_kernelfail", "n_pricefail"):
+        if not hasattr(_pp, _n):
+            raise SystemExit(f"거절 계정 {_n} 이 없다")
+    log.info("✔ 거절 계정 분리 확인 — 시세실패·주문거절·익절거절·커널실패")
+
+    # 정본 체결 — 시세가 완전히 다른 값을 줘도 **봉 종가**로 채워야 한다.
+    # 스위치만 있고 체결가에 안 닿으면 그림자는 조용히 페이퍼가 된다.
+    _sp = RsiPaper(PaperConfig(slots=1, warmup_bars=50, entry_rsi=99,
+                               tp_pct=0.05, sl_pct=0.0), ["A"], OUT_DIR)
+    _sp.fill_at_ref = True
+    _sp.price_fn = lambda sym: 999.0            # 정본과 한참 다른 값
+    _idx = pd.date_range("2026-01-01", periods=60, freq="h", tz="UTC")
+    _dn = pd.Series(np.linspace(100, 60, 60), index=_idx)
+    _bars = {"A": pd.DataFrame({"open": _dn, "high": _dn, "low": _dn,
+                                "close": _dn, "volume": 1.0})}
+    _c = _sp.step({"1h": _bars})
+    if not _c["fills"]:
+        raise SystemExit("정본 체결 검사 — 체결이 아예 안 났다")
+    _f = _c["fills"][0]
+    if abs(_f["entry_price"] - float(_dn.iloc[-1])) > 1e-9:
+        raise SystemExit(f"정본 체결이 아니다 — 체결가 {_f['entry_price']} "
+                         f"vs 봉 종가 {float(_dn.iloc[-1])} (시세 999 를 썼다)")
+    if _f["slip_bp"] != 0.0:
+        raise SystemExit(f"정본 체결인데 지연대가가 {_f['slip_bp']}")
+    log.info("✔ 정본 체결 확인 — 시세 999 를 줘도 봉 종가 %.4g 로 채운다",
+             _f["entry_price"])
+
     log.info("✔ 자기검사 통과 — 신호 %d · 체결 %d · 미체결 %d",
              pp.n_signal, pp.n_fill, pp.n_skip)
 
 
-def main() -> int:
+def _build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description="RSI 극단 전진 페이퍼")
     p.add_argument("--tf", default="1h", choices=list(TF_MS),
                    help="봉 주기. 보유상한(--hold-bars)도 같이 맞춰라")
@@ -1134,13 +1369,19 @@ def main() -> int:
                    help="exchange_accounts.id (실거래 계좌)")
     p.add_argument("--dry-run", action="store_true",
                    help="--live 와 함께 — 주문 대신 로그만 남긴다")
+    p.add_argument("--shadow-of", default="",
+                   help="그림자 모드. 1군 실거래 세션 이름(예 "
+                        "5m_rsi10_cb_nosl_LIVE). 그 세션의 원장에서 후보 집합을 "
+                        "받아쓰고, 체결은 정본대로 한다. 차이 = 기회 손실")
+    p.add_argument("--tap-wait", type=float, default=90.0,
+                   help="그림자가 1군 결정을 기다리는 상한(초)")
     p.add_argument("--selftest", action="store_true")
-    a = p.parse_args()
+    return p
 
-    selftest()
-    if a.selftest:
-        return 0
 
+def _cfg_from_args(a) -> PaperConfig:
+    """인자 → 설정. **main 과 자기검사가 같은 함수를 쓴다** — 갈라 놓으면
+    검사가 통과해도 실제 실행 경로는 다를 수 있다(2026-08-22 실제로 그랬다)."""
     if a.sources:
         specs = []
         for chunk in a.sources.split(","):
@@ -1152,16 +1393,29 @@ def main() -> int:
                                     tp_pct=float(f[2]), sl_pct=float(f[3]),
                                     max_hold_bars=int(f[4]),
                                     entry_mode=(f[5] if len(f) == 6 else "level")))
-        cfg = PaperConfig(slots=a.slots, notional_usd=a.notional,
-                          sources=specs, cycle_offset_s=a.offset,
-                          fetch_workers=a.workers, feed_mode=a.feed,
-                          live=bool(a.live))
-    else:
-        cfg = PaperConfig(slots=a.slots, entry_rsi=a.entry_rsi, tf=a.tf,
-                          max_hold_bars=a.hold_bars, entry_mode=a.entry_mode,
-                          tp_pct=a.tp, sl_pct=a.sl, notional_usd=a.notional,
-                          cycle_offset_s=a.offset, fetch_workers=a.workers,
-                          feed_mode=a.feed, live=bool(a.live))
+        return PaperConfig(slots=a.slots, notional_usd=a.notional,
+                           sources=specs, cycle_offset_s=a.offset,
+                           fetch_workers=a.workers, feed_mode=a.feed,
+                           live=bool(a.live), shadow=bool(a.shadow_of))
+    return PaperConfig(slots=a.slots, entry_rsi=a.entry_rsi, tf=a.tf,
+                       max_hold_bars=a.hold_bars, entry_mode=a.entry_mode,
+                       tp_pct=a.tp, sl_pct=a.sl, notional_usd=a.notional,
+                       cycle_offset_s=a.offset, fetch_workers=a.workers,
+                       feed_mode=a.feed, live=bool(a.live),
+                       shadow=bool(a.shadow_of))
+
+
+def main() -> int:
+    p = _build_parser()
+    a = p.parse_args()
+
+    selftest()
+    if a.selftest:
+        return 0
+
+    # ⚠ 설정 구성은 `_cfg_from_args` 하나뿐이다 — 자기검사가 **같은 함수**를
+    #   검사하도록. 여기 따로 만들면 검사 통과와 실제 실행이 갈린다.
+    cfg = _cfg_from_args(a)
     syms = [s.strip().upper() for s in Path(a.universe).read_text().split()
             if s.strip()]
     log.info("유니버스 %d종목 · 슬롯 %d **공유** · 슬롯당 $%.0f · 세션 %s",
@@ -1172,6 +1426,22 @@ def main() -> int:
                  x.max_hold_bars)
     pp = RsiPaper(cfg, syms, OUT_DIR / cfg.session_name)
     pp.load_state()
+
+    if a.shadow_of:
+        if a.live:
+            raise SystemExit("--live 와 --shadow-of 는 같이 못 쓴다")
+        live_dir = OUT_DIR / a.shadow_of
+        if not live_dir.exists():
+            raise SystemExit(f"1군 세션 폴더가 없다 — {live_dir}")
+        pp.tap = SignalTap(live_dir, cfg.base_tf, wait_s=a.tap_wait)
+        pp.fill_at_ref = True
+        log.warning("*** 그림자 모드 *** 후보를 %s 에서 받아쓴다 "
+                    "(슬롯 %d × $%.1f · 체결은 정본대로)",
+                    a.shadow_of, cfg.slots, cfg.notional_usd)
+        log.info("체결 규약 = **정본** — 진입·시간청산 모두 봉 종가, "
+                 "익절은 익절가 정확 (그림자 자신의 지연은 0)")
+        log.info("측정 대상 = 1군이 못 가져간 기회 — 주문 거절 · 익절 "
+                 "지정가 미체결 · 슬롯 포화")
 
     if a.live:
         # ⚠ 여기부터 **실제 돈**이다.
