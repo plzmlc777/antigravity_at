@@ -435,10 +435,16 @@ def fetch_mark_price(symbol: str) -> float | None:
 
 
 def _edge_ms(bars: dict, tf: str) -> int:
-    """이 시간대에서 방금 마감된 봉의 **끝** epoch ms.
+    """이 시간대에서 방금 마감된 봉의 **끝** epoch ms — 봉에서 유도한 값.
 
-    아무 종목이나 하나면 된다 — 바이낸스 봉은 UTC epoch 에 정렬돼 있어
-    같은 시간대면 경계가 같다. 봉이 하나도 없으면 0 (그림자는 이때 건너뛴다)."""
+    ⚠ 2026-08-22 — 이 함수만으로 라벨을 정하면 **틀린다.** 체결 웹소켓
+      피드에서는 방금 닫힌 봉에 거래가 없던 종목은 그 봉 자체가 없어
+      마지막 봉이 한 칸 뒤로 밀린다. 첫 종목이 그런 종목이면 사이클
+      전체가 이전 봉으로 라벨돼 **같은 라벨이 두 번** 붙는다(실측:
+      1군이 20:15 사이클을 20:10 으로 라벨 → 그림자가 짝을 못 찾음).
+
+      그래서 호출부는 벽시계에서 계산한 `edge_ms` 를 넘긴다. 이 함수는
+      그 값이 없을 때(자기검사 등)만 쓰는 후퇴 경로다."""
     for b in bars.values():
         try:
             return int(b.index[-1].timestamp() * 1000) + TF_MS[tf]
@@ -489,17 +495,20 @@ class SignalTap:
         return None
 
     def signals_for(self, edge_ms: int):
+        """(후보목록, 1군이 정지중이었나). 못 읽었으면 None."""
         if not edge_ms:
             return None
         deadline = time.time() + self.wait_s
         while True:
             row = self._scan(edge_ms)
             if row is not None:
-                if row.get("halted"):
-                    # 1군이 비상정지 중이면 그림자도 진입하지 않는다 —
-                    # 안 그러면 정지 기간에만 그림자가 앞서 나간다.
-                    return []
-                return row.get("signals", [])
+                # ⚠ 2026-08-23 — 예전엔 1군이 정지 중이면 빈 후보를 돌려줬다.
+                #   "정지 기간에 그림자만 앞서 나가지 않게" 한 것인데, 실제로는
+                #   **사고성 정지의 비용이 장부에서 사라졌다**(TACUSDT, 백엔드가
+                #   세션을 ERROR 로 만든 4시간 반 동안). 정지가 의도된 것인지
+                #   사고인지는 그 순간 알 수 없다 — 그래서 **잡아 두고 표시**한다.
+                #   나중에 가르는 건 되지만, 없는 것을 되살릴 수는 없다.
+                return row.get("signals", []), bool(row.get("halted"))
             if time.time() >= deadline:
                 return None
             time.sleep(self.poll_s)
@@ -552,7 +561,8 @@ class RsiPaper:
         self.registry = None
 
     # ── 한 사이클: 마감 봉 기준으로 청산 먼저, 그 다음 진입 ──────
-    def step(self, bars_by_tf: dict, closed: set | None = None) -> dict:
+    def step(self, bars_by_tf: dict, closed: set | None = None,
+             edge_ms: int = 0) -> dict:
         """한 사이클.
 
         `bars_by_tf` = {시간대: {종목: 마감봉 DataFrame}}.
@@ -566,7 +576,11 @@ class RsiPaper:
                "closed_tf": sorted(closed),
                # 봉 경계 — 그림자가 "같은 봉"을 짚으려면 이게 있어야 한다.
                # 신호가 0건인 사이클엔 signals 로 봉을 알 수 없다.
-               "bars": {tf: _edge_ms(bars_by_tf.get(tf, {}), tf)
+               # 봉 라벨은 **벽시계**에서 온다. 봉에서 유도하면 거래 없는
+               # 종목 하나가 사이클 전체를 이전 봉으로 밀어 버린다.
+               # `closed` 는 edge_ms % TF_MS[tf] == 0 인 시간대만 담으므로
+               # 그 시간대의 마감 봉 끝은 edge_ms 그 자체다.
+               "bars": {tf: (edge_ms or _edge_ms(bars_by_tf.get(tf, {}), tf))
                         for tf in sorted(closed)},
                "signals": [], "fills": [], "exits": [], "rejects": []}
 
@@ -702,7 +716,11 @@ class RsiPaper:
         # 조용히 독립 세션이 되고, 그때부터 비교는 짝을 잃는다.
         if self.tap is not None:
             mine = {c["symbol"] for c in cands}
-            tapped = self.tap.signals_for(cyc["bars"].get(self.cfg.base_tf, 0))
+            got = self.tap.signals_for(cyc["bars"].get(self.cfg.base_tf, 0))
+            tapped, src_halted = (None, False) if got is None else got
+            if src_halted:
+                # 1군이 못 잡은 몫이다 — 나중에 가를 수 있게 표시만 남긴다
+                cyc["source_halted"] = True
             if tapped is None:
                 self.n_tapmiss += 1
                 cyc["tapmiss"] = True
@@ -786,6 +804,13 @@ class RsiPaper:
             if abs(slip) > self.cfg.max_slip_bp:
                 # 정상 지연으로는 안 나오는 값 — 시세가 이상하다. 안 채운다.
                 self.n_slipreject += 1
+                # ⚠ 2026-08-23 — 계정만 올리고 **어느 종목이 몇 bp 였는지**를
+                #   안 남겼다. SQDUSDT 를 거부하고 그림자가 +4.93% 를 먹었는데
+                #   사후에 슬리피지를 확인할 방법이 없었다.
+                cyc["rejects"].append({"symbol": c["symbol"],
+                                       "reason": "slip_guard",
+                                       "slip_bp": round(slip, 1),
+                                       "ref": ref, "px": px})
                 log.warning("%s 괴리 %+.0fbp — 체결 거부 (정본 %.8g / 현재 %.8g)",
                             c["symbol"], slip, ref, px)
                 continue
@@ -1291,16 +1316,37 @@ def selftest() -> None:
             for _r in _rows:
                 _fh.write(json.dumps(_r) + "\n")
         _tap = SignalTap(_dir, "5m", wait_s=0.0, poll_s=0.01)
-        if [c["symbol"] for c in _tap.signals_for(1000)] != ["Q"]:
+        _c1, _h1 = _tap.signals_for(1000)
+        if [c["symbol"] for c in _c1] != ["Q"] or _h1:
             raise SystemExit("탭이 같은 봉의 후보를 못 읽는다")
-        if _tap.signals_for(2000) != []:
-            raise SystemExit("1군 비상정지 사이클인데 그림자가 진입하려 한다")
+        _c2, _h2 = _tap.signals_for(2000)
+        if not _h2:
+            raise SystemExit("1군 정지 사이클인데 표시가 안 붙는다 — "
+                             "사고성 정지의 비용이 장부에서 사라진다")
         if _tap.signals_for(3000) is not None:
             raise SystemExit("없는 봉인데 None 이 아니다 — 그림자가 "
                              "자기 후보로 폴백하면 짝이 깨진다")
         if _tap.signals_for(0) is not None:
             raise SystemExit("봉 경계 0(봉 없음)인데 None 이 아니다")
     log.info("✔ 신호 탭 확인 — 같은 봉만 받아쓰고, 없으면 건너뛴다(폴백 없음)")
+
+    # 봉 라벨은 벽시계에서 온다 — 첫 종목이 거래 없어 한 칸 뒤처져 있어도
+    # 사이클 전체가 이전 봉으로 밀리면 안 된다(2026-08-22 실측 결함).
+    _lp = RsiPaper(PaperConfig(slots=1, warmup_bars=50, tf="5m"), ["A"], OUT_DIR)
+    _i = pd.date_range("2026-01-01", periods=60, freq="5min", tz="UTC")
+    _s = pd.Series(np.linspace(100, 90, 60), index=_i)
+    _stale = {"A": pd.DataFrame({"open": _s, "high": _s, "low": _s,
+                                 "close": _s, "volume": 1.0})}
+    _want = 1787383500000
+    _c = _lp.step({"5m": _stale}, {"5m"}, _want)
+    if _c["bars"]["5m"] != _want:
+        raise SystemExit(f"봉 라벨이 벽시계를 안 따른다 — {_c['bars']['5m']} "
+                         f"vs {_want} (거래 없는 종목이 사이클을 밀었다)")
+    _c2 = _lp.step({"5m": _stale}, {"5m"})           # 후퇴 경로
+    if _c2["bars"]["5m"] == _want:
+        raise SystemExit("후퇴 경로가 벽시계 값을 냈다 — 검사가 무의미하다")
+    log.info("✔ 봉 라벨 확인 — 벽시계 %d 를 그대로 쓴다(봉 유도는 후퇴 경로)",
+             _want)
 
     # 거절 사유가 갈려 있는가 — 한 통이면 기회 손실을 귀속시킬 수 없다
     _pp = RsiPaper(PaperConfig(slots=1, warmup_bars=50), ["A"], OUT_DIR)
@@ -1483,7 +1529,12 @@ def main() -> int:
                                      "entry_mode": x.entry_mode}
                                     for x in cfg.sources],
                         "slots": cfg.slots, "notional_usd": cfg.notional_usd,
-                        "universe": len(syms)},
+                        "universe": len(syms),
+                        # ⚠ 이 표식이 없으면 백엔드가 기동할 때 이 행을 보고
+                        #   엔진을 띄우려다 실패해 세션을 ERROR 로 만든다.
+                        #   그러면 아래 비상정지 가드가 진입을 막는다
+                        #   (2026-08-23 실제 사고, 4시간 반 차단).
+                        "external_runner": f"pm2:{cfg.session_name}"},
                 initial_capital=cfg.slots * cfg.notional_usd)
             pp.registry.register()
             log.info("비상정지 — DB 에서 `update live_bot_sessions set "
@@ -1541,7 +1592,7 @@ def main() -> int:
             bars = bars_by_tf.get(cfg.base_tf, {})
             log.info("피드 스냅샷 — %s · %s", 
                      {k: len(v) for k, v in bars_by_tf.items()}, h)
-            cyc = pp.step(bars_by_tf, closed)
+            cyc = pp.step(bars_by_tf, closed, edge_ms)
             pp.persist(cyc)
             log.info("사이클 %.0fs · 마감 %s · 신호 %d · 진입 %d · 청산 %d · "
                      "보유 %d/%d · 누적 $%.2f · 지연대가 %+.1fbp",
@@ -1588,7 +1639,7 @@ def main() -> int:
                 return 1
             continue
 
-        cyc = pp.step(bars_by_tf, closed)
+        cyc = pp.step(bars_by_tf, closed, edge_ms)
         pp.persist(cyc)
         if pp.registry is not None:
             pp.registry.heartbeat(

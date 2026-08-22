@@ -412,6 +412,29 @@ class LiveManager:
                 LiveBotSession.status == SessionStatus.RUNNING
             ).all()
 
+            # ⚠ 2026-08-23 — 외부 프로세스가 굴리는 세션은 **복원하지 않는다.**
+            #
+            #   RSI 극단 트랙(1군)은 PM2 독립 프로세스가 굴리면서 감시·비상정지를
+            #   받으려고 이 테이블에 자기를 등록한다. 그런데 여기서 그 행을
+            #   RUNNING 으로 보고 엔진을 띄우려다 전략 레지스트리에 이름이 없어
+            #   실패했고, 세션을 ERROR 로 마킹했다. 세션 자신의 비상정지 가드가
+            #   `status != RUNNING` 을 정지로 읽어 **실거래 진입이 4시간 반 막혔다**
+            #   (2026-08-23 03:35, 백엔드 일일 재기동 직후).
+            #
+            #   전략 이름을 레지스트리에 넣는 방식으로 풀면 안 된다 — 그러면
+            #   백엔드가 엔진을 **실제로** 띄워 같은 계좌에 두 프로세스가 주문을
+            #   내게 된다. 등록은 감시용이지 실행 위임이 아니다.
+            external = [x for x in active_sessions
+                        if (x.strategy_config or {}).get("external_runner")]
+            if external:
+                for x in external:
+                    logger.info(
+                        "LiveManager: skip %s — external_runner=%s (등록은 감시용, "
+                        "실행은 그 프로세스가 한다)",
+                        x.id, (x.strategy_config or {}).get("external_runner"))
+                ext_ids = {x.id for x in external}
+                active_sessions = [x for x in active_sessions if x.id not in ext_ids]
+
             if not active_sessions:
                 logger.info("LiveManager: No RUNNING sessions to restore.")
                 # Still initialize adapter with first active account for API calls
