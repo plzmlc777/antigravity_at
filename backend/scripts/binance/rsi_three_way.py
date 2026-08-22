@@ -208,40 +208,49 @@ def main() -> int:
         m["누적$"] = round(float(st.get("equity", 0) or 0), 2) if st else 0.0
         out[label] = m
 
-    cols = ["거래", "총손익%p", "거래당%", "익절비중%", "청산slip_bp",
-            "종목", "보유중", "누적$", "구간"]
-    D = pd.DataFrame(out).T.reindex(columns=cols)
-    print(f"\n=== 3자 비교{f' · 앞 {a.cap}거래로 절단' if a.cap else ''} ===")
-    print(D.to_string(na_rep="—", float_format=lambda x: f"{x:,.2f}"))
-
-    # ── 기간 손익 ──────────────────────────────────────
-    print("\n=== 기간 손익 (자본 대비) ===")
-    print(f"{'':<8}{'실현':>11}{'경과':>9}{'주간':>11}{'월간':>11}{'연간':>11}"
-          f"{'표본':>7}   비고")
-    for label, info in (("백테스트", _bt_period()),
-                        ("그림자", _sess_period(SHADOW)),
-                        ("실거래", _sess_period(LIVE))):
-        if not info:
-            print(f"{label:<8}{'—':>11}{'—':>9}{'—':>11}{'—':>11}{'—':>11}"
-                  f"{0:>7}   거래 없음")
-            continue
-        pr = period_returns(info["ret"], info["days"], info["projected"])
-        tag = "**예측치**" if info["projected"] else "실측"
-        # ⚠ 경과가 짧으면 복리 환산이 폭주한다(0.3일 → 365제곱). 숫자를
-        #   지우진 않되 **믿을 수 없다는 사실**을 같이 찍는다. 조용히
-        #   내보내면 +6,191% 같은 값이 성과로 읽힌다.
-        bad = []
-        if info["projected"] and info["days"] < 7:
-            bad.append(f"경과 {info['days']:.1f}일")
-        if info["n"] < 30:
-            bad.append(f"표본 {info['n']}건")
-        warn = ("  ⚠ 무의미 — " + " · ".join(bad)) if bad else ""
-        print(f"{label:<8}{_fmt_pct(info['ret']):>11}{info['days']:>8.1f}일"
-              f"{_fmt_pct(pr.get('주간')):>11}{_fmt_pct(pr.get('월간')):>11}"
-              f"{_fmt_pct(pr.get('연간')):>11}{info['n']:>7}   {tag}{warn}")
-    print("  ※ 예측치는 복리 환산이다. 경과 7일 미만 또는 표본 30건 미만이면")
-    print("     `무의미` 로 표시한다 — 하루치를 연으로 늘리면 365제곱이 된다.")
-    print("     주간 예측은 7일, 월간은 30일, 연간은 90일 경과 후부터 읽어라.")
+    # ── 단일 표 — 성과 지표와 기간 예측치를 한 줄에 ──────────
+    #    대표님 지시(2026-08-22): 형식을 하나로. 표가 둘이면 같은 행을
+    #    두 번 찾아 읽어야 한다.
+    periods = {"백테스트": _bt_period(), "그림자": _sess_period(SHADOW),
+               "실거래": _sess_period(LIVE)}
+    rows = []
+    for label in ("백테스트", "그림자", "실거래"):
+        m = out.get(label, {})
+        info = periods.get(label) or {}
+        pr = period_returns(info["ret"], info["days"], info["projected"]) \
+            if info else {}
+        # 믿을 수 없는 예측은 숫자를 내지 않는다 — 조용히 내보내면 성과로 읽힌다
+        bad = bool(info) and (info["n"] < 30
+                              or (info["projected"] and info["days"] < 7))
+        show = (lambda k: "—" if (not pr or bad) else _fmt_pct(pr.get(k)))
+        note = ""
+        if info:
+            if bad:
+                note = f"표본 {info['n']}건 · 경과 {info['days']:.1f}일 — 예측 불가"
+            elif info["projected"]:
+                note = f"예측치 (경과 {info['days']:.0f}일)"
+            else:
+                note = f"실측 {info['days']:.0f}일"
+        rows.append([label,
+                     f"{m.get('거래', 0):,}",
+                     f"{m['총손익%p']:,.2f}" if m.get("거래") else "—",
+                     f"{m['거래당%']:.2f}" if m.get("거래") else "—",
+                     f"{m['익절비중%']:.2f}" if m.get("거래") else "—",
+                     f"{m.get('종목', 0):,}" if m.get("거래") else "—",
+                     show("주간"), show("월간"), show("연간"), note])
+    hdr = ["", "거래", "총손익%p", "거래당%", "익절비중%", "종목",
+           "주간", "월간", "연간", "비고"]
+    w = [max(len(str(r[i])) for r in [hdr] + rows) for i in range(len(hdr))]
+    def _line(r):
+        return "  ".join(str(v).rjust(w[i]) if i else str(v).ljust(w[0])
+                         for i, v in enumerate(r))
+    print(f"\n=== 3자 비교{f' · 앞 {a.cap}거래' if a.cap else ''} ===")
+    print(_line(hdr))
+    print("  ".join("─" * x for x in w))
+    for r in rows:
+        print(_line(r))
+    print("  ※ 주간·월간·연간은 자본 대비 복리 환산. 표본 30건 미만 또는")
+    print("     경과 7일 미만이면 예측을 내지 않는다(365제곱이 된다).")
 
     n_live = int(out["실거래"].get("거래", 0) or 0)
     n_bt = int(out["백테스트"].get("거래", 0) or 0)
