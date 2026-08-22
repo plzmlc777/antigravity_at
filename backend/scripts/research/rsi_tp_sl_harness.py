@@ -481,7 +481,9 @@ def selftest() -> None:
         return _PC(timestamp=None, prediction=0.0, in_position=True, side="long",
                    entry_price=100.0, bars_held=held, open_price=100.0,
                    high_price=100.0, low_price=100.0, close_price=100.0,
-                   features={"rsi_value": rsi})
+                   # ⚠ 운영에서 정책이 받는 건 **Series** 다. dict 로 시험하면
+                   #   `features or {}` 같은 결함을 못 잡는다(실제로 놓쳤다).
+                   features=pd.Series({"rsi_value": rsi}))
     if _pol.decide(_rsictx(9.9)).kind != "exit":
         raise SystemExit("RSI 9.9 인데 청산 안 한다 — 규칙이 동작하지 않는다")
     if _pol.decide(_rsictx(10.1)).kind == "exit":
@@ -494,8 +496,16 @@ def selftest() -> None:
         raise SystemExit("비활성(0)인데 청산한다 — 기존 동작이 바뀐다")
     if _pol.decide(_rsictx(50.0, held=288)).note != "time":
         raise SystemExit("보유상한이 RSI 청산에 가려졌다")
+    # 빈 Series·None 도 죽지 않아야 한다
+    for _empty in (pd.Series(dtype=float), None):
+        _c = _PC(timestamp=None, prediction=0.0, in_position=True, side="long",
+                 entry_price=100.0, bars_held=5, open_price=100.0,
+                 high_price=100.0, low_price=100.0, close_price=100.0,
+                 features=_empty if _empty is not None else {})
+        if _pol.decide(_c).kind == "exit":
+            raise SystemExit("피처가 비었는데 청산한다")
     log.info("✔ RSI 청산 확인 — 9.9 청산 / 10.1 유지 / NaN 유지 / 0=비활성 / "
-             "보유상한 우선")
+             "보유상한 우선 / 빈 피처 안전 (**Series 로 시험**)")
 
     log.info("✔ 요율 도달 확인 — 테이커 %.1fbp / 메이커 %.1fbp 편도 "
              "(익절은 메이커, 손절·시간은 테이커)",

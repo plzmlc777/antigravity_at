@@ -180,7 +180,13 @@ class LongShortThresholdPolicy(TradingPolicy):
             if c.bars_held >= self.max_hold_bars:
                 return Action.exit_("time")
             if self.exit_rsi_below > 0:
-                v = (c.features or {}).get(self.rsi_feature)
+                # ⚠ `c.features` 는 실제로 **pandas Series** 다(피처 행).
+                #   `features or {}` 로 쓰면 Series 의 진리값을 묻게 되어
+                #   `The truth value of a Series is ambiguous` 로 죽는다.
+                #   dict 로만 시험하면 이 결함을 못 잡는다 — 실제로 못 잡았고
+                #   예비비행에서 드러났다.
+                f = c.features
+                v = f.get(self.rsi_feature) if f is not None else None
                 # NaN 은 판정하지 않는다 — 워밍업 구간에서 조용히 청산되면
                 # 보유상한 검사가 무의미해진다
                 if v is not None and v == v and float(v) <= self.exit_rsi_below:
