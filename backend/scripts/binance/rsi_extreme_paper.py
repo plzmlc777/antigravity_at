@@ -801,8 +801,28 @@ class RsiPaper:
                 continue
             ref = c["close"]                       # 정본 체결가 = 신호 봉 종가
             slip = 1e4 * (px / ref - 1.0) if ref > 0 else 0.0
-            if abs(slip) > self.cfg.max_slip_bp:
-                # 정상 지연으로는 안 나오는 값 — 시세가 이상하다. 안 채운다.
+            # ⚠ 2026-08-23 대표님 지시 — **실거래에는 걸지 않는다.**
+            #
+            #   이 가드(2026-08-20 c5cf8668)는 HFTUSDT 사고 대응이다: 죽은
+            #   종목의 오래된 체결가로 채우면 익절가가 이미 봉 안에 들어와
+            #   **거래도 없는 종목에서 가짜 이익**이 난다. 그건 체결가를
+            #   우리가 지어내는 **모의 체결**에서만 생기는 문제다.
+            #
+            #   실거래는 거래소가 체결가를 준다. 괴리가 크다는 것은 "정본보다
+            #   비싸게 산다"는 뜻일 뿐이고, 그 대가는 slip_bp 로 정직하게
+            #   기록된다. 지어낼 여지가 없다.
+            #
+            #   그리고 이 전략은 RSI 극단에서 **되돌아 나오는 순간**을 산다 —
+            #   진입 직후 가격이 빠르게 튀는 것이 정상 동작이다. 가드는 그것과
+            #   죽은 시세를 구분하지 못한다. 실측: SQDUSDT 가 24초에 +115bp 로
+            #   거부됐고(2026-08-23 01:05), 그림자는 정본가로 채워 25분 만에
+            #   +4.93% 익절했다. 문턱 100bp 는 그 커밋에서 **측정 없이** 정해진
+            #   값이다("정상 지연으로는 100bp 를 못 넘는다" — 근거 없음).
+            #
+            #   그림자는 정본가로 채워 괴리가 항상 0 이다. 실거래에서 이 가드를
+            #   빼야 **그림자↔실거래 짝이 대칭**이 된다.
+            if self.broker is None and abs(slip) > self.cfg.max_slip_bp:
+                # 모의 체결 — 이상한 시세로 채우면 가짜 이익이 생긴다.
                 self.n_slipreject += 1
                 # ⚠ 2026-08-23 — 계정만 올리고 **어느 종목이 몇 bp 였는지**를
                 #   안 남겼다. SQDUSDT 를 거부하고 그림자가 +4.93% 를 먹었는데
@@ -1071,6 +1091,36 @@ def selftest() -> None:
         raise SystemExit("허용 범위인데 체결이 안 됐다")
     log.info("✔ 괴리 상한 확인 — %+.0fbp 거부 / %+.0fbp 체결 (상한 %gbp)",
              -1500, 50, ps_.cfg.max_slip_bp)
+
+    # 실거래에는 걸지 않는다 (2026-08-23). 거래소가 체결가를 주므로 가짜
+    # 이익이 생길 여지가 없고, 되돌림 진입을 막기만 한다.
+    class _StubBroker:
+        """거래소 대역 — 요청한 값 그대로 채워 준다."""
+        def __init__(self):
+            self.opened = []
+        def detect_tp_fills(self, syms):
+            return {}
+        def open_long(self, symbol, ref_price):
+            self.opened.append((symbol, ref_price))
+            return {"price": ref_price, "quantity": 1.0}
+        def arm_take_profit(self, symbol, qty, tp_price):
+            return True
+        def close_long(self, symbol):
+            return None
+    pl_ = RsiPaper(PaperConfig(slots=2, warmup_bars=50, max_slip_bp=100.0),
+                   ["A"], OUT_DIR)
+    pl_.broker = _StubBroker()
+    pl_.price_fn = lambda sym: float(dn.iloc[-1]) * 0.85    # -1500bp
+    cl_ = pl_.step({"1h": {"A": mk(dn)}})
+    if pl_.n_slipreject:
+        raise SystemExit("실거래인데 괴리 상한이 걸렸다 — 되돌림 진입이 막힌다")
+    if not cl_["fills"] or not pl_.broker.opened:
+        raise SystemExit(f"실거래인데 체결이 안 됐다 — {cl_['fills']}")
+    if abs(cl_["fills"][0]["slip_bp"] + 1500.0) > 1.0:
+        raise SystemExit(f"괴리가 slip_bp 로 기록되지 않았다 — "
+                         f"{cl_['fills'][0]['slip_bp']}")
+    log.info("✔ 실거래 예외 확인 — %+.0fbp 도 체결하고 대가를 slip_bp 로 남긴다",
+             cl_["fills"][0]["slip_bp"])
 
     # ── 레이트리밋 감시 (2026-08-20 IP 차단 사고)
     import scripts.binance.rsi_extreme_paper as _self
