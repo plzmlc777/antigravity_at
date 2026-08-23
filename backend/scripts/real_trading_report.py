@@ -201,7 +201,11 @@ def build_table(weeks: list[dict], months: list[dict], cum: dict,
 def build_message(kind_ko: str, cmp_ko: str, this_p: dict, prev_p: dict,
                   eq: dict | None, table: list[str] | None = None) -> str:
     L = []
-    L.append(f"📊 <b>바이낸스 실거래 {kind_ko} 리포트</b> — 신상저격수(신규상장 Day-1 숏) 1군")
+    # ⚠ 2026-08-23 — 부제가 **강등된 트랙**을 가리키고 있었다.
+    #   신상저격수(신규상장 Day-1 숏)는 2026-08-22 에 2군으로 내려갔고,
+    #   계좌 8 의 1군은 RSI 극단 되돌림이다. 부제를 고정 문구로 두면
+    #   승격이 일어날 때마다 조용히 거짓말을 한다 — 트랙 이름을 박지 않는다.
+    L.append(f"📊 <b>실전 리그 · 실거래 {kind_ko} 리포트</b> — 1군 (계좌 8)")
     L.append(f"<b>{this_p['label']}</b> ({cmp_ko} {prev_p['label']} 대비)")
     L.append("")
     if table:

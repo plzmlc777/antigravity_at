@@ -270,8 +270,10 @@ def build_message(kind_ko: str, cmp_ko: str, label: str, a_cur, a_prev, b_cur, b
         L.append(f"  <i>누적 기준일 {BASE_A.isoformat()}</i>")
     L.append("")
 
-    # ── 🅱️ 승격 경쟁 (2군 리그) ──
-    L.append("━━ 🅱️ 승격 경쟁 (2군 리그) ━━")
+    # ── 🅱️ 승격 경쟁 (2군) ──
+    #   ⚠ 상위어가 "리그"다(실전 리그). 2군을 "2군 리그"라 부르지 않는다
+    #     — daily_tier_report.py 가 못박아 둔 규약인데 여기만 어기고 있었다.
+    L.append("━━ 🅱️ 승격 경쟁 (실전 리그 2군) ━━")
     L.append(f"  활성 {b_cur['n_active']}석 · 이번 {kind_ko[0]} <b>{b_cur['n_trades']}</b>회 "
              f"({cmp_ko} {b_prev['n_trades']})")
     if B is not None:
