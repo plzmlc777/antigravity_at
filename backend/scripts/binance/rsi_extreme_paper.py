@@ -260,6 +260,11 @@ class PaperConfig:
     #   그런 값으로 채우면 익절가가 이미 봉 안에 들어와 다음 사이클에 즉시
     #   "익절"이 나고, 한 주도 안 거래된 종목에서 이익이 생긴다.
     max_slip_bp: float = 100.0
+    # ⚠ 거래소 레버리지 — **노출이 아니라 증거금 점유율**을 정한다.
+    #   노출은 notional_usd 가 정한다(수량 = 명목/가격). 기본 1 인 이유는
+    #   모르는 값으로 도는 것보다 마진 벽에 시끄럽게 부딪히는 편이 낫기
+    #   때문이다. 2026-08-23 대표님 지시로 명시 설정을 필수화했다.
+    leverage: int = 1
     # ⚠ 봉 마감 후 대기 (2026-08-20 실측으로 40초 → 2초)
     #   40초는 "REST 봉이 확정되길 기다린다"는 근거로 있었는데, 실측하니
     #   마감 후 **0.1~0.3초**에 확정된다. 40초는 통째로 낭비였다.
@@ -1207,6 +1212,43 @@ def selftest() -> None:
         raise SystemExit("텔레그램이 죽었다고 체결까지 막혔다")
     log.info("✔ 거래 알림 확인 — 진입에서 발송되고, 발송기가 터져도 체결은 산다")
 
+    # ── 레버리지 (2026-08-23) — 명시 설정이 **브로커까지** 가는가 ──
+    #    신상저격수에서 RSI 로 1군을 바꿀 때 재설정하지 않아 계좌에 남아
+    #    있던 2x 로 조용히 돌았다. 기본은 1 이고, 못 맞추면 진입하지 않는다.
+    from scripts.binance.rsi_live_broker import LiveBroker as _LB
+    if _LB(account_id=0, notional_usd=1.0).leverage != 1:
+        raise SystemExit("브로커 기본 레버리지가 1 이 아니다")
+    for argv, want in ((["--tf", "5m"], 1),
+                       (["--tf", "5m", "--leverage", "3"], 3),
+                       (["--sources", "5m:10:0.05:0:288", "--leverage", "5"], 5)):
+        if _cfg_from_args(_build_parser().parse_args(argv)).leverage != want:
+            raise SystemExit(f"인자 {argv} 의 레버리지가 설정에 안 닿는다")
+    _b = _LB(account_id=0, notional_usd=9.4, dry_run=True, leverage=4)
+    if _b.want_leverage("A") != 4:
+        raise SystemExit("브로커가 지정 배수를 안 쓴다")
+    _b.leverage_fn = lambda sym: 7 if sym == "B" else 2
+    if (_b.want_leverage("B"), _b.want_leverage("C")) != (7, 2):
+        raise SystemExit("주문별 동적 레버리지 훅이 안 먹는다")
+    _b.leverage_fn = lambda sym: 1 / 0          # 훅이 터지면 기본으로 후퇴
+    if _b.want_leverage("A") != 4:
+        raise SystemExit("동적 훅이 터졌는데 기본 배수로 안 돌아간다")
+    # 배수를 못 맞추면 **진입하지 않는다**
+    class _NoLev(_StubBroker):
+        def ensure_leverage(self, symbol):
+            return None
+        def open_long(self, symbol, ref_price):
+            if self.ensure_leverage(symbol) is None:
+                return None
+            return super().open_long(symbol, ref_price)
+    pv_ = RsiPaper(PaperConfig(slots=2, warmup_bars=50), ["A"], OUT_DIR)
+    pv_.broker = _NoLev()
+    pv_.price_fn = lambda sym: float(dn.iloc[-1])
+    cv_ = pv_.step({"1h": {"A": mk(dn)}})
+    if cv_["fills"] or pv_.n_reject_order != 1:
+        raise SystemExit(f"레버리지를 못 맞췄는데 진입했다 — {cv_['fills']}")
+    log.info("✔ 레버리지 확인 — 기본 1x · 인자가 브로커까지 도달 · "
+             "주문별 훅 동작 · 못 맞추면 진입 안 함")
+
     # ── 레이트리밋 감시 (2026-08-20 IP 차단 사고)
     import scripts.binance.rsi_extreme_paper as _self
     class _H(dict):
@@ -1550,6 +1592,11 @@ def _build_parser() -> argparse.ArgumentParser:
                    help="exchange_accounts.id (실거래 계좌)")
     p.add_argument("--dry-run", action="store_true",
                    help="--live 와 함께 — 주문 대신 로그만 남긴다")
+    p.add_argument("--leverage", type=int, default=1,
+                   help="거래소 레버리지(실거래 전용). **노출이 아니라 증거금** "
+                        "점유율을 정한다 — 노출은 --notional 이 정한다. "
+                        "기본 1 = 마진이 명목과 같다. 슬롯×명목이 지갑에 가까우면 "
+                        "1x 로는 안 들어간다(기동 시 경고)")
     p.add_argument("--shadow-of", default="",
                    help="그림자 모드. 1군 실거래 세션 이름(예 "
                         "5m_rsi10_cb_nosl_LIVE). 그 세션의 원장에서 후보 집합을 "
@@ -1577,13 +1624,14 @@ def _cfg_from_args(a) -> PaperConfig:
         return PaperConfig(slots=a.slots, notional_usd=a.notional,
                            sources=specs, cycle_offset_s=a.offset,
                            fetch_workers=a.workers, feed_mode=a.feed,
-                           live=bool(a.live), shadow=bool(a.shadow_of))
+                           live=bool(a.live), shadow=bool(a.shadow_of),
+                           leverage=int(a.leverage))
     return PaperConfig(slots=a.slots, entry_rsi=a.entry_rsi, tf=a.tf,
                        max_hold_bars=a.hold_bars, entry_mode=a.entry_mode,
                        tp_pct=a.tp, sl_pct=a.sl, notional_usd=a.notional,
                        cycle_offset_s=a.offset, fetch_workers=a.workers,
                        feed_mode=a.feed, live=bool(a.live),
-                       shadow=bool(a.shadow_of))
+                       shadow=bool(a.shadow_of), leverage=int(a.leverage))
 
 
 def main() -> int:
@@ -1631,7 +1679,8 @@ def main() -> int:
         from scripts.binance.rsi_live_broker import LiveBroker
         pp.broker = LiveBroker(account_id=a.account,
                                notional_usd=cfg.notional_usd,
-                               dry_run=a.dry_run)
+                               dry_run=a.dry_run,
+                               leverage=cfg.leverage)
         pp.broker.connect()
         # 재시작 대조 — 거래소가 진실이다. 우리 장부에 없는 포지션은 손대지
         # 않고 **드러내기만** 한다(수동 개입일 수 있다).
@@ -1645,10 +1694,34 @@ def main() -> int:
                 log.warning("장부엔 %s 가 있는데 거래소엔 없다 — 장부에서 뺀다",
                             sym)
                 del pp.pos[sym]
-        log.warning("*** 실거래 모드 *** 계좌 %s · 슬롯 %d × $%.1f = $%.0f%s",
+        log.warning("*** 실거래 모드 *** 계좌 %s · 슬롯 %d × $%.1f = $%.0f "
+                    "· 레버리지 %dx%s",
                     a.account, cfg.slots, cfg.notional_usd,
-                    cfg.slots * cfg.notional_usd,
+                    cfg.slots * cfg.notional_usd, cfg.leverage,
                     " · DRY-RUN" if a.dry_run else "")
+        # ⚠ 마진 여력 관문 — 슬롯이 다 차면 들어가는가.
+        #   노출은 언제나 1배지만 **증거금은 레버리지가 정한다.** 여기서
+        #   안 보면 80슬롯을 못 채우고 -2019 로 조용히 거절당한다.
+        try:
+            from scripts.binance.rsi_live_broker import _run as _r
+            from app.adapters.binance_futures import FAPI_V2 as _V2
+            _acc = _r(pp.broker._adapter._signed_get(f"{_V2}/account", {}))
+            wallet = float(_acc.get("totalWalletBalance") or 0.0)
+        except Exception as exc:                              # noqa: BLE001
+            log.warning("지갑 조회 실패 — 마진 관문 생략: %s", exc)
+            wallet = 0.0
+        need = cfg.slots * cfg.notional_usd / max(1, cfg.leverage)
+        if wallet > 0:
+            pct = 100 * need / wallet
+            msg = ("슬롯 만재 시 필요 마진 $%.1f = 지갑 $%.1f 의 %.0f%% "
+                   "(명목 $%.0f · %dx)" % (need, wallet, pct,
+                                           cfg.slots * cfg.notional_usd,
+                                           cfg.leverage))
+            if pct > 90:
+                log.error("⚠ %s — **80슬롯을 다 못 채운다.** 레버리지를 "
+                          "올리거나 슬롯·명목을 줄여라", msg)
+            else:
+                log.info("마진 관문 통과 — %s", msg)
         if not a.dry_run:
             # 감시·비상정지 체계 안으로 들어간다. 등록하지 않으면 대시보드도
             # ops-monitor 도 DB 비상정지도 이 세션을 못 본다.

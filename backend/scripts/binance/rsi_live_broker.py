@@ -77,8 +77,62 @@ class LiveBroker:
     account_id: int
     notional_usd: float
     dry_run: bool = False               # True 면 주문 대신 로그만
+    # ⚠ 거래소 레버리지 (2026-08-23 대표님 지시로 명시 설정)
+    #
+    #   **노출 배수가 아니다.** 노출은 `notional_usd` 가 정한다 —
+    #   수량 = 명목/가격 이라 레버리지와 무관하다. 백테스트의 자본 모형도
+    #   "슬롯당 명목 = 자본/슬롯"(총명목 = 자본)이라 노출은 언제나 1배다.
+    #
+    #   이 값이 정하는 것은 **증거금 점유율**이다. 명목 $752 를
+    #   1x 로 잡으면 마진 $752(지갑의 99.9%), 2x 면 $376 이다.
+    #
+    #   기본 1 인 이유 — 모르는 값으로 도는 것보다 **마진 벽에 부딪혀
+    #   시끄럽게 실패**하는 편이 낫다. 신상저격수에서 RSI 로 1군을 바꿀 때
+    #   레버리지를 재설정하지 않아 계좌에 남아 있던 2x 로 조용히 돌았다.
+    leverage: int = 1
+    # 주문마다 배수를 달리하는 전략을 위한 훅. callable(symbol) -> int.
+    # None 이면 위 `leverage` 를 쓴다.
+    leverage_fn: Any = None
     _adapter: Any = field(default=None, init=False, repr=False)
+    _lev_done: dict = field(default_factory=dict)     # 종목 → 적용된 배수
     tp_orders: dict = field(default_factory=dict)     # 종목 → LiveOrder
+
+    # ── 레버리지 ────────────────────────────────────────────
+    def want_leverage(self, symbol: str) -> int:
+        """이 주문에 쓸 배수. 훅이 있으면 훅이 정한다."""
+        if self.leverage_fn is not None:
+            try:
+                return max(1, int(self.leverage_fn(symbol)))
+            except Exception as exc:                          # noqa: BLE001
+                log.error("%s 동적 레버리지 실패 — 기본 %dx 사용: %s",
+                          symbol, self.leverage, exc)
+        return max(1, int(self.leverage))
+
+    def ensure_leverage(self, symbol: str) -> Optional[int]:
+        """주문 **전에** 배수를 맞춘다. 실패하면 None — 진입하지 않는다.
+
+        ⚠ 실패했는데 그냥 진입하면 **모르는 배수로 실자금이 돈다.** 그게
+          정확히 2026-08-23 에 드러난 문제다(계좌에 남아 있던 2x).
+          한 종목에 한 번만 부른다 — 배수는 계좌·종목 속성이라 유지된다."""
+        want = self.want_leverage(symbol)
+        if self._lev_done.get(symbol) == want:
+            return want
+        if self.dry_run:
+            self._lev_done[symbol] = want
+            return want
+        try:
+            r = _run(self._adapter.set_leverage(symbol, want))
+        except Exception as exc:                              # noqa: BLE001
+            log.error("%s 레버리지 %dx 설정 실패: %s", symbol, want, exc)
+            return None
+        if r.get("status") != "success":
+            log.error("%s 레버리지 %dx 거절: %s", symbol, want,
+                      r.get("message") or r)
+            return None
+        got = int(r.get("leverage") or want)
+        self._lev_done[symbol] = got
+        log.info("%s 레버리지 %dx 적용", symbol, got)
+        return got
 
     # ── 연결 ────────────────────────────────────────────────
     def connect(self) -> None:
@@ -105,8 +159,9 @@ class LiveBroker:
             decrypt_key(r[0]), decrypt_key(r[1]),
             r[2] or "https://fapi.binance.com")
         _run(self._adapter._ensure_exchange_info())
-        log.info("실거래 브로커 연결 — 계좌 %s(%s) · 슬롯당 $%.0f%s",
+        log.info("실거래 브로커 연결 — 계좌 %s(%s) · 슬롯당 $%.1f · 레버리지 %s%s",
                  self.account_id, r[3], self.notional_usd,
+                 "동적(훅)" if self.leverage_fn else f"{self.leverage}x",
                  " · DRY-RUN" if self.dry_run else "")
 
     # ── 조회 ────────────────────────────────────────────────
@@ -144,6 +199,11 @@ class LiveBroker:
         """시장가 진입. 체결가·수량을 **거래소 응답에서** 받는다."""
         if ref_price <= 0:
             return None
+        lev = self.ensure_leverage(symbol)
+        if lev is None:
+            # 배수를 못 맞췄다 — 모르는 마진으로 실자금을 넣지 않는다.
+            log.error("%s 레버리지 미설정 — 진입하지 않는다", symbol)
+            return None
         qty = self.notional_usd / ref_price
         if self.dry_run:
             log.info("[DRY] %s 시장가 진입 %.6f (기준 %.8g)", symbol, qty, ref_price)
@@ -162,8 +222,8 @@ class LiveBroker:
             # ⚠ 체결가 0 을 위로 올리면 상위가 이론가로 대체해 회계가 어긋난다.
             log.error("%s 진입은 됐는데 체결가/수량이 0 — px=%s qty=%s", symbol, px, q)
             return None
-        log.info("%s 실거래 진입 — %.6f @ %.8g", symbol, q, px)
-        return {"price": px, "quantity": q}
+        log.info("%s 실거래 진입 — %.6f @ %.8g (%dx)", symbol, q, px, lev)
+        return {"price": px, "quantity": q, "leverage": lev}
 
     def arm_take_profit(self, symbol: str, qty: float, tp_price: float) -> bool:
         """진입 **직후** 익절 지정가를 호가에 얹는다."""
