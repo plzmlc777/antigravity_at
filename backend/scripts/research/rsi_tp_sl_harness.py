@@ -858,12 +858,21 @@ def check_window(TR, a, where: str = "본실행") -> None:
              where, f"{len(TR):,}", a.start or "beg", a.end or "end")
 
 
-def _partial(rows, a) -> None:
-    """부분 저장. 끝에 한 번에 쓰면 중간에 죽을 때 전부 잃는다 (실측 5시간)."""
+def _partial(rows, a, trade_rows=None) -> None:
+    """부분 저장. 끝에 한 번에 쓰면 중간에 죽을 때 전부 잃는다 (실측 5시간).
+
+    ⚠ 거래 원장도 같이 남긴다 (2026-08-23). 부분 파일에 종목별 집계만 있으면
+      **슬롯 판독을 중간에 못 한다** — 슬롯은 진입·청산 **시각**이 있어야
+      계산되는데 `trades_pct` 에는 수익률만 있다. 5시간짜리 격자에서 슬롯
+      결과를 끝까지 못 보는 건 실용적이지 않다.
+    """
     try:
         OUT_DIR.mkdir(parents=True, exist_ok=True)
         pd.DataFrame(rows).to_csv(
             OUT_DIR / f"partial_{a.tag or 'run'}.csv", index=False)
+        if trade_rows:
+            pd.DataFrame(trade_rows).to_csv(
+                OUT_DIR / f"partialtrades_{a.tag or 'run'}.csv", index=False)
     except Exception as e:                       # 저장 실패가 실행을 죽이면 안 된다
         log.warning("부분 저장 실패: %s", e)
 
@@ -1050,7 +1059,7 @@ def main() -> int:
                 if i % 5 == 0:
                     log.info("[%d/%d종목] %.0f초", i, len(syms),
                              (datetime.now() - t0).total_seconds())
-                    _partial(rows, a)
+                    _partial(rows, a, trade_rows)
             return
         from concurrent.futures import ProcessPoolExecutor, as_completed
         with ProcessPoolExecutor(max_workers=a.workers) as ex:
@@ -1063,7 +1072,7 @@ def main() -> int:
                 if i % 5 == 0:
                     log.info("[%d/%d종목] %.0f초", i, len(syms),
                              (datetime.now() - t0).total_seconds())
-                    _partial(rows, a)
+                    _partial(rows, a, trade_rows)
 
     # ⚠ **예비비행**. 코드를 고친 뒤 전체를 먼저 돌렸다가 92분을 잃었다
     #   (2026-08-21). 있는 방법을 안 썼다 — 몇 종목이면 1분이다.
