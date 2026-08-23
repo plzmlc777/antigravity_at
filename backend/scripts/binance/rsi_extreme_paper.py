@@ -559,6 +559,23 @@ class RsiPaper:
         self.broker = None
         # 실거래 세션 등록부. 비상정지(`orders_enabled=false`)를 여기서 읽는다.
         self.registry = None
+        # 실거래 체결 알림(텔레그램). None 이면 안 보낸다.
+        #
+        # ⚠ 2026-08-23 — 실거래가 났는데 알림이 안 왔다. 거래별 알림은
+        #   신상저격수 드라이버(`lifecycle_live_signal_driver`)에만 있었고,
+        #   그 트랙을 2026-08-22 에 2군으로 내리면서 같이 끊겼다. 새 1군은
+        #   등록부(감시·비상정지)만 물려받고 **알림은 못 물려받았다.**
+        #   승격할 때 옮겨야 할 것이 실행 배선만이 아니다.
+        self.notify = None
+
+    def _tell(self, text: str) -> None:
+        """실거래 알림. 실패해도 거래를 막지 않는다."""
+        if self.notify is None:
+            return
+        try:
+            self.notify(text)
+        except Exception as exc:                              # noqa: BLE001
+            log.error("텔레그램 발송 실패 (거래는 정상): %s", exc)
 
     # ── 한 사이클: 마감 봉 기준으로 청산 먼저, 그 다음 진입 ──────
     def step(self, bars_by_tf: dict, closed: set | None = None,
@@ -606,6 +623,15 @@ class RsiPaper:
                 log.info("%s 익절 체결(거래소) — %.8g · %+.2f%% · $%+.2f",
                          sym, px, 100 * tr.return_pct, tr.pnl_cash)
                 del self.pos[sym]
+                self._tell(
+                    f"🟢 <b>실거래 익절</b> — 실전 리그 1군\n"
+                    f"종목: <b>{sym}</b>\n"
+                    f"청산가: {px:.8g} (거래소 지정가 체결)\n"
+                    f"진입가: {p.entry_price:.8g} · 보유 {p.bars_held}봉\n"
+                    f"수익률: <b>{100*tr.return_pct:+.2f}%</b> · "
+                    f"손익 <b>${tr.pnl_cash:+,.4f}</b>\n"
+                    f"슬롯 {len(self.pos)}/{self.cfg.slots} · "
+                    f"누적 실현 <b>${self.equity:+,.2f}</b>")
 
         # ① 청산 — 보유분부터. 슬롯을 먼저 비워야 그 자리에 새로 들어간다
         for sym in list(self.pos):
@@ -670,6 +696,20 @@ class RsiPaper:
                     "src": src, "slip_bp": p.slip_bp,
                     "ref_exit_price": ref, "exit_slip_bp": slip})
                 del self.pos[sym]
+                if self.broker is not None:
+                    mark = "🟢" if pnl >= 0 else "🔻"
+                    why = {"time": "24시간 상한(시장가)", "sl": "손절(시장가)",
+                           "tp": "익절"}.get(reason, reason)
+                    self._tell(
+                        f"{mark} <b>실거래 청산</b> — 실전 리그 1군\n"
+                        f"종목: <b>{sym}</b>\n"
+                        f"사유: {why}\n"
+                        f"청산가: {px:.8g}  (정본 {ref:.8g} · "
+                        f"청산 지연대가 {slip:+.1f}bp)\n"
+                        f"진입가: {p.entry_price:.8g} · 보유 {p.bars_held}봉\n"
+                        f"수익률: <b>{100*ret:+.2f}%</b> · 손익 <b>${pnl:+,.4f}</b>\n"
+                        f"슬롯 {len(self.pos)}/{self.cfg.slots} · "
+                        f"누적 실현 <b>${self.equity:+,.2f}</b>")
 
         # ② 신호 — **전부 기록한다**. 못 잡은 것까지 남겨야 나중에 선택
         #    규칙을 재실행 없이 판정할 수 있다
@@ -848,6 +888,12 @@ class RsiPaper:
                     cyc["rejects"].append({"symbol": c["symbol"],
                                            "reason": "order_rejected",
                                            "ref": ref, "px": px})
+                    self._tell(
+                        f"⚠️ <b>실거래 진입 거절</b> — 실전 리그 1군\n"
+                        f"종목: <b>{c['symbol']}</b>\n"
+                        f"사유: 거래소가 주문을 거절 (마진 부족·최소 명목·수량 단위)\n"
+                        f"정본 {ref:.8g} / 시도가 {px:.8g}\n"
+                        f"→ 이 기회는 놓쳤다. 그림자는 잡았을 것이다.")
                     continue
                 px = float(got["price"])
                 slip = 1e4 * (px / ref - 1.0) if ref > 0 else 0.0
@@ -885,6 +931,11 @@ class RsiPaper:
                     self.n_reject_tp += 1
                     cyc["rejects"].append({"symbol": c["symbol"],
                                            "reason": "tp_limit_rejected"})
+                    self._tell(
+                        f"⚠️ <b>익절 지정가 실패 — 진입을 되돌렸다</b>\n"
+                        f"종목: <b>{c['symbol']}</b>\n"
+                        f"진입은 됐으나 익절 주문이 거절돼 즉시 청산했다.\n"
+                        f"보호 없는 포지션을 남기지 않기 위한 설계다.")
                     continue
             p = Position(
                 symbol=c["symbol"], entry_ts=ts_now, entry_price=st.entry_price,
@@ -896,6 +947,16 @@ class RsiPaper:
             self.n_fill += 1
             self.slip_sum += slip
             cyc["fills"].append(asdict(p))
+            if self.broker is not None:
+                self._tell(
+                    f"🔴 <b>실거래 진입</b> — 실전 리그 1군 (RSI 극단 되돌림)\n"
+                    f"종목: <b>{c['symbol']}</b>  (RSI {c['rsi']:.1f})\n"
+                    f"진입가: {st.entry_price:.8g}  "
+                    f"(정본 {ref:.8g} · 지연대가 {slip:+.1f}bp · {p.lag_s:.0f}초)\n"
+                    f"수량: {st.qty:,.6g} · 명목 ${self.cfg.notional_usd:,.2f}\n"
+                    f"익절 지정가: {st.tp_price:.8g} (+{100*spec.tp_pct:g}%)\n"
+                    f"손절 없음 · 보유 상한 {spec.max_hold_bars}봉({spec.max_hold_bars*TF_MS[c['src']]//3600000}시간)\n"
+                    f"슬롯 {len(self.pos)}/{self.cfg.slots} · 누적 실현 ${self.equity:+,.2f}")
 
         return cyc
 
@@ -1121,6 +1182,30 @@ def selftest() -> None:
                          f"{cl_['fills'][0]['slip_bp']}")
     log.info("✔ 실거래 예외 확인 — %+.0fbp 도 체결하고 대가를 slip_bp 로 남긴다",
              cl_["fills"][0]["slip_bp"])
+
+    # 거래별 알림 — 진입에서 실제로 불리는가. 발송기는 갈아끼운다.
+    # ⚠ 훅만 있고 호출부가 없으면 알림은 **조용히** 안 온다(2026-08-23 실제).
+    sent: list = []
+    pn_ = RsiPaper(PaperConfig(slots=2, warmup_bars=50, max_slip_bp=100.0),
+                   ["A"], OUT_DIR)
+    pn_.broker = _StubBroker()
+    pn_.notify = sent.append
+    pn_.price_fn = lambda sym: float(dn.iloc[-1])
+    pn_.step({"1h": {"A": mk(dn)}})
+    if not sent or "실거래 진입" not in sent[0]:
+        raise SystemExit(f"진입 알림이 안 나갔다 — {sent}")
+    if "정본" not in sent[0] or "익절 지정가" not in sent[0]:
+        raise SystemExit(f"진입 알림에 정본가·익절가가 없다 — {sent[0]}")
+    # 발송기가 터져도 거래는 계속돼야 한다
+    def _boom(_):
+        raise RuntimeError("telegram down")
+    pn2 = RsiPaper(PaperConfig(slots=2, warmup_bars=50), ["A"], OUT_DIR)
+    pn2.broker = _StubBroker()
+    pn2.notify = _boom
+    pn2.price_fn = lambda sym: float(dn.iloc[-1])
+    if not pn2.step({"1h": {"A": mk(dn)}})["fills"]:
+        raise SystemExit("텔레그램이 죽었다고 체결까지 막혔다")
+    log.info("✔ 거래 알림 확인 — 진입에서 발송되고, 발송기가 터져도 체결은 산다")
 
     # ── 레이트리밋 감시 (2026-08-20 IP 차단 사고)
     import scripts.binance.rsi_extreme_paper as _self
@@ -1587,6 +1672,17 @@ def main() -> int:
                         "external_runner": f"pm2:{cfg.session_name}"},
                 initial_capital=cfg.slots * cfg.notional_usd)
             pp.registry.register()
+            # 거래별 텔레그램. 신상저격수 드라이버가 쓰던 **같은 발송기**를
+            # 그대로 쓴다 — 계좌의 봇 토큰 + telegram_chats.json 다중 그룹.
+            # 두 벌 만들면 한쪽만 고쳐지는 날이 온다.
+            try:
+                from scripts.binance.lifecycle_live_signal_driver import (
+                    _telegram_notify)
+                acct = int(a.account)
+                pp.notify = lambda text: _telegram_notify(acct, text)
+                log.info("거래별 텔레그램 알림 — 계좌 %s 로 발송", acct)
+            except Exception as exc:                          # noqa: BLE001
+                log.error("텔레그램 배선 실패 — 알림 없이 계속한다: %s", exc)
             log.info("비상정지 — DB 에서 `update live_bot_sessions set "
                      "orders_enabled=false where id='%s'` (청산은 계속된다)",
                      cfg.session_name)
