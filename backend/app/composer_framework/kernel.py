@@ -92,6 +92,15 @@ class KernelConfig:
     # 전략(MM·그리드)에서는 결론이 뒤집힌다.
     # 바이낸스 선물 VIP0: 메이커 2bp / 테이커 5bp.
     fee_rate_maker: Optional[float] = None
+    # ⚠ 손절을 **지정가**로 건다 (`STOP` 주문: 트리거 후 지정가).
+    #   False = 스톱마켓 — 손절가를 깨는 순간 그 가격에 체결(기존 동작).
+    #   True  = 스톱리밋 — 손절가를 깨면 **주문만 걸고**, 가격이 손절가로
+    #           되돌아와야 체결된다. 슬리피지가 0 이지만 안 돌아오면 미체결이다.
+    #
+    #   왜 필요한가 — 시장가 손절은 급락이 발동시켜 마찰 꼬리를 맞는다
+    #   (실측 평균 104bp · 최대 6,964bp). 지정가로 걸면 그 비용이 사라진다.
+    #   대신 되돌아오지 않으면 손절이 없는 것과 같아진다.
+    sl_limit: bool = False
     # 2026-08-12 수정: 숏에 수수료가 아예 부과되지 않던 결함. False 는 구동작
     # 재현(A/B 측정) 전용이며 운영에서 쓰지 말 것.
     apply_fee_to_short: bool = True
@@ -126,6 +135,9 @@ class KernelState:
     # 진입이 메이커였는가. 숏은 진입 수수료도 **청산 시** 계상하므로(3a) 상태가
     # 기억해야 한다.
     entry_maker: bool = False
+    # 지정가 손절이 **트리거되었는가**. 트리거와 체결이 다른 사건이라
+    # 상태가 기억해야 한다 (`cfg.sl_limit` 이 True 일 때만 쓰인다).
+    sl_armed: bool = False
 
 
 @dataclass
@@ -157,6 +169,36 @@ def _fee(cfg: KernelConfig, maker: bool) -> float:
     if maker and cfg.fee_rate_maker is not None:
         return float(cfg.fee_rate_maker)
     return float(cfg.fee_rate)
+
+
+def _sl_limit_step(st: KernelState, high: float, low: float
+                   ) -> tuple[KernelState, Optional[tuple[float, str]]]:
+    """지정가 손절 한 걸음. (새 상태, 강제청산 or None) 을 돌려준다."""
+    if st.side == "long":
+        if st.sl_armed:
+            if high >= st.sl_price:
+                return st, (st.sl_price, "sl_limit")
+            if st.tp_price > 0 and high >= st.tp_price:
+                return st, (st.tp_price, "tp")
+            return st, None
+        if low <= st.sl_price:
+            return replace(st, sl_armed=True), None      # 트리거만, 체결 없음
+        if st.tp_price > 0 and high >= st.tp_price:
+            return st, (st.tp_price, "tp")
+        return st, None
+    if st.side == "short":
+        if st.sl_armed:
+            if low <= st.sl_price:
+                return st, (st.sl_price, "sl_limit")
+            if st.tp_price > 0 and low <= st.tp_price:
+                return st, (st.tp_price, "tp")
+            return st, None
+        if high >= st.sl_price:
+            return replace(st, sl_armed=True), None
+        if st.tp_price > 0 and low <= st.tp_price:
+            return st, (st.tp_price, "tp")
+        return st, None
+    return st, None
 
 
 def _forced_exit(st: KernelState, high: float, low: float) -> Optional[tuple[float, str]]:
@@ -324,7 +366,16 @@ def step(state: KernelState, *, ts: Any, open_price: float, high_price: float,
         st = replace(st, bars_held=st.bars_held + 1)
     side_before = st.side
 
-    forced = _forced_exit(st, float(high_price), float(low_price))
+    if cfg.sl_limit and st.side != "flat" and st.sl_price > 0:
+        # ── 지정가 손절 ────────────────────────────────────────
+        #   트리거(손절가를 깸)와 체결(손절가로 되돌아옴)이 **다른 사건**이다.
+        #   ⚠ 트리거된 봉에서는 체결하지 않는다. 봉 안의 순서를 모르므로
+        #     "깨자마자 되돌아왔다" 고 가정하면 낙관이다. 다음 봉부터 본다.
+        #   ⚠ 익절가에 닿으려면 손절가를 먼저 지나야 하므로, 한 봉에 둘 다면
+        #     **지정가 손절이 먼저** 채워진다(보수적이면서 물리적으로도 맞다).
+        st, forced = _sl_limit_step(st, float(high_price), float(low_price))
+    else:
+        forced = _forced_exit(st, float(high_price), float(low_price))
 
     bar = {"open_price": float(open_price), "high_price": float(high_price),
            "low_price": float(low_price), "close_price": float(close_price)}
@@ -342,7 +393,9 @@ def step(state: KernelState, *, ts: Any, open_price: float, high_price: float,
     if forced is not None:
         # TP 는 쉬고 있던 지정가가 채워진 것(메이커), SL 은 스톱 발동(테이커).
         st, tr = close(st, forced[0], ts, forced[1], cfg,
-                       exit_maker=(forced[1] == "tp"))
+                       # ⚠ 지정가 손절도 **호가에 얹힌 지정가**라 메이커다.
+                       #   시장가 손절(`sl`)만 테이커다.
+                       exit_maker=(forced[1] in ("tp", "sl_limit")))
         closed.append(tr)
 
     opened = False

@@ -79,6 +79,8 @@ class RsiConfig:
     # RSI 가 이 값 아래로 다시 떨어지면 청산. 0 = 비활성.
     # 가격 손절과 달리 **봉 마감에 판정**하므로 마찰이 시간청산 수준이다.
     exit_rsi_below: float = 0.0
+    # 손절을 **지정가**로 건다. 트리거 후 손절가로 되돌아와야 체결된다.
+    sl_limit: bool = False
     placebo: str = ""            # "" | rotate | random  (진입 대조군)
     placebo_seed: int = 0
     signal_lag_bars: int = 1     # 정본 장부 규약 — 신호 봉의 **다음 봉 시가** 체결
@@ -507,6 +509,14 @@ def selftest() -> None:
     log.info("✔ RSI 청산 확인 — 9.9 청산 / 10.1 유지 / NaN 유지 / 0=비활성 / "
              "보유상한 우선 / 빈 피처 안전 (**Series 로 시험**)")
 
+    # 지정가 손절이 **커널까지** 가는가 (교훈 #88 — 필드와 도달은 다른 사건)
+    _kl = _bt(RsiConfig(sl_limit=True))._kernel_config()
+    if not _kl.sl_limit:
+        raise SystemExit("sl_limit 이 커널에 안 갔다 — 지정가 손절이 무시된다")
+    if _bt(RsiConfig())._kernel_config().sl_limit:
+        raise SystemExit("기본값이 지정가 손절이다 — 기존 동작이 바뀐다")
+    log.info("✔ 지정가 손절 도달 확인 — 커널 sl_limit=True / 기본 False")
+
     log.info("✔ 요율 도달 확인 — 테이커 %.1fbp / 메이커 %.1fbp 편도 "
              "(익절은 메이커, 손절·시간은 테이커)",
              1e4 * kc.fee_rate, 1e4 * kc.fee_rate_maker)
@@ -814,7 +824,8 @@ def _bt(cfg):
     """
     from app.composer_framework.backtester import GenericBacktester
     return GenericBacktester(fee_rate=cfg.fee_rate,
-                             fee_rate_maker=cfg.fee_rate_maker)
+                             fee_rate_maker=cfg.fee_rate_maker,
+                             sl_limit=cfg.sl_limit)
 
 
 def check_window(TR, a, where: str = "본실행") -> None:
@@ -889,6 +900,9 @@ def main() -> int:
                    help="시간대. 보유상한(--hold)은 **봉 수**이니 같이 바꿔라")
     p.add_argument("--start", default="", help="구간 시작 YYYY-MM-DD (포함)")
     p.add_argument("--end", default="", help="구간 끝 YYYY-MM-DD (미포함)")
+    p.add_argument("--sl-limit", action="store_true",
+                   help="손절을 **지정가**로 건다(STOP 주문). 트리거 후 손절가로 "
+                        "되돌아와야 체결 — 슬리피지 0, 대신 미체결 위험")
     p.add_argument("--exit-rsi-below", default="0",
                    help="RSI 가 이 값 아래로 다시 떨어지면 청산(쉼표로 격자). "
                         "0=비활성. 가격 손절과 달리 봉 마감 판정이라 마찰이 "
@@ -931,6 +945,7 @@ def main() -> int:
                       tp_pct=float(tp), sl_pct=float(sl),
                       max_hold_bars=int(hd),
                       entry_mode=em, exit_rsi_below=float(xr),
+                      sl_limit=bool(a.sl_limit),
                       placebo=pl, placebo_seed=int(sd),
                       eval_freq_minutes=TF_MIN[a.tf])
             for sg in signals
@@ -998,7 +1013,7 @@ def main() -> int:
                   "thr": cfg.entry_threshold, "tp": cfg.tp_pct,
                   "sl": cfg.sl_pct, "hold": cfg.max_hold_bars,
                   "entry_mode": cfg.entry_mode, "xr": cfg.exit_rsi_below,
-                  "seed": cfg.placebo_seed,
+                  "sllim": cfg.sl_limit, "seed": cfg.placebo_seed,
                   "placebo": cfg.placebo or "real", "key": cfg.key()})
         return r
 
