@@ -6,6 +6,7 @@ Centralized Quantity & Price Rules - Single Source of Truth
 """
 
 from .config import DEFAULT_EXCHANGE
+from decimal import Decimal, ROUND_CEILING, ROUND_FLOOR
 import math
 import logging
 
@@ -42,6 +43,35 @@ EXCHANGE_QTY_RULES = {
 }
 
 _DEFAULT_RULES = EXCHANGE_QTY_RULES[DEFAULT_EXCHANGE]
+
+
+def _step_floor(quantity: float, step: float) -> float:
+    """`step` 배수로 **내림**. 부동소수로 하면 한 스텝을 통째로 잃는다.
+
+    ⚠ 2026-08-24 실계좌에서 드러난 결함
+        math.floor(171.1 / 0.1) * 0.1
+          171.1 / 0.1 == 1710.9999999999998  → floor 1710 → **171.0**
+        포지션 171.1 을 청산하는데 171.0 만 주문이 나가 0.1 이 남았다.
+        먼지는 손익엔 무의미하지만 **장부와 거래소가 어긋난다** — 그 상태를
+        고아 포지션이라 부르고(2026-07-27 사고) 30분 점검이 경보를 울린다.
+
+        진입에서도 같은 일이 일어난다. 조금 덜 산다 — 조용해서 안 보였다.
+
+    Decimal 로 세면 171.1 / 0.1 == 1711 이라 정확히 171.1 이 나온다.
+    문자열을 거쳐 Decimal 을 만드는 것이 핵심이다(Decimal(171.1) 은
+    이미 오차를 품은 이진수를 그대로 받는다)."""
+    if step <= 0:
+        return float(quantity)
+    q, st = Decimal(str(quantity)), Decimal(str(step))
+    return float((q / st).to_integral_value(rounding=ROUND_FLOOR) * st)
+
+
+def _step_ceil(quantity: float, step: float) -> float:
+    """`step` 배수로 **올림**. 최소 명목을 채울 때 쓴다."""
+    if step <= 0:
+        return float(quantity)
+    q, st = Decimal(str(quantity)), Decimal(str(step))
+    return float((q / st).to_integral_value(rounding=ROUND_CEILING) * st)
 
 
 def _count_decimals(value: float) -> int:
@@ -87,11 +117,8 @@ def adjust_qty(
     min_notional = float(symbol_filters.get("minNotional", rules["min_notional"])) if symbol_filters else rules["min_notional"]
     qty_type = rules.get("qty_type", "float")
 
-    # 1. stepSize floor
-    if step_size > 0:
-        adjusted = math.floor(quantity / step_size) * step_size
-    else:
-        adjusted = quantity
+    # 1. stepSize floor — **Decimal 로** 센다(_step_floor 주석 참조)
+    adjusted = _step_floor(quantity, step_size) if step_size > 0 else quantity
 
     # 2. int/float 타입 변환
     if qty_type == "int":
@@ -113,7 +140,8 @@ def adjust_qty(
     if min_notional > 0 and price > 0:
         notional = adjusted * price
         if notional < min_notional:
-            min_notional_qty = math.ceil(min_notional / price / step_size) * step_size if step_size > 0 else min_notional / price
+            min_notional_qty = (_step_ceil(min_notional / price, step_size)
+                                if step_size > 0 else min_notional / price)
             if qty_type != "int":
                 decimals = _count_decimals(step_size)
                 min_notional_qty = round(min_notional_qty, decimals)
