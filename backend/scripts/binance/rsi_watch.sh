@@ -27,8 +27,11 @@ KEYS = [("n_signal", "신호"), ("n_fill", "체결"), ("n_skip", "슬롯포화")
         ("n_pricefail", "시세실패"), ("n_reject_order", "주문거절"),
         ("n_reject_tp", "익절거절"), ("n_kernelfail", "커널실패"),
         ("n_slipreject", "괴리거부"), ("n_tapmiss", "탭결손")]
-rows = [("실거래", "5m_rsi10_cb_nosl_LIVE"), ("그림자", "5m_rsi10_cb_nosl_SHADOW"),
-        ("구규약", "5m_rsi10")]
+# ⚠ 2026-08-24 30분봉 이관 — 세션 이름이 바뀌면 **여기도** 바꿔야 한다.
+#   안 바꾸면 정지된 옛 세션의 낡은 장부를 거래소와 비교해 `⚠ 불일치`
+#   오경보가 난다(실제로 이관 직후 그랬다). 교훈 #102.
+rows = [("실거래", "30m_rsi12_LIVE"), ("그림자", "30m_rsi12_SHADOW"),
+        ("구5분봉", "5m_rsi10")]
 print("%-8s %6s %6s %8s %8s %8s %8s %8s %8s %7s %6s" %
       ("세션", "신호", "체결", "슬롯포화", "시세실패", "주문거절",
        "익절거절", "커널실패", "괴리거부", "탭결손", "보유"))
@@ -54,8 +57,8 @@ from pathlib import Path
 
 logging.disable(logging.INFO)
 ROOT = Path("runs/paper_sessions/rsi_extreme")
-SESS = [("실거래", "5m_rsi10_cb_nosl_LIVE"), ("그림자", "5m_rsi10_cb_nosl_SHADOW"),
-        ("구규약", "5m_rsi10")]
+SESS = [("실거래", "30m_rsi12_LIVE"), ("그림자", "30m_rsi12_SHADOW"),
+        ("구5분봉", "5m_rsi10")]
 
 px = {d["symbol"]: float(d["price"]) for d in json.load(
     urllib.request.urlopen("https://fapi.binance.com/fapi/v1/ticker/price", timeout=20))}
@@ -82,7 +85,7 @@ for label, name in SESS:
             held = (now - datetime.fromisoformat(p["entry_ts"])).total_seconds() / 3600
             tp = float(p.get("tp_price") or 0)
             print("    %-12s 진입 %-10.8g 현재 %-10.8g 평가 %+6.2f%% (%+.4f$) "
-                  "· 익절까지 %+5.2f%% · 보유 %4.1f/24.0h"
+                  "· 익절까지 %+5.2f%% · 보유 %5.1f/48.0h"
                   % (p["symbol"], ent, cur, 100 * ret, pnl,
                      100 * (tp / cur - 1) if (tp and cur) else 0.0, held))
     print("  %-6s 실현 %+8.4f$ · 미실현 %+8.4f$ · 합계 %+8.4f$   (보유 %d)"
@@ -113,7 +116,7 @@ try:
                                         for k, v in oo.items()} or "없음"))
     # 장부 ↔ 거래소
     book = {p["symbol"] for p in json.loads(
-        (ROOT / "5m_rsi10_cb_nosl_LIVE" / "state.json").read_text()).get("pos", [])}
+        (ROOT / "30m_rsi12_LIVE" / "state.json").read_text()).get("pos", [])}
     if book != set(ex):
         print("  ⚠ **불일치** — 장부 %s / 거래소 %s" % (sorted(book), sorted(ex)))
     else:
@@ -126,7 +129,7 @@ echo "=== 살아 있는가 ==="
 pm2 jlist 2>/dev/null | venv/bin/python3 -c "
 import json, sys
 for p in json.load(sys.stdin):
-    if p['name'].startswith('rsi-5m'):
+    if p['name'].startswith('rsi-'):
         e = p['pm2_env']
         up = int((__import__('time').time()*1000 - e.get('pm_uptime', 0)) / 60000)
         print('  %-22s %-9s 재기동 %s · %d분 가동' %
@@ -136,4 +139,4 @@ PGPASSWORD=antigravity_password psql -U antigravity_user -h localhost \
   -d antigravity_db -P pager=off -t -A -F' · ' -c \
   "select '  비상정지 플래그 orders_enabled=' || orders_enabled ||
           ' · status=' || status
-     from live_bot_sessions where id = '5m_rsi10_cb_nosl_LIVE';" 2>/dev/null
+     from live_bot_sessions where id = '30m_rsi12_LIVE';" 2>/dev/null

@@ -274,6 +274,17 @@ class PaperConfig:
     #   모르는 값으로 도는 것보다 마진 벽에 시끄럽게 부딪히는 편이 낫기
     #   때문이다. 2026-08-23 대표님 지시로 명시 설정을 필수화했다.
     leverage: int = 1
+    # ⚠ 복리 사이징 (2026-08-24 대표님 지시)
+    #   True 면 진입 때마다 **잔고를 읽어** 명목을 다시 정한다:
+    #       슬롯당 명목 = 자본 / 슬롯수
+    #
+    #   왜 — 백테스트 근거표가 전부 복리다. 같은 거래열에서 실전 칸이
+    #   복리 +2,377% / 단리 +347% 로 **6.9배** 갈렸다(슬롯1·20씨앗 실측).
+    #   명목을 고정해 두면 근거와 다른 자로 도는 셈이다.
+    #
+    #   ⚠ 대가 — 최대낙폭 −20.1% 가 그대로 **계좌 낙폭**이 된다. 슬롯 1 은
+    #     명목이 곧 계좌 전액이기 때문이다.
+    compound: bool = False
     # ⚠ 봉 마감 후 대기 (2026-08-20 실측으로 40초 → 2초)
     #   40초는 "REST 봉이 확정되길 기다린다"는 근거로 있었는데, 실측하니
     #   마감 후 **0.1~0.3초**에 확정된다. 40초는 통째로 낭비였다.
@@ -585,6 +596,33 @@ class RsiPaper:
         #   승격할 때 옮겨야 할 것이 실행 배선만이 아니다.
         self.notify = None
 
+    def effective_notional(self) -> float:
+        """이번 사이클에 쓸 슬롯당 명목.
+
+        복리가 꺼져 있으면 설정값 그대로다. 켜져 있으면 **자본을 읽어**
+        슬롯으로 나눈다 — 백테스트 자본곡선과 같은 방식이다.
+
+        ⚠ 자본을 못 읽으면 **설정값으로 후퇴한다.** 모르는 크기로 실자금을
+          넣지 않는다. 조용히 0 이나 잔고 전액을 쓰면 사고가 된다.
+        """
+        base = float(self.cfg.notional_usd)
+        if not self.cfg.compound:
+            return base
+        cap = None
+        if self.broker is not None:
+            cap = self.broker.wallet_balance()
+        else:
+            # 페이퍼·그림자 — 자기 자본곡선을 쓴다(실현 손익 누적)
+            cap = self.cfg.slots * base + self.equity
+        if cap is None or cap <= 0:
+            log.warning("자본을 못 읽었다 — 명목을 설정값 $%.2f 로 유지", base)
+            return base
+        notl = cap / max(1, int(self.cfg.slots))
+        if abs(notl - base) / max(base, 1e-9) > 0.001:
+            log.info("복리 사이징 — 자본 $%.2f / 슬롯 %d = 명목 $%.2f "
+                     "(설정값 $%.2f)", cap, self.cfg.slots, notl, base)
+        return notl
+
     def _tell(self, text: str) -> None:
         """실거래 알림. 실패해도 거래를 막지 않는다."""
         if self.notify is None:
@@ -866,6 +904,11 @@ class RsiPaper:
         #     ①에서 평가된다. 그 봉의 고·저에는 체결 **전** 구간이 섞여 있어
         #     불리하게 잡힐 수 있다 — 정본과 같은 방향(보수적)이라 둔다.
         # 체결가는 **동시에** 받는다 — 순차면 20종목에 2초, 그만큼 더 밀린다
+        # 이번 사이클의 슬롯당 명목. **한 번만** 읽는다 — 종목마다 지갑을
+        # 두드리면 레이트리밋을 먹고, 같은 사이클의 진입 크기가 서로 달라진다.
+        notl = self.effective_notional() if picked else float(self.cfg.notional_usd)
+        if self.broker is not None:
+            self.broker.notional_usd = notl      # 브로커도 같은 값을 쓴다
         px_map: dict = {}
         if picked and self.fill_at_ref:
             # 정본 판본 — 시세를 아예 안 부른다(호출 자체가 지연이다).
@@ -955,10 +998,10 @@ class RsiPaper:
                          sl_price=(px * (1 - spec.sl_pct)
                                    if spec.sl_pct > 0 else 0.0),
                          tp_price=px * (1 + spec.tp_pct),
-                         sizing=NotionalSizing(self.cfg.notional_usd),
+                         sizing=NotionalSizing(notl),
                          fill=MarketOpenFill())
             st = kernel_open(
-                KernelState(cash=self.cfg.notional_usd * 2.0), "enter_long",
+                KernelState(cash=notl * 2.0), "enter_long",
                 dict(open_price=px, high_price=px, low_price=px,
                      close_price=px), ts_now, act, KCFG)
             if st.side != "long" or st.qty <= 0:
@@ -1024,7 +1067,8 @@ class RsiPaper:
                     f"종목: <b>{c['symbol']}</b>  (RSI {c['rsi']:.1f})\n"
                     f"진입가: {st.entry_price:.8g}  "
                     f"(정본 {ref:.8g} · 지연대가 {slip:+.1f}bp · {p.lag_s:.0f}초)\n"
-                    f"수량: {st.qty:,.6g} · 명목 ${self.cfg.notional_usd:,.2f}\n"
+                    f"수량: {st.qty:,.6g} · 명목 ${notl:,.2f}"
+                    f"{' (복리)' if self.cfg.compound else ''}\n"
                     f"익절 지정가: {st.tp_price:.8g} (+{100*spec.tp_pct:g}%)\n"
                     f"손절 없음 · 보유 상한 {spec.max_hold_bars}봉({spec.max_hold_bars*TF_MS[c['src']]//3600000}시간)\n"
                     f"슬롯 {len(self.pos)}/{self.cfg.slots} · 누적 실현 ${self.equity:+,.2f}")
@@ -1236,13 +1280,17 @@ def selftest() -> None:
     # 이익이 생길 여지가 없고, 되돌림 진입을 막기만 한다.
     class _StubBroker:
         """거래소 대역 — 요청한 값 그대로 채워 준다."""
-        def __init__(self, arm_sl_ok=True):
+        def __init__(self, arm_sl_ok=True, wallet=None):
             self.opened = []
+            self.notional_usd = 0.0
+            self.wallet = wallet
             self.stops = []            # (종목, 발동가, 지정가)
             self.arm_sl_ok = arm_sl_ok
             self.closed = []
         def detect_exit_fills(self, syms):
             return {}
+        def wallet_balance(self):
+            return self.wallet
         def arm_stop_loss(self, symbol, trigger, limit_price=0.0):
             self.stops.append((symbol, trigger, limit_price))
             return self.arm_sl_ok
@@ -1389,6 +1437,49 @@ def selftest() -> None:
         raise SystemExit("RSI 청산 계정이 안 올랐다")
     log.info("✔ RSI 재진입 청산 확인 — 문턱 %.0f 이하로 떨어지면 나간다 "
              "(지정가 손절 미체결분의 대체 출구)", 50.0)
+
+    # ── 복리 사이징 (2026-08-24) — 잔고가 **주문 크기까지** 가는가 ──
+    #    설정만 있고 체결 경로에 안 닿으면 조용히 단리로 돈다.
+    if _cfg_from_args(_build_parser().parse_args(["--tf", "5m"])).compound:
+        raise SystemExit("복리가 기본으로 켜져 있다 — 명시해야 켜진다")
+    if not _cfg_from_args(_build_parser().parse_args(
+            ["--tf", "5m", "--compound"])).compound:
+        raise SystemExit("--compound 가 설정에 안 닿는다")
+
+    # 잔고 $2,000 · 슬롯 2 → 슬롯당 명목 $1,000 이어야 한다
+    _pc = RsiPaper(PaperConfig(slots=2, warmup_bars=50, entry_rsi=99,
+                               tp_pct=0.08, sl_pct=0.0, notional_usd=10.0,
+                               compound=True), ["A"], OUT_DIR)
+    _pc.broker = _StubBroker(wallet=2000.0)
+    _pc.price_fn = lambda sym: float(dn.iloc[-1])
+    if abs(_pc.effective_notional() - 1000.0) > 1e-9:
+        raise SystemExit(f"복리 명목이 틀렸다 — {_pc.effective_notional()}")
+    _cc = _pc.step({"1h": {"A": mk(dn)}})
+    if not _cc["fills"]:
+        raise SystemExit("복리 검사 — 체결이 안 났다")
+    _q, _px = _cc["fills"][0]["qty"], _cc["fills"][0]["entry_price"]
+    if abs(_q * _px - 1000.0) > 1.0:
+        raise SystemExit(f"주문 크기가 잔고를 안 따랐다 — 명목 {_q * _px:.2f} "
+                         f"(설정값 10 이면 배선이 안 된 것이다)")
+    if abs(_pc.broker.notional_usd - 1000.0) > 1e-9:
+        raise SystemExit("브로커에 명목이 안 전달됐다 — 거래소 주문은 옛 값을 쓴다")
+
+    # 잔고를 못 읽으면 **설정값으로 후퇴**한다 — 모르는 크기로 안 넣는다
+    _pf2 = RsiPaper(PaperConfig(slots=1, warmup_bars=50, notional_usd=42.0,
+                                compound=True), ["A"], OUT_DIR)
+    _pf2.broker = _StubBroker(wallet=None)
+    if abs(_pf2.effective_notional() - 42.0) > 1e-9:
+        raise SystemExit("잔고를 못 읽었는데 설정값으로 후퇴하지 않았다")
+
+    # 브로커가 없으면(페이퍼·그림자) 자기 자본곡선을 쓴다
+    _pp2 = RsiPaper(PaperConfig(slots=1, warmup_bars=50, notional_usd=100.0,
+                                compound=True), ["A"], OUT_DIR)
+    _pp2.equity = 50.0
+    if abs(_pp2.effective_notional() - 150.0) > 1e-9:
+        raise SystemExit(f"페이퍼 복리가 자본곡선을 안 쓴다 — "
+                         f"{_pp2.effective_notional()}")
+    log.info("✔ 복리 사이징 확인 — 잔고 $2,000/슬롯2 → 주문 명목 $1,000 도달 · "
+             "못 읽으면 설정값 후퇴 · 페이퍼는 자기 자본곡선")
 
     # ── 레이트리밋 감시 (2026-08-20 IP 차단 사고)
     import scripts.binance.rsi_extreme_paper as _self
@@ -1733,6 +1824,11 @@ def _build_parser() -> argparse.ArgumentParser:
                    help="exchange_accounts.id (실거래 계좌)")
     p.add_argument("--dry-run", action="store_true",
                    help="--live 와 함께 — 주문 대신 로그만 남긴다")
+    p.add_argument("--compound", action="store_true",
+                   help="진입 때마다 잔고를 읽어 명목을 다시 정한다 "
+                        "(슬롯당 명목 = 자본/슬롯). 백테스트 근거표가 전부 "
+                        "복리라 이걸 꺼두면 다른 자로 재게 된다. "
+                        "실거래는 지갑 잔고, 페이퍼·그림자는 자기 자본곡선")
     p.add_argument("--exit-rsi-below", type=float, default=0.0,
                    help="보유 중 RSI 가 이 값 이하로 다시 떨어지면 시장가 청산. "
                         "0 이면 끔. 지정가 손절 미체결분의 유일한 대체 출구다")
@@ -1770,11 +1866,13 @@ def _cfg_from_args(a) -> PaperConfig:
                            sources=specs, cycle_offset_s=a.offset,
                            fetch_workers=a.workers, feed_mode=a.feed,
                            live=bool(a.live), shadow=bool(a.shadow_of),
-                           leverage=int(a.leverage))
+                           leverage=int(a.leverage),
+                           compound=bool(a.compound))
     return PaperConfig(slots=a.slots, entry_rsi=a.entry_rsi, tf=a.tf,
                        max_hold_bars=a.hold_bars, entry_mode=a.entry_mode,
                        tp_pct=a.tp, sl_pct=a.sl, notional_usd=a.notional,
                        exit_rsi_below=float(a.exit_rsi_below),
+                       compound=bool(a.compound),
                        cycle_offset_s=a.offset, fetch_workers=a.workers,
                        feed_mode=a.feed, live=bool(a.live),
                        shadow=bool(a.shadow_of), leverage=int(a.leverage))

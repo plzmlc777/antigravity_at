@@ -31,12 +31,40 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-BT_TRADES = "runs/research_track/rsi_tp_sl/cbtrades_sl0_cross_back.csv"
-BT_SLIP = "runs/research_track/rsi_tp_sl/cbslip_sl0_cross_back.csv"
 SESS = Path("runs/paper_sessions/rsi_extreme")
-SHADOW = "5m_rsi10_cb_nosl_SHADOW"
-LIVE = "5m_rsi10_cb_nosl_LIVE"
-SLOTS = 80
+SHADOW = "30m_rsi12_SHADOW"
+LIVE = "30m_rsi12_LIVE"
+
+# ══ 백테스트 기준선 — 30분봉 사양 (2026-08-24 이관) ═══════════════════
+#
+# ⚠ 실전은 스톱리밋 **간격 0** 이지만 기준선은 간격 0.1% 격자를 쓴다.
+#   커널의 "간격 0 = 다음 30분봉까지 기다린다" 모형이 30분봉 해상도 탓에
+#   지나치게 비관적이라(연 −96.8%) 쓸 수 없다. 1분봉 체결률 실측은 간격
+#   0 에서도 **99.6%** 이므로 0.1% 격자가 실제에 더 가깝다.
+BT_TRADES = ("runs/research_track/rsi_tp_sl/"
+             "trades_long_30mfrom1m_h96_2025-08-17_2026-08-17_OFFSET18.csv")
+BT_SLIP = ""                      # 지정가 손절이라 시장가 슬리피지 표가 없다
+# 실전 칸 — 문서 "01 확정 사양"
+BT_CELL = {"thr": 12.0, "tp": 0.08, "sl": 0.005, "entry_mode": "level",
+           "xr": 10.0, "sloff": 0.001}
+
+
+def _live_slots(default: int = 1) -> int:
+    """슬롯 수는 **실행 중인 세션에서 읽는다.**
+
+    ⚠ 2026-08-24 — 상수 `SLOTS = 80` 이 박혀 있어 30분봉(슬롯 1) 이관 뒤에도
+      80 을 곱했다. "슬롯당 자본 $752 × 80 = 계좌 $60,160" 같은 값이 나왔고
+      대표님이 먼저 발견하셨다. 설정을 두 곳에 두면 한 곳만 바뀐다."""
+    for name in (LIVE, SHADOW):
+        f = SESS / name / "config.json"
+        try:
+            return int(json.loads(f.read_text()).get("slots") or default)
+        except Exception:                                     # noqa: BLE001
+            continue
+    return default
+
+
+SLOTS = _live_slots()
 
 
 
@@ -134,8 +162,18 @@ def backtest_slotted(slots: int, seeds: int = 8) -> dict:
     from scripts.research.rsi_slot_sim import simulate
 
     T = pd.read_csv(BT_TRADES)
-    T = T[T.placebo == "real"].copy()
+    if "placebo" in T.columns:
+        T = T[T.placebo == "real"]
+    # 격자 원장이므로 **실전 칸만** 남긴다 — 안 거르면 18칸이 뒤섞인다
+    for col, want in BT_CELL.items():
+        if col not in T.columns:
+            continue
+        T = (T[T[col] == want] if col == "entry_mode"
+             else T[np.isclose(T[col].astype(float), float(want))])
+    T = T.copy()
     try:
+        if not BT_SLIP:
+            raise FileNotFoundError("지정가 손절 — 시장가 슬리피지 표 없음")
         S = pd.read_csv(BT_SLIP)
         k = ["symbol", "entry_ts", "exit_ts"]
         for c in k:
@@ -248,6 +286,8 @@ def main() -> int:
     bt = pd.read_csv(BT_TRADES)
     bt = bt[bt.placebo == "real"]
     try:
+        if not BT_SLIP:
+            raise FileNotFoundError("지정가 손절 — 시장가 슬리피지 표 없음")
         S = pd.read_csv(BT_SLIP)
         k = ["symbol", "entry_ts", "exit_ts"]
         for c in k:

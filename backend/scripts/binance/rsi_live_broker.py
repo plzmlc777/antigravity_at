@@ -169,6 +169,23 @@ class LiveBroker:
                  " · DRY-RUN" if self.dry_run else "")
 
     # ── 조회 ────────────────────────────────────────────────
+    def wallet_balance(self) -> Optional[float]:
+        """지갑 잔고(USDT, 실현 기준). 복리 사이징이 이 값을 쓴다.
+
+        ⚠ **평가액이 아니라 지갑**이다. 미실현을 자본에 넣으면 아직 확정도
+          안 된 이익 위에 다음 포지션을 키우게 된다 — 백테스트 자본곡선은
+          청산된 거래만 쌓는다.
+
+        ⚠ 실패하면 None. 호출부는 **설정값으로 후퇴**해야 한다."""
+        from app.adapters.binance_futures import FAPI_V2
+        try:
+            d = _run(self._adapter._signed_get(f"{FAPI_V2}/account", {}))
+            v = float((d or {}).get("totalWalletBalance") or 0.0)
+            return v if v > 0 else None
+        except Exception as e:                        # noqa: BLE001
+            log.error("지갑 조회 실패: %s", e)
+            return None
+
     def positions(self) -> dict:
         """거래소의 열린 롱 포지션 {종목: 수량}. **진실의 원본.**"""
         from app.adapters.binance_futures import FAPI_V2
