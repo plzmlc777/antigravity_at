@@ -81,6 +81,10 @@ class RsiConfig:
     exit_rsi_below: float = 0.0
     # 손절을 **지정가**로 건다. 트리거 후 손절가로 되돌아와야 체결된다.
     sl_limit: bool = False
+    # 방아쇠와 지정가를 **벌린다**(진입가 대비 비율). 0 = 같은 값(가장 불리).
+    # 실전 스톱리밋은 stopPrice 와 price 를 따로 잡는다 — 그래야 주문이
+    # 만들어지는 순간 체결 가능해지고, 슬리피지가 이 폭 안으로 갇힌다.
+    sl_limit_offset: float = 0.0
     placebo: str = ""            # "" | rotate | random  (진입 대조군)
     placebo_seed: int = 0
     signal_lag_bars: int = 1     # 정본 장부 규약 — 신호 봉의 **다음 봉 시가** 체결
@@ -183,6 +187,11 @@ class RsiConfig:
                 f"_t{self.entry_threshold:g}" + vc
                 + f"_tp{self.tp_pct:g}_sl{self.sl_pct:g}_h{self.max_hold_bars}"
                 + f"_{self.entry_mode}_{pl}"
+                # ⚠ 2026-08-24: 손절 **방식**이 키에 없었다. 시장가 칸과
+                #   지정가 칸이 같은 키를 달고 나가 원장에서 구분이 안 됐고,
+                #   간격 축을 넣으면 세 칸이 조용히 한 덩어리가 된다.
+                #   지정가일 때만 붙여 기존 키는 그대로 둔다.
+                + (f"_sllim{self.sl_limit_offset:g}" if self.sl_limit else "")
                 + (f"_s{self.placebo_seed}" if self.placebo else ""))
 
 
@@ -517,6 +526,32 @@ def selftest() -> None:
         raise SystemExit("기본값이 지정가 손절이다 — 기존 동작이 바뀐다")
     log.info("✔ 지정가 손절 도달 확인 — 커널 sl_limit=True / 기본 False")
 
+    # ⚠ 클래스만 고치고 경로를 안 보면 한 번도 안 돈다(교훈 #88).
+    #   설정 → 백테스터 → 커널까지 **값 자체**가 닿았는지 본다.
+    _ko = _bt(RsiConfig(sl_limit=True, sl_limit_offset=0.003))._kernel_config()
+    if abs(getattr(_ko, "sl_limit_offset", 0.0) - 0.003) > 1e-12:
+        raise SystemExit("sl_limit_offset 이 커널에 안 갔다 — 띠가 무시된다")
+    if _bt(RsiConfig(sl_limit=True))._kernel_config().sl_limit_offset != 0.0:
+        raise SystemExit("sl_limit_offset 기본값이 0 이 아니다")
+    from app.composer_framework.kernel import _sl_floor as _flr
+    if abs(_flr(99.5, 100.0, "long", _ko) - 99.2) > 1e-9:
+        raise SystemExit("띠 산술이 틀렸다 — 롱 하한이 진입가×offset 만큼 아래여야")
+    if abs(_flr(100.5, 100.0, "short", _ko) - 100.8) > 1e-9:
+        raise SystemExit("띠 산술이 틀렸다 — 숏 상한")
+    log.info("✔ 지정가 손절 **띠** 도달 확인 — offset 0.003 / 롱 99.5→99.2 "
+             "· 숏 100.5→100.8 · 기본 0.0")
+
+    # ⚠ 서로 다른 칸이 **같은 키**를 달면 원장에서 구분이 안 된다. 축을 늘릴
+    #   때마다 조용히 섞이므로 여기서 막는다 (2026-08-24: 간격 축 3칸이
+    #   한 덩어리가 될 뻔했다).
+    _probe = [RsiConfig(sl_limit=True, sl_limit_offset=o)
+              for o in (0.0, 0.001, 0.003, 0.005)]
+    _probe.append(RsiConfig())                      # 시장가
+    _keys = [c.key() for c in _probe]
+    if len(set(_keys)) != len(_keys):
+        raise SystemExit(f"칸이 다른데 키가 같다 — 원장에서 섞인다: {_keys}")
+    log.info("✔ 키 유일성 확인 — 시장가·지정가 간격 4종이 서로 다른 키")
+
     log.info("✔ 요율 도달 확인 — 테이커 %.1fbp / 메이커 %.1fbp 편도 "
              "(익절은 메이커, 손절·시간은 테이커)",
              1e4 * kc.fee_rate, 1e4 * kc.fee_rate_maker)
@@ -825,7 +860,8 @@ def _bt(cfg):
     from app.composer_framework.backtester import GenericBacktester
     return GenericBacktester(fee_rate=cfg.fee_rate,
                              fee_rate_maker=cfg.fee_rate_maker,
-                             sl_limit=cfg.sl_limit)
+                             sl_limit=cfg.sl_limit,
+                             sl_limit_offset=cfg.sl_limit_offset)
 
 
 def check_window(TR, a, where: str = "본실행") -> None:
@@ -858,21 +894,53 @@ def check_window(TR, a, where: str = "본실행") -> None:
              where, f"{len(TR):,}", a.start or "beg", a.end or "end")
 
 
-def _partial(rows, a, trade_rows=None) -> None:
-    """부분 저장. 끝에 한 번에 쓰면 중간에 죽을 때 전부 잃는다 (실측 5시간).
+_PARTIAL_STATE: dict = {}   # 실행 1회 = 파일 1쌍
+
+
+def _partial(rows, a, trade_rows=None, _st: dict | None = None) -> None:
+    """부분 저장 — **증분 추가**. 끝에 한 번에 쓰면 중간에 죽을 때 전부 잃는다.
 
     ⚠ 거래 원장도 같이 남긴다 (2026-08-23). 부분 파일에 종목별 집계만 있으면
       **슬롯 판독을 중간에 못 한다** — 슬롯은 진입·청산 **시각**이 있어야
-      계산되는데 `trades_pct` 에는 수익률만 있다. 5시간짜리 격자에서 슬롯
-      결과를 끝까지 못 보는 건 실용적이지 않다.
+      계산되는데 `trades_pct` 에는 수익률만 있다.
+
+    ⚠ 2026-08-24: 체크포인트마다 누적분 **전체**를 다시 쓰고 있었다. 비용이
+      O(n²) 다. 15만 행에서 3.37초/회 (증분이면 0.06초). 377종목 216칸에서는
+      전체의 0.4% 라 무해했지만 격자를 키우면 제곱으로 커진다. 이제 새로 생긴
+      행만 이어붙인다. 두 가지가 필수다 —
+        · 첫 기록에서 기존 파일을 **지운다**. 안 그러면 이전 실행에 이어붙는다.
+        · 컬럼을 **고정한다**. 오류 행은 `error` 키가 있어 정상 행과 열이
+          달라, 청크마다 DataFrame 을 새로 만들면 순서가 어긋난다.
     """
+    if _st is None:
+        _st = _PARTIAL_STATE
     try:
         OUT_DIR.mkdir(parents=True, exist_ok=True)
-        pd.DataFrame(rows).to_csv(
-            OUT_DIR / f"partial_{a.tag or 'run'}.csv", index=False)
-        if trade_rows:
-            pd.DataFrame(trade_rows).to_csv(
-                OUT_DIR / f"partialtrades_{a.tag or 'run'}.csv", index=False)
+        for name, buf in (("partial", rows), ("partialtrades", trade_rows or [])):
+            done = _st.get(f"{name}_n", 0)
+            if not buf or len(buf) <= done:
+                continue
+            path = OUT_DIR / f"{name}_{a.tag or 'run'}.csv"
+            df = pd.DataFrame(buf[done:])
+            cols = _st.get(f"{name}_cols")
+            if cols is None:
+                cols = list(df.columns)
+                _st[f"{name}_cols"] = cols
+                path.unlink(missing_ok=True)     # 이전 실행 잔재에 이어붙이면 안 된다
+            elif set(df.columns) - set(cols):
+                # 새 컬럼(대개 `error`)이 나타났다. 이어붙이기로는 담을 수 없으니
+                # **이때 한 번만** 전체를 다시 쓴다. 드문 일이라 총비용은 O(n) 이다.
+                cols = cols + [c for c in df.columns if c not in cols]
+                _st[f"{name}_cols"] = cols
+                log.info("부분 저장 — 컬럼 확장 %s, 전체 재기록 1회",
+                         sorted(set(df.columns) - set(cols[:len(cols)])) or "…")
+                pd.DataFrame(buf).reindex(columns=cols).to_csv(
+                    path, index=False)
+                _st[f"{name}_n"] = len(buf)
+                continue
+            df.reindex(columns=cols).to_csv(
+                path, mode="a", header=(done == 0), index=False)
+            _st[f"{name}_n"] = len(buf)
     except Exception as e:                       # 저장 실패가 실행을 죽이면 안 된다
         log.warning("부분 저장 실패: %s", e)
 
@@ -909,6 +977,10 @@ def main() -> int:
                    help="시간대. 보유상한(--hold)은 **봉 수**이니 같이 바꿔라")
     p.add_argument("--start", default="", help="구간 시작 YYYY-MM-DD (포함)")
     p.add_argument("--end", default="", help="구간 끝 YYYY-MM-DD (미포함)")
+    p.add_argument("--sl-limit-offsets", default="0",
+                   help="지정가 손절의 방아쇠↔지정가 간격(진입가 대비, 쉼표). "
+                        "0=같은 값(가장 불리) · 0.003=0.3%p 아래까지 받아준다. "
+                        "0 보다 크면 그 칸은 자동으로 지정가 손절이 된다")
     p.add_argument("--sl-limit", action="store_true",
                    help="손절을 **지정가**로 건다(STOP 주문). 트리거 후 손절가로 "
                         "되돌아와야 체결 — 슬리피지 0, 대신 미체결 위험")
@@ -946,6 +1018,7 @@ def main() -> int:
     modes = [m.strip() for m in a.entry_modes.split(",") if m.strip()]
     seeds = [x.strip() for x in str(a.seed).split(",") if x.strip()]
     xrs = [x.strip() for x in str(a.exit_rsi_below).split(",") if x.strip()]
+    sl_offsets = [x.strip() for x in str(a.sl_limit_offsets).split(",") if x.strip()]
     signals = [x.strip() for x in a.signal.split(",") if x.strip()]
     grid = [RsiConfig(signal=sg, side=s, period=int(pp),
                       entry_threshold=float(t),
@@ -954,7 +1027,8 @@ def main() -> int:
                       tp_pct=float(tp), sl_pct=float(sl),
                       max_hold_bars=int(hd),
                       entry_mode=em, exit_rsi_below=float(xr),
-                      sl_limit=bool(a.sl_limit),
+                      sl_limit=bool(a.sl_limit) or float(so) > 0,
+                      sl_limit_offset=float(so),
                       placebo=pl, placebo_seed=int(sd),
                       eval_freq_minutes=TF_MIN[a.tf])
             for sg in signals
@@ -966,6 +1040,7 @@ def main() -> int:
             for t in a.thresholds.split(",")
             for tp in a.tps.split(",")
             for sl in a.sls.split(",")
+            for so in sl_offsets
             for hd in a.hold.split(",")
             for em in modes
             for xr in xrs
@@ -1012,6 +1087,10 @@ def main() -> int:
                        "direction": cfg.direction,
                        "tp": cfg.tp_pct, "sl": cfg.sl_pct,
                        "entry_mode": cfg.entry_mode, "xr": cfg.exit_rsi_below,
+                       # ⚠ 축은 **컬럼으로** 싣는다. key 문자열 파싱에 기대면
+                       #   축이 늘 때마다 판독기가 조용히 틀린다(hold 가 그랬다).
+                       "hold": cfg.max_hold_bars,
+                       "sllim": cfg.sl_limit, "sloff": cfg.sl_limit_offset,
                        "placebo": cfg.placebo or "real"})
             trade_rows.append(tr)
         # ⚠ placebo 를 빼면 아래 집계가 **실측과 위약을 한 그룹에 섞는다**.
@@ -1022,7 +1101,8 @@ def main() -> int:
                   "thr": cfg.entry_threshold, "tp": cfg.tp_pct,
                   "sl": cfg.sl_pct, "hold": cfg.max_hold_bars,
                   "entry_mode": cfg.entry_mode, "xr": cfg.exit_rsi_below,
-                  "sllim": cfg.sl_limit, "seed": cfg.placebo_seed,
+                  "sllim": cfg.sl_limit, "sloff": cfg.sl_limit_offset,
+                  "seed": cfg.placebo_seed,
                   "placebo": cfg.placebo or "real", "key": cfg.key()})
         return r
 

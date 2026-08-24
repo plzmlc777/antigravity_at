@@ -101,6 +101,19 @@ class KernelConfig:
     #   (실측 평균 104bp · 최대 6,964bp). 지정가로 걸면 그 비용이 사라진다.
     #   대신 되돌아오지 않으면 손절이 없는 것과 같아진다.
     sl_limit: bool = False
+    # ⚠ 방아쇠와 지정가를 **벌린다**. 진입가 대비 비율(0.003 = 0.3%p).
+    #   실전에서 스톱리밋은 `stopPrice` 와 `price` 를 따로 잡는다.
+    #     롱: 방아쇠 `sl_price` · 지정가 `sl_price − 진입가×offset`
+    #   0.0 = 방아쇠와 지정가가 같다. 주문이 만들어지는 순간 시장가가 이미
+    #         지정가 이하라 **되돌아와야만** 체결된다 (기존 동작).
+    #   >0  = 그 폭만큼 아래까지 받아준다. 시장이 이 띠를 지나가면 체결되고,
+    #         체결가는 **띠 바닥보다 나쁠 수 없다** → 슬리피지 상한 = offset.
+    #
+    #   ⚠ 봉 데이터는 "띠를 통과했다"와 "한 틱에 건너뛰었다"를 구별하지 못한다.
+    #     여기서는 **통과하면 체결**로 본다(거래소는 10ms 마다 감시하므로
+    #     진짜 갭이 아닌 한 주문이 띠 안에 놓인다). 진짜 갭의 미체결은
+    #     이 모형이 담지 못하는 낙관이다 — 시장가 손절과 나란히 비교하라.
+    sl_limit_offset: float = 0.0
     # 2026-08-12 수정: 숏에 수수료가 아예 부과되지 않던 결함. False 는 구동작
     # 재현(A/B 측정) 전용이며 운영에서 쓰지 말 것.
     apply_fee_to_short: bool = True
@@ -138,6 +151,9 @@ class KernelState:
     # 지정가 손절이 **트리거되었는가**. 트리거와 체결이 다른 사건이라
     # 상태가 기억해야 한다 (`cfg.sl_limit` 이 True 일 때만 쓰인다).
     sl_armed: bool = False
+    # 지정가 손절의 **체결 하한**. 0.0 이면 `sl_price` 와 같다(띠 없음).
+    # 진입가가 있어야 정해지므로 진입 시점에 계산해 상태가 들고 있는다.
+    sl_fill_price: float = 0.0
 
 
 @dataclass
@@ -171,29 +187,58 @@ def _fee(cfg: KernelConfig, maker: bool) -> float:
     return float(cfg.fee_rate)
 
 
+def _sl_floor(sl_price: float, entry_price: float, side: str,
+              cfg: KernelConfig) -> float:
+    """지정가 손절의 **체결 하한**. 0.0 = 띠 없음(하한 == 방아쇠).
+
+    실전 스톱리밋은 방아쇠와 지정가를 따로 잡는다. 롱은 지정가가 방아쇠보다
+    **아래**, 숏은 **위**다 — 그래야 주문이 만들어지는 순간 체결 가능해진다.
+    """
+    off = float(getattr(cfg, "sl_limit_offset", 0.0) or 0.0)
+    if not cfg.sl_limit or off <= 0.0 or sl_price <= 0 or entry_price <= 0:
+        return 0.0
+    band = entry_price * off
+    return max(sl_price - band, 0.0) if side == "long" else sl_price + band
+
+
 def _sl_limit_step(st: KernelState, high: float, low: float
                    ) -> tuple[KernelState, Optional[tuple[float, str]]]:
-    """지정가 손절 한 걸음. (새 상태, 강제청산 or None) 을 돌려준다."""
+    """지정가 손절 한 걸음. (새 상태, 강제청산 or None) 을 돌려준다.
+
+    띠(`sl_fill_price`)가 있으면 방아쇠 봉에서 바로 체결될 수 있다 — 주문이
+    만들어지는 순간 시장가가 방아쇠와 지정가 **사이**에 있으면 그 지정가는
+    즉시 체결되는 주문이기 때문이다. 띠가 없으면(하한 == 방아쇠) 종전대로
+    되돌아와야 채워진다.
+    """
+    floor = st.sl_fill_price if st.sl_fill_price > 0 else st.sl_price
+    banded = (st.sl_fill_price > 0
+              and abs(st.sl_fill_price - st.sl_price) > 1e-12)
     if st.side == "long":
         if st.sl_armed:
-            if high >= st.sl_price:
-                return st, (st.sl_price, "sl_limit")
+            if high >= floor:
+                return st, (floor, "sl_limit")
             if st.tp_price > 0 and high >= st.tp_price:
                 return st, (st.tp_price, "tp")
             return st, None
         if low <= st.sl_price:
+            if banded:
+                # 시장이 띠에 들어왔다. 체결가는 **띠 바닥보다 나쁠 수 없다**.
+                # 봉 저가가 띠 안이면 그 저가가, 띠를 지났으면 바닥이 체결가다.
+                return st, (max(low, floor), "sl_limit")
             return replace(st, sl_armed=True), None      # 트리거만, 체결 없음
         if st.tp_price > 0 and high >= st.tp_price:
             return st, (st.tp_price, "tp")
         return st, None
     if st.side == "short":
         if st.sl_armed:
-            if low <= st.sl_price:
-                return st, (st.sl_price, "sl_limit")
+            if low <= floor:
+                return st, (floor, "sl_limit")
             if st.tp_price > 0 and low <= st.tp_price:
                 return st, (st.tp_price, "tp")
             return st, None
         if high >= st.sl_price:
+            if banded:
+                return st, (min(high, floor), "sl_limit")
             return replace(st, sl_armed=True), None
         if st.tp_price > 0 and low <= st.tp_price:
             return st, (st.tp_price, "tp")
@@ -323,14 +368,20 @@ def open_position(st: KernelState, kind: str, bar: dict, ts: Any,
     if st.side == "flat":
         return KernelState(cash=st.cash - cost, side=side, qty=qty, entry_price=px,
                            entry_ts=ts, bars_held=0, sl_price=sl, tp_price=tp,
-                           entry_maker=maker)
+                           entry_maker=maker,
+                           sl_fill_price=_sl_floor(sl, px, side, cfg))
 
     # 추가 진입 — 가중평균 진입가. 보유바수는 **최초 진입 기준을 유지**한다
     # (보유 상한이 추가 진입 때마다 초기화되면 max_hold 가 무력해진다).
     total = st.qty + qty
     avg = (st.qty * st.entry_price + qty * px) / total
+    new_sl = sl if action.sl_price is not None else st.sl_price
     return replace(st, cash=st.cash - cost, qty=total, entry_price=avg,
-                   sl_price=sl if action.sl_price is not None else st.sl_price,
+                   sl_price=new_sl,
+                   # 손절가가 바뀌면 체결 하한도 따라 바뀐다. 안 바뀌면 그대로.
+                   sl_fill_price=(_sl_floor(new_sl, avg, st.side, cfg)
+                                  if action.sl_price is not None
+                                  else st.sl_fill_price),
                    tp_price=tp if action.tp_price is not None else st.tp_price)
 
 

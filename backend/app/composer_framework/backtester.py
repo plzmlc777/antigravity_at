@@ -92,6 +92,7 @@ class GenericBacktester:
         fee_rate_maker: float | None = None,
         market: str | None = None,
         sl_limit: bool = False,
+        sl_limit_offset: float = 0.0,
         apply_fee_to_short: bool = True,
     ) -> None:
         # ⚠ 요율은 **반드시 정한다** — 기본값에 기대지 못하게 막는다.
@@ -115,6 +116,7 @@ class GenericBacktester:
         self.market = market
         # 손절을 지정가로 건다 — 트리거 후 되돌아와야 체결(슬리피지 0)
         self.sl_limit = bool(sl_limit)
+        self.sl_limit_offset = float(sl_limit_offset or 0.0)
         self.fee_rate = float(fee_rate)
         # None 이면 커널이 fee_rate 를 양쪽에 쓴다 = 종전 동작. 명시한 드라이버만
         # 메이커 요율을 따로 받는다 — 기존 산출물의 행동을 바꾸지 않기 위해서다.
@@ -313,6 +315,7 @@ class GenericBacktester:
         return KernelConfig(size_pct=self.size_pct, fee_rate=self.fee_rate,
                             fee_rate_maker=self.fee_rate_maker,
                             sl_limit=self.sl_limit,
+                            sl_limit_offset=self.sl_limit_offset,
                             apply_fee_to_short=self.apply_fee_to_short,
                             default_sl_pct=None, default_tp_pct=None,
                             # 백테스트는 데이터 끝에서 잔여 포지션을 정리한다.

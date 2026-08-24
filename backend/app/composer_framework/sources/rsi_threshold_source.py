@@ -93,36 +93,9 @@ class RsiThresholdSource(SignalSource):
         self.entry_mode = entry_mode
 
     def _apply_placebo(self, sig: pd.Series) -> pd.Series:
-        """진입 대조군.
-
-        rotate — 신호를 **과거 쪽에서** 끌어온다(`np.roll(k>0)` 은 i 에 i-k 의
-                 값을 놓는다). 진입 **횟수와 뭉침 구조가 실측과 동일**하고
-                 가격 경로와의 연결만 끊긴다. 그래서 "규칙(익절·손절)이 번 것"과
-                 "RSI 가 번 것"을 가른다.
-                 ⚠ 원형이라 앞쪽 k 개는 **끝(미래)** 에서 온다 → 그 구간은 0 으로
-                   지운다. 안 지우면 위약이 미래를 보게 된다.
-        random — 같은 개수를 균등 무작위 시점에 뿌린다. 뭉침이 사라지므로
-                 rotate 보다 약한 대조지만, 뭉침 자체의 효과를 본다.
-        """
-        n = len(sig)
-        if n < 10 or self.placebo == "":
-            return sig
-        rng = np.random.default_rng(self.placebo_seed)
-        if self.placebo == "rotate":
-            # ⚠ 회전량은 5~20% 로 제한한다. 크게 돌리면 앞쪽을 그만큼 지워야
-            #   해서 진입 횟수가 무너진다(실측 173→67). 5~20% 면 1시간봉에서
-            #   수개월치라 가격 경로와의 연결을 끊기엔 충분하다.
-            k = int(rng.integers(max(n // 20, 1), max(n // 5, 2)))
-            out = pd.Series(np.roll(sig.to_numpy(), k), index=sig.index)
-            out.iloc[:k] = 0.0
-            return out
-        nz = sig.to_numpy()
-        cnt = int((nz != 0).sum())
-        val = float(nz[nz != 0][0]) if cnt else 0.0
-        out = np.zeros(n)
-        if cnt:
-            out[rng.choice(n, size=min(cnt, n), replace=False)] = val
-        return pd.Series(out, index=sig.index)
+        """진입 대조군. 구현은 `apply_entry_placebo` **한 곳**뿐이다 —
+        신호원마다 복사하면 위약이 소스마다 달라진다."""
+        return apply_entry_placebo(sig, self.placebo, self.placebo_seed)
 
     def build_features(self, ctx: SourceContext) -> pd.DataFrame:
         self._require(ctx, "ohlcv_eval")
@@ -166,3 +139,35 @@ class RsiThresholdSource(SignalSource):
         out["rsi_signal"] = sig.reindex(eval_idx).fillna(0.0).astype(float)
         out["rsi_value"] = rsi.reindex(eval_idx).astype(float)
         return out
+
+
+def apply_entry_placebo(sig: pd.Series, placebo: str, seed: int) -> pd.Series:
+    """진입 대조군 — **모든 신호원이 이 구현 하나를 쓴다** (2026-08-22 공용화).
+
+    rotate — 신호를 **과거 쪽에서** 끌어온다(`np.roll(k>0)` 은 i 에 i-k 의
+             값을 놓는다). 진입 **횟수와 뭉침 구조가 실측과 동일**하고
+             가격 경로와의 연결만 끊긴다. 그래서 "규칙(익절·손절)이 번 것"과
+             "지표가 번 것"을 가른다.
+             ⚠ 원형이라 앞쪽 k 개는 **끝(미래)** 에서 온다 → 그 구간은 0 으로
+               지운다. 안 지우면 위약이 미래를 보게 된다.
+    random — 같은 개수를 균등 무작위 시점에 뿌린다. 뭉침이 사라지므로
+             rotate 보다 약한 대조지만, 뭉침 자체의 효과를 본다.
+    """
+    n = len(sig)
+    if n < 10 or placebo == "":
+        return sig
+    rng = np.random.default_rng(seed)
+    if placebo == "rotate":
+        # ⚠ 회전량은 5~20% 로 제한한다. 크게 돌리면 앞쪽을 그만큼 지워야
+        #   해서 진입 횟수가 무너진다(실측 173→67).
+        k = int(rng.integers(max(n // 20, 1), max(n // 5, 2)))
+        out = pd.Series(np.roll(sig.to_numpy(), k), index=sig.index)
+        out.iloc[:k] = 0.0
+        return out
+    nz = sig.to_numpy()
+    cnt = int((nz != 0).sum())
+    val = float(nz[nz != 0][0]) if cnt else 0.0
+    out = np.zeros(n)
+    if cnt:
+        out[rng.choice(n, size=min(cnt, n), replace=False)] = val
+    return pd.Series(out, index=sig.index)

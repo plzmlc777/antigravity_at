@@ -36,6 +36,7 @@ BT_SLIP = "runs/research_track/rsi_tp_sl/cbslip_sl0_cross_back.csv"
 SESS = Path("runs/paper_sessions/rsi_extreme")
 SHADOW = "5m_rsi10_cb_nosl_SHADOW"
 LIVE = "5m_rsi10_cb_nosl_LIVE"
+SLOTS = 80
 
 
 
@@ -117,15 +118,81 @@ def _metrics(rets: np.ndarray, exits: list, n_sym: int) -> dict:
     }
 
 
-def _bt_period() -> dict:
-    """백테스트 자본 수익률 — **슬롯 제약을 건 값**을 쓴다.
+def backtest_slotted(slots: int, seeds: int = 8) -> dict:
+    """백테스트 원장에 **슬롯 제약과 실측 슬리피지를 걸어** 다시 센다.
 
-    제약 없는 총손익(+2,167%p)은 종목마다 자본 100% 를 쓴 합이라 자본
-    수익률이 아니다. 실거래는 슬롯 80 이므로 같은 조건의 값을 기준선으로
-    둔다 — `rsi_slot_sim` 실측(실측 슬리피지 낙관 적용):
-        슬롯 80 · 복리 +14.2% · 최대낙폭 -8.3% · 샤프 0.97 · 365일
+    ⚠ 제약 없는 총손익(+2,167%p)을 기간 수익률과 같은 표에 두면 단위가
+      섞인다. 그건 종목마다 자본 100% 를 쓴 합이라 **자본 수익률이 아니다**
+      (동시 보유가 최대 267종목까지 간다). 실거래는 슬롯 80 이므로
+      **같은 조건**으로 맞춰야 비교가 성립한다.
+
+    하드코딩하지 않고 원장에서 계산한다 — 설정이 바뀌면 값도 따라간다.
     """
-    return {"ret": 0.142, "days": 365.0, "projected": False, "n": 2556}
+    import sys
+    from pathlib import Path as _P
+    sys.path.insert(0, str(_P(__file__).resolve().parents[2]))
+    from scripts.research.rsi_slot_sim import simulate
+
+    T = pd.read_csv(BT_TRADES)
+    T = T[T.placebo == "real"].copy()
+    try:
+        S = pd.read_csv(BT_SLIP)
+        k = ["symbol", "entry_ts", "exit_ts"]
+        for c in k:
+            S[c] = S[c].astype(str); T[c] = T[c].astype(str)
+        T = T.merge(S.drop_duplicates(k)[k + ["slip_opt_bp"]], on=k, how="left")
+        mkt = T.exit_reason.str.lower().isin(["sl", "time", "eod"])
+        pool = T.loc[mkt & T.slip_opt_bp.notna(), "slip_opt_bp"].to_numpy()
+        rng0 = np.random.default_rng(20260822)
+        miss = mkt & T.slip_opt_bp.isna()
+        if miss.any() and len(pool):
+            T.loc[miss, "slip_opt_bp"] = rng0.choice(pool, size=int(miss.sum()))
+        T["ret_pct"] = T.ret_pct - T.slip_opt_bp.fillna(0.0) / 100.0
+    except Exception:
+        pass
+
+    def _ns(col):
+        return (pd.to_datetime(T[col], utc=True)
+                .astype("datetime64[ns, UTC]").astype("int64"))
+    en, ex = _ns("entry_ts"), _ns("exit_ts")
+    ok = ex > en
+    T, en, ex = T[ok], en[ok], ex[ok]
+    df = pd.DataFrame({"en": en.values, "ex": ex.values,
+                       "ret": T.ret_pct.astype(float).values,
+                       "tp": T.exit_reason.str.lower().eq("tp").values,
+                       "sym": T.symbol.values}).sort_values("en")
+    ev = [(k, list(zip(g["ex"], g["ret"]))) for k, g in df.groupby("en", sort=True)]
+
+    runs = [simulate(ev, slots, np.random.default_rng(900 + i))
+            for i in range(seeds)]
+    take = int(np.median([r["take"] for r in runs]))
+    drop = int(np.median([r["drop"] for r in runs]))
+    tot = float(np.median([r["sum_pct"] for r in runs]))
+    avg = float(np.median([r["avg_pct"] for r in runs]))
+    days = (df.ex.max() - df.en.min()) / 86_400_000_000_000
+    # 익절 비중은 포착 비율이 사유와 무관하므로 원장 비율을 그대로 쓴다
+    tp_share = 100.0 * float(df.tp.mean())
+    return {"슬롯": slots, "체결": take,
+            "포착률": 100.0 * take / max(take + drop, 1),
+            "총손익%p": tot, "거래당%": avg, "익절비중%": tp_share,
+            "종목": int(df.sym.nunique()),
+            "ret": tot / 100.0 / slots, "days": float(days),
+            "projected": False, "n": take}
+
+
+def _live_notional() -> float:
+    """실거래 세션의 슬롯당 명목. 설정 파일에서 읽는다(하드코딩 금지)."""
+    f = SESS / LIVE / "config.json"
+    if not f.exists():
+        return 0.0
+    try:
+        return float(json.loads(f.read_text()).get("notional_usd", 0) or 0)
+    except Exception:
+        return 0.0
+
+
+def _bt_period() -> dict:
+    return backtest_slotted(SLOTS)
 
 
 def _sess_period(name: str) -> dict:
@@ -208,21 +275,34 @@ def main() -> int:
         m["누적$"] = round(float(st.get("equity", 0) or 0), 2) if st else 0.0
         out[label] = m
 
-    # ── 단일 표 — 성과 지표와 기간 예측치를 한 줄에 ──────────
-    #    대표님 지시(2026-08-22): 형식을 하나로. 표가 둘이면 같은 행을
-    #    두 번 찾아 읽어야 한다.
-    periods = {"백테스트": _bt_period(), "그림자": _sess_period(SHADOW),
+    # ── 단일 표 — **슬롯을 적용한 값으로 통일한다** ──────────
+    #    2026-08-22 대표님 지적: 총손익은 슬롯 무제한, 기간 수익률은 슬롯 80
+    #    이라 한 표에 단위가 섞여 있었다. 이제 세 행 모두 슬롯 적용값이고
+    #    `총손익%p ÷ 슬롯 ≈ 연간 수익률` 이 표 안에서 맞아떨어진다.
+    btm = _bt_period()
+    periods = {"백테스트": btm, "그림자": _sess_period(SHADOW),
                "실거래": _sess_period(LIVE)}
     rows = []
     for label in ("백테스트", "그림자", "실거래"):
-        m = out.get(label, {})
         info = periods.get(label) or {}
+        if label == "백테스트":
+            m = {k: btm.get(k) for k in
+                 ("체결", "포착률", "총손익%p", "거래당%", "익절비중%", "종목")}
+            m["슬롯"] = btm["슬롯"]
+        else:
+            src = out.get(label, {})
+            m = {"슬롯": SLOTS, "체결": src.get("거래", 0),
+                 "포착률": None, "총손익%p": src.get("총손익%p"),
+                 "거래당%": src.get("거래당%"), "익절비중%": src.get("익절비중%"),
+                 "종목": src.get("종목")}
         pr = period_returns(info["ret"], info["days"], info["projected"]) \
             if info else {}
-        # 믿을 수 없는 예측은 숫자를 내지 않는다 — 조용히 내보내면 성과로 읽힌다
         bad = bool(info) and (info["n"] < 30
                               or (info["projected"] and info["days"] < 7))
         show = (lambda k: "—" if (not pr or bad) else _fmt_pct(pr.get(k)))
+        def num(v, f="{:,.2f}"):
+            return "—" if v is None or (isinstance(v, float) and np.isnan(v)) \
+                else f.format(v)
         note = ""
         if info:
             if bad:
@@ -231,26 +311,45 @@ def main() -> int:
                 note = f"예측치 (경과 {info['days']:.0f}일)"
             else:
                 note = f"실측 {info['days']:.0f}일"
-        rows.append([label,
-                     f"{m.get('거래', 0):,}",
-                     f"{m['총손익%p']:,.2f}" if m.get("거래") else "—",
-                     f"{m['거래당%']:.2f}" if m.get("거래") else "—",
-                     f"{m['익절비중%']:.2f}" if m.get("거래") else "—",
-                     f"{m.get('종목', 0):,}" if m.get("거래") else "—",
+        rows.append([label, f"{m['슬롯']}", num(m["체결"], "{:,.0f}"),
+                     num(m["포착률"], "{:.1f}%"), num(m["총손익%p"]),
+                     num(m["거래당%"]), num(m["익절비중%"]),
+                     num(m["종목"], "{:,.0f}"),
                      show("주간"), show("월간"), show("연간"), note])
-    hdr = ["", "거래", "총손익%p", "거래당%", "익절비중%", "종목",
-           "주간", "월간", "연간", "비고"]
+    hdr = ["", "슬롯", "체결", "포착률", "총손익%p", "거래당%", "익절비중%",
+           "종목", "주간", "월간", "연간", "비고"]
     w = [max(len(str(r[i])) for r in [hdr] + rows) for i in range(len(hdr))]
     def _line(r):
         return "  ".join(str(v).rjust(w[i]) if i else str(v).ljust(w[0])
                          for i, v in enumerate(r))
-    print(f"\n=== 3자 비교{f' · 앞 {a.cap}거래' if a.cap else ''} ===")
+    print(f"\n=== 3자 비교 · 슬롯 {SLOTS} 적용{f' · 앞 {a.cap}거래' if a.cap else ''} ===")
     print(_line(hdr))
     print("  ".join("─" * x for x in w))
     for r in rows:
         print(_line(r))
-    print("  ※ 주간·월간·연간은 자본 대비 복리 환산. 표본 30건 미만 또는")
-    print("     경과 7일 미만이면 예측을 내지 않는다(365제곱이 된다).")
+    print(f"  ※ 총손익%p 는 **슬롯 {SLOTS} 제약과 실측 슬리피지를 건** 값이다.")
+    print(f"     자본 기여 = 거래수익률 / {SLOTS} → 주간·월간·연간은 그 복리다.")
+    print("     표본 30건 미만 또는 경과 7일 미만이면 예측을 내지 않는다.")
+
+    # ── 슬롯 관점 — **금액으로** ──────────────────────────
+    #    비율은 슬롯당과 계좌가 같다(자본을 균등 분할하므로). 다른 건 금액이다.
+    #    "연 13%" 보다 "슬롯 하나가 한 달에 10센트" 가 현실을 정확히 전한다.
+    notional = _live_notional() or 9.4
+    acct = SLOTS * notional
+    pr = period_returns(btm["ret"], btm["days"], False)
+    tr_per_slot = btm["체결"] / SLOTS
+    print(f"\n=== 슬롯 관점 (백테스트 기준) ===")
+    print(f"  슬롯당 자본 ${notional:.2f} × {SLOTS}슬롯 = 계좌 ${acct:,.0f}")
+    print(f"  슬롯당 거래 {tr_per_slot:.1f}건/년 = {tr_per_slot/12:.1f}건/월"
+          f" · 거래당 {btm['거래당%']:.2f}% = ${notional*btm['거래당%']/100:.3f}")
+    print(f"\n  {'기간':<6}{'수익률':>9}{'슬롯당':>12}{'계좌':>12}")
+    for lab, k in (("주간", "주간"), ("월간", "월간"), ("연간", "연간")):
+        r = pr.get(k, 0.0)
+        print(f"  {lab:<6}{100*r:>8.2f}%{notional*r:>11.3f}$"
+              f"{acct*r:>11.2f}$")
+    print(f"\n  ※ 슬롯 하나가 한 달에 버는 돈은 ${notional*pr['월간']:.3f} 다.")
+    print(f"     계좌 전체가 그 {SLOTS}배 — 규모는 슬롯 수가 아니라 **슬롯당")
+    print(f"     자본**이 정한다. 지금은 잔고 ${acct:,.0f} 를 {SLOTS}등분했다.")
 
     n_live = int(out["실거래"].get("거래", 0) or 0)
     n_bt = int(out["백테스트"].get("거래", 0) or 0)

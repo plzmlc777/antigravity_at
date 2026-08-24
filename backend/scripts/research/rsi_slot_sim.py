@@ -98,6 +98,9 @@ def main() -> int:
     p.add_argument("--slip-file", default="",
                    help="rsi_sl_slippage --out 가 만든 거래별 실측 슬리피지. "
                         "대표값 대신 **분포 그대로** 붙인다")
+    p.add_argument("--slip-reasons", default="sl",
+                   help="슬리피지를 부과할 청산 사유(쉼표). 익절은 지정가라 "
+                        "언제나 0 이다. 손절 없음 판본은 `time` 을 준다")
     p.add_argument("--slip-mode", default="pes", choices=["opt", "pes", "mid"],
                    help="낙관=1분 종가 / 비관=1분 저가 / 중간=둘의 평균. "
                         "진짜 체결은 둘 사이에 있다")
@@ -141,7 +144,8 @@ def main() -> int:
             T[k] = T[k].astype(str)
         S = S.drop_duplicates(key)
         T = T.merge(S[key + ["slip_bp"]], on=key, how="left")
-        issl = T["exit_reason"].astype(str).str.lower().eq("sl")
+        want = {x.strip().lower() for x in a.slip_reasons.split(",") if x.strip()}
+        issl = T["exit_reason"].astype(str).str.lower().isin(want)
         miss = issl & T["slip_bp"].isna()
         pool = T.loc[issl & T["slip_bp"].notna(), "slip_bp"].to_numpy()
         n_miss = int(miss.sum())
@@ -159,9 +163,9 @@ def main() -> int:
         T["slip_bp"] = T["slip_bp"].fillna(0.0)
         T["ret_pct"] = T["ret_pct"] - T["slip_bp"] / 100.0
         sl_slip = T.loc[issl, "slip_bp"]
-        print(f"거래별 슬리피지 적용 — 방식 {a.slip_mode} · 미측정 {n_miss:,}건 "
-              f"{a.slip_missing}")
-        print(f"  손절 {len(sl_slip):,}건 슬리피지 중앙 {sl_slip.median():.1f}bp "
+        print(f"거래별 슬리피지 적용 — 대상 {sorted(want)} · 방식 {a.slip_mode} "
+              f"· 미측정 {n_miss:,}건 {a.slip_missing}")
+        print(f"  대상 {len(sl_slip):,}건 슬리피지 중앙 {sl_slip.median():.1f}bp "
               f"· 평균 {sl_slip.mean():.1f}bp · 90% "
               f"{sl_slip.quantile(0.9):.1f}bp · 최대 {sl_slip.max():.0f}bp")
 

@@ -292,6 +292,52 @@ def _build_bn_wick_reversal_multibar(kwargs: dict, runtime: dict) -> SignalSourc
     )
 
 
+@register_source("volume_capitulation")
+def _build_volume_capitulation(kwargs: dict, runtime: dict) -> SignalSource:
+    """거래량 항복. 모르는 인자는 조용히 버리지 말고 소리내어 죽는다(교훈 #88)."""
+    from .sources import VolumeCapitulationSource
+    known = {"vol_window", "vol_z_min", "ret_bars", "ret_threshold", "side",
+             "direction", "placebo", "placebo_seed", "entry_mode"}
+    unknown = set(kwargs) - known
+    if unknown:
+        raise ValueError(
+            f"volume_capitulation 이 모르는 인자 {sorted(unknown)} — 소스에 "
+            f"추가했다면 이 팩토리의 `known` 과 생성자 호출에도 넣어라.")
+    return VolumeCapitulationSource(
+        vol_window=int(kwargs.get("vol_window", 96)),
+        vol_z_min=float(kwargs.get("vol_z_min", 3.0)),
+        ret_bars=int(kwargs.get("ret_bars", 5)),
+        ret_threshold=float(kwargs.get("ret_threshold", -0.03)),
+        side=str(kwargs.get("side", "long")),
+        direction=str(kwargs.get("direction", "reversion")),
+        placebo=str(kwargs.get("placebo", "")),
+        placebo_seed=int(kwargs.get("placebo_seed", 0)),
+        entry_mode=str(kwargs.get("entry_mode", "cross_back")),
+    )
+
+
+@register_source("band_extreme")
+def _build_band_extreme(kwargs: dict, runtime: dict) -> SignalSource:
+    """볼린저 밴드 극단 진입. rsi_threshold 와 **같은 규율**을 따른다 —
+    모르는 인자가 오면 조용히 버리지 말고 소리내어 죽는다 (교훈 #88)."""
+    from .sources import BandExtremeSource
+    known = {"period", "sigma", "side", "placebo", "placebo_seed", "entry_mode"}
+    unknown = set(kwargs) - known
+    if unknown:
+        raise ValueError(
+            f"band_extreme 가 모르는 인자 {sorted(unknown)} — 소스에 추가했다면 "
+            f"이 팩토리의 `known` 과 생성자 호출에도 넣어라. 조용히 버리면 "
+            f"격자를 돌려도 판정이 안 바뀐다(교훈 #88).")
+    return BandExtremeSource(
+        period=int(kwargs.get("period", 20)),
+        sigma=float(kwargs.get("sigma", 2.0)),
+        side=str(kwargs.get("side", "long")),
+        placebo=str(kwargs.get("placebo", "")),
+        placebo_seed=int(kwargs.get("placebo_seed", 0)),
+        entry_mode=str(kwargs.get("entry_mode", "cross_back")),
+    )
+
+
 @register_source("rsi_threshold")
 def _build_rsi_threshold(kwargs: dict, runtime: dict) -> SignalSource:
     """⚠ 인자를 하나라도 버리면 격자를 돌려도 판정이 안 바뀐다 (교훈 #88).
