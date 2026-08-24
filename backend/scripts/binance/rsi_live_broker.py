@@ -96,6 +96,10 @@ class LiveBroker:
     _adapter: Any = field(default=None, init=False, repr=False)
     _lev_done: dict = field(default_factory=dict)     # 종목 → 적용된 배수
     tp_orders: dict = field(default_factory=dict)     # 종목 → LiveOrder
+    # ⚠ 손절은 **거래소 조건부 주문**이다(2026-08-24 30분봉 사양).
+    #   우리 루프가 봉 마감에 판정하면 최대 30분 늦는다 — 그 사이 −0.5% 는
+    #   훨씬 지나간다. 거래소가 밀리초에 트리거하게 맡긴다.
+    sl_orders: dict = field(default_factory=dict)     # 종목 → LiveOrder
 
     # ── 레버리지 ────────────────────────────────────────────
     def want_leverage(self, symbol: str) -> int:
@@ -243,6 +247,59 @@ class LiveBroker:
                                            float(r["price"]), float(r["quantity"]))
         return True
 
+    def arm_stop_loss(self, symbol: str, trigger: float,
+                      limit_price: float = 0.0) -> bool:
+        """진입 **직후** 손절 스톱리밋을 거래소에 건다.
+
+        ⚠ `limit_price` 0 이면 STOP_MARKET 이다 — 체결은 보장되나 가격이
+          보장되지 않는다. 30분봉 사양의 격자에서 시장가 손절은 연 **−100%**,
+          지정가(간격 0)는 **+430%** 였다. 기본은 **발동가와 같은 지정가**다.
+
+        ⚠ `close_position=True` 는 포지션이 있어야만 등록된다(GTE_GTC).
+          진입 직후에만 걸 수 있고 미리 걸어둘 수 없다.
+
+        ⚠ `price_protect` 는 **끈다**. 켜면 표시가·계약가 괴리가 클 때 체결을
+          막는데, 그 순간이 정확히 손절이 필요한 순간이다."""
+        if trigger <= 0:
+            return False
+        lim = limit_price if limit_price > 0 else trigger
+        if self.dry_run:
+            log.info("[DRY] %s 손절 스톱리밋 발동 %.8g · 지정 %.8g",
+                     symbol, trigger, lim)
+            return True
+        try:
+            r = _run(self._adapter.place_algo_stop(
+                symbol, side="SELL", trigger_price=trigger, limit_price=lim,
+                take_profit=False, close_position=True,
+                working_type="CONTRACT_PRICE", price_protect=False))
+        except Exception as e:                        # noqa: BLE001
+            log.error("%s 손절 등록 실패: %s", symbol, e)
+            return False
+        if r.get("status") != "success":
+            log.error("%s 손절 거절: %s", symbol, r.get("message") or r)
+            return False
+        self.sl_orders[symbol] = LiveOrder(symbol, str(r.get("order_id") or ""),
+                                          float(lim), 0.0)
+        log.info("%s 손절 스톱리밋 — 발동 %.8g · 지정 %.8g (id %s)",
+                 symbol, trigger, lim, r.get("order_id"))
+        return True
+
+    def cancel_stop_loss(self, symbol: str) -> None:
+        """손절 조건부 주문을 걷는다.
+
+        ⚠ 청산할 때 **익절과 손절을 둘 다** 걷어야 한다. 하나만 걷으면
+          남은 쪽이 다음 진입을 엉뚱하게 청산한다."""
+        o = self.sl_orders.pop(symbol, None)
+        if o is None or self.dry_run or not o.order_id:
+            return
+        try:
+            r = _run(self._adapter.cancel_algo_order(symbol, o.order_id))
+            if (r or {}).get("status") != "success":
+                log.warning("%s 손절 취소 실패: %s", symbol,
+                            (r or {}).get("message") or r)
+        except Exception as e:                        # noqa: BLE001
+            log.warning("%s 손절 취소 예외: %s", symbol, e)
+
     # ── 청산 ────────────────────────────────────────────────
     def cancel_take_profit(self, symbol: str) -> None:
         """시간만료 청산 **전에** 반드시 부른다.
@@ -264,6 +321,8 @@ class LiveBroker:
     def close_long(self, symbol: str) -> Optional[float]:
         """시장가 전량 청산. 체결가를 돌려준다."""
         self.cancel_take_profit(symbol)
+        self.cancel_stop_loss(symbol)          # 둘 다 걷는다 — 하나만 걷으면
+                                               # 다음 진입이 엉뚱하게 잘린다
         if self.dry_run:
             log.info("[DRY] %s 시장가 청산", symbol)
             return None
@@ -280,26 +339,67 @@ class LiveBroker:
         return px or None
 
     # ── 대조 ────────────────────────────────────────────────
-    def detect_tp_fills(self, tracked: set) -> dict:
-        """익절 지정가가 채워졌는가 — **거래소에 묻는다.**
+    def detect_exit_fills(self, tracked: set) -> dict:
+        """거래소가 채운 청산을 알아낸다 — {종목: (사유, 체결가)}.
 
         우리가 들고 있다고 아는 종목 중 거래소에 포지션이 없으면 채워진 것이다.
-        체결가는 우리가 건 지정가 값을 쓴다(지정가는 그 값에만 채워진다).
+
+        ⚠ 2026-08-24 30분봉 사양부터 **출구가 둘**이다 — 익절 지정가와 손절
+          스톱리밋. 어느 쪽이 채워졌는지 반드시 가려야 한다. 뭉뚱그려 익절로
+          세면 −0.5% 손절이 장부에 **+8% 이익**으로 들어간다. 그 한 줄이
+          모든 판정을 뒤집는다.
+
+          가리는 법 — 아직 **살아 있는** 주문이 있는 쪽이 안 채워진 쪽이다.
+          포지션이 닫히면 반대쪽은 거래소가 자동 취소하거나 우리가 걷는다.
         """
         pos = self.positions()
+        live_lim = self.open_orders()               # 남아 있는 지정가(익절)
+        try:
+            live_algo = self.open_algo_orders()     # 남아 있는 조건부(손절)
+        except Exception as exc:                    # noqa: BLE001
+            log.warning("조건부 주문 조회 실패 — 사유 판정이 흐려진다: %s", exc)
+            live_algo = {}
         filled = {}
         for sym in list(tracked):
             if sym in pos:
                 continue
-            o = self.tp_orders.pop(sym, None)
-            if o is not None:
-                filled[sym] = o.price
-                log.info("%s 익절 체결 확인 — @ %.8g (거래소 대조)", sym, o.price)
+            tp = self.tp_orders.pop(sym, None)
+            sl = self.sl_orders.pop(sym, None)
+            tp_alive, sl_alive = sym in live_lim, sym in live_algo
+            if tp is not None and not tp_alive and sl_alive:
+                filled[sym] = ("tp", tp.price)      # 익절만 사라졌다
+            elif sl is not None and not sl_alive and tp_alive:
+                filled[sym] = ("sl", sl.price)      # 손절만 사라졌다
+            elif tp is not None and sl is None:
+                filled[sym] = ("tp", tp.price)      # 손절을 안 건 세션
+            elif sl is not None and tp is None:
+                filled[sym] = ("sl", sl.price)
             else:
-                filled[sym] = 0.0        # 가격 미상 — 상위가 경고로 드러낸다
-                log.warning("%s 포지션이 사라졌는데 우리 익절 주문이 없다 "
-                            "— 수동 청산? 강제청산?", sym)
+                # 둘 다 사라졌거나 둘 다 남았다 — 가릴 수 없다.
+                # **추측하지 않는다.** 0 을 주고 상위가 경고로 드러낸다.
+                filled[sym] = ("unknown", 0.0)
+                log.warning("%s 포지션이 사라졌는데 어느 주문이 채워졌는지 "
+                            "가릴 수 없다 (익절잔존=%s 손절잔존=%s) — 수동 "
+                            "청산·강제청산 가능성", sym, tp_alive, sl_alive)
+            if filled[sym][0] != "unknown":
+                log.info("%s %s 체결 확인 — @ %.8g (거래소 대조)",
+                         sym, filled[sym][0], filled[sym][1])
+            # 반대쪽이 남아 있으면 걷는다 — 안 걷으면 다음 진입이 잘린다
+            if tp_alive and filled[sym][0] != "tp":
+                self.tp_orders[sym] = tp or self.tp_orders.get(sym)
+                self.cancel_take_profit(sym)
+            if sl_alive and filled[sym][0] != "sl":
+                self.sl_orders[sym] = sl or self.sl_orders.get(sym)
+                self.cancel_stop_loss(sym)
         return filled
+
+    def open_algo_orders(self) -> dict:
+        """살아 있는 조건부 주문 {종목: [algoId]}."""
+        rows = _run(self._adapter.get_open_algo_orders())
+        out: dict = {}
+        for o in rows or []:
+            out.setdefault(o.get("symbol"), []).append(str(o.get("algoId")))
+        return out
 
     def reconcile(self) -> dict:
         """재시작 직후 거래소와 맞춘다. {종목: 수량} 을 돌려준다."""

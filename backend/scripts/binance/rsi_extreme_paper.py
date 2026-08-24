@@ -191,6 +191,14 @@ class SourceSpec:
     #   그냥 통과한다. 실제로 한 주도 안 거래된 종목에서 +7.92% 익절이 났다.
     min_active_bars: int = 10     # RSI 창에서 거래대금>0 인 봉의 최소 개수
     min_distinct_closes: int = 5  # RSI 창의 서로 다른 종가 최소 개수
+    # ⚠ RSI 재진입 청산 (2026-08-24 30분봉 사양)
+    #   보유 중 RSI 가 이 값 이하로 **다시** 떨어지면 시장가로 나간다.
+    #   0 이면 끈다.
+    #
+    #   왜 선택이 아닌가 — 시장가 손절 격자에서는 있으나 없으나 차이가
+    #   없었다(+155.9% 대 +159.6%). 그런데 **지정가 손절**에서는 미체결분의
+    #   유일한 대체 출구다. RSI 청산이 없는 9칸은 전부 −68% 이하였다.
+    exit_rsi_below: float = 0.0
     # level      : RSI <= 문턱인 **모든 봉**에서 후보 (기존)
     # cross_back : 직전 봉이 문턱 아래, 이번 봉이 문턱 위 — **되돌아 나올 때**
     #
@@ -236,6 +244,7 @@ class PaperConfig:
     max_hold_bars: int = 48
     tf: str = "1h"
     entry_mode: str = "level"
+    exit_rsi_below: float = 0.0   # RSI 재진입 청산 (0 이면 끔)
     # ⚠ 실거래는 **다른 폴더**를 써야 한다. 2026-08-22 드라이런에서 실거래
     #   세션이 페이퍼 세션의 상태를 그대로 읽고 이어 쌓았다 — 그대로 뒀으면
     #   진행 중인 페이퍼 전진 검정이 실거래 데이터로 오염됐다.
@@ -297,7 +306,7 @@ class PaperConfig:
             self.sources = [SourceSpec(
                 tf=self.tf, entry_rsi=self.entry_rsi, tp_pct=self.tp_pct,
                 sl_pct=self.sl_pct, max_hold_bars=self.max_hold_bars,
-                entry_mode=self.entry_mode,
+                entry_mode=self.entry_mode, exit_rsi_below=self.exit_rsi_below,
                 rsi_period=self.rsi_period, warmup_bars=self.warmup_bars)]
         tfs = [x.tf for x in self.sources]
         if len(set(tfs)) != len(tfs):
@@ -545,6 +554,9 @@ class RsiPaper:
         self.n_reject_tp = 0         # 익절 지정가 거절 → 진입을 되돌림
         self.n_kernelfail = 0        # 커널이 장부를 못 연 경우
         self.n_tapmiss = 0           # 그림자: 1군 결정을 못 읽어 건너뛴 사이클
+        self.n_exit_sl = 0           # 손절로 나간 건수 (거래소 체결)
+        self.n_exit_rsi = 0          # RSI 재진입으로 나간 건수
+        self.n_reject_sl = 0         # 손절 등록 실패로 되돌린 진입
         # 그림자 세션의 신호 탭. None 이면 스스로 후보를 만든다(기존 동작).
         self.tap = None
         # 그림자는 **정본 판본**이다 — 진입도 시간청산도 봉 종가로 채운다.
@@ -606,32 +618,48 @@ class RsiPaper:
                         for tf in sorted(closed)},
                "signals": [], "fills": [], "exits": [], "rejects": []}
 
-        # ①-0 실거래: **익절은 거래소가 채운다.** 봉으로 판정하지 않고
+        # ①-0 실거래: **출구는 거래소가 채운다.** 봉으로 판정하지 않고
         #      포지션 대조로 알아챈다 — 우리가 "닿았다"고 보는 것과 실제
         #      체결은 다르다. 채워진 건 여기서 장부를 닫는다.
+        #
+        # ⚠ 2026-08-24 부터 출구가 **둘**이다 — 익절 지정가와 손절 스톱리밋.
+        #   브로커가 어느 쪽인지 가려서 준다. 뭉뚱그려 익절로 세면 −0.5%
+        #   손절이 장부에 +8% 이익으로 들어간다.
         if self.broker is not None and self.pos:
-            for sym, tp_px in self.broker.detect_tp_fills(set(self.pos)).items():
+            for sym, (why, fill_px) in self.broker.detect_exit_fills(
+                    set(self.pos)).items():
                 p = self.pos.get(sym)
                 if p is None:
                     continue
-                px = tp_px if tp_px > 0 else (self.price_fn(sym) or p.entry_price)
-                _, tr = kernel_close(p.to_kernel(), px, cyc["ts"], "tp", KCFG,
-                                     exit_maker=(tp_px > 0))
+                px = fill_px if fill_px > 0 else (self.price_fn(sym)
+                                                  or p.entry_price)
+                reason = why if why in ("tp", "sl") else "exch"
+                # 익절은 메이커(지정가가 호가에 얹혀 있었다), 손절 스톱리밋도
+                # 지정가지만 발동 후 테이커로 채워지는 경우가 있어 보수적으로
+                # 테이커로 계상한다 — 수수료를 낙관하지 않는다.
+                _, tr = kernel_close(p.to_kernel(), px, cyc["ts"], reason, KCFG,
+                                     exit_maker=(reason == "tp" and fill_px > 0))
                 self.equity += tr.pnl_cash
+                # 손절은 **발동가 대비** 얼마나 밀렸나가 핵심 지표다
+                ref_x = fill_px if fill_px > 0 else px
+                slip_x = (1e4 * (1.0 - px / ref_x)) if ref_x > 0 else 0.0
                 cyc["exits"].append({
-                    "symbol": sym, "reason": "tp", "exit_price": px,
+                    "symbol": sym, "reason": reason, "exit_price": px,
                     "entry_price": p.entry_price, "entry_ts": p.entry_ts,
                     "bars_held": p.bars_held, "ret_pct": 100 * tr.return_pct,
                     "pnl_usd": tr.pnl_cash, "signal_rsi": p.signal_rsi,
                     "src": p.src, "slip_bp": p.slip_bp,
-                    "ref_exit_price": tp_px, "exit_slip_bp": 0.0})
-                log.info("%s 익절 체결(거래소) — %.8g · %+.2f%% · $%+.2f",
-                         sym, px, 100 * tr.return_pct, tr.pnl_cash)
+                    "ref_exit_price": ref_x, "exit_slip_bp": slip_x})
+                if reason == "sl":
+                    self.n_exit_sl += 1
+                log.info("%s %s 체결(거래소) — %.8g · %+.2f%% · $%+.2f",
+                         sym, reason, px, 100 * tr.return_pct, tr.pnl_cash)
                 del self.pos[sym]
                 self._tell(
-                    f"🟢 <b>실거래 익절</b> — 실전 리그 1군\n"
+                    f"{'🟢' if tr.pnl_cash >= 0 else '🔻'} <b>실거래 "
+                    f"{'익절' if reason == 'tp' else '손절'}</b> — 실전 리그 1군\n"
                     f"종목: <b>{sym}</b>\n"
-                    f"청산가: {px:.8g} (거래소 지정가 체결)\n"
+                    f"청산가: {px:.8g} (거래소 {'익절 지정가' if reason == 'tp' else '손절 스톱리밋'} 체결)\n"
                     f"진입가: {p.entry_price:.8g} · 보유 {p.bars_held}봉\n"
                     f"수익률: <b>{100*tr.return_pct:+.2f}%</b> · "
                     f"손익 <b>${tr.pnl_cash:+,.4f}</b>\n"
@@ -654,6 +682,23 @@ class RsiPaper:
             #   쓰면 백테스트와 갈린다 — 실제로 그래 왔다.
             hit = _forced_exit(st, float(last.high), float(last.low))
             reason, ref = (hit[1], hit[0]) if hit else (None, None)
+            # ⚠ RSI 재진입 청산 (2026-08-24 30분봉 사양)
+            #   보유 중 RSI 가 문턱 아래로 **다시** 떨어지면 나간다. 지정가
+            #   손절이 미체결로 남았을 때의 **유일한 대체 출구**다 — 이게
+            #   없는 격자 9칸은 전부 −68% 이하였다.
+            #   손절·익절이 이미 걸렸으면 그쪽이 우선이다(더 보수적).
+            thr = float(getattr(self.spec[src], "exit_rsi_below", 0.0) or 0.0)
+            if reason is None and thr > 0:
+                try:
+                    rv = float(wilder_rsi(b["close"].astype(float),
+                                          self.spec[src].rsi_period).iloc[-1])
+                except Exception:                             # noqa: BLE001
+                    rv = float("nan")
+                if not np.isnan(rv) and rv <= thr:
+                    reason, ref = "rsi", float(last.close)
+                    self.n_exit_rsi += 1
+                    log.info("%s RSI 재진입 청산 — RSI %.1f <= %.1f",
+                             sym, rv, thr)
             if reason is None and p.bars_held >= self.spec[src].max_hold_bars:
                 reason, ref = "time", float(last.close)
             if reason:
@@ -703,7 +748,8 @@ class RsiPaper:
                 del self.pos[sym]
                 if self.broker is not None:
                     mark = "🟢" if pnl >= 0 else "🔻"
-                    why = {"time": "24시간 상한(시장가)", "sl": "손절(시장가)",
+                    why = {"time": "보유 상한(시장가)", "sl": "손절(시장가)",
+                           "rsi": "RSI 재진입(시장가)",
                            "tp": "익절"}.get(reason, reason)
                     self._tell(
                         f"{mark} <b>실거래 청산</b> — 실전 리그 1군\n"
@@ -942,6 +988,26 @@ class RsiPaper:
                         f"진입은 됐으나 익절 주문이 거절돼 즉시 청산했다.\n"
                         f"보호 없는 포지션을 남기지 않기 위한 설계다.")
                     continue
+            # ⚠ 손절 스톱리밋 — 익절과 **같은 자리**에서 건다.
+            #   `close_position=True` 는 포지션이 있어야만 등록되므로 진입
+            #   직후가 유일한 기회다. 걸지 못하면 **보호 없는 포지션**이
+            #   남으므로 되돌린다 — 손절이 83% 인 규약에서 손절 없는
+            #   포지션은 그 규약이 아니다.
+            if self.broker is not None and spec.sl_pct > 0:
+                trig = st.entry_price * (1 - spec.sl_pct)
+                if not self.broker.arm_stop_loss(c["symbol"], trig, trig):
+                    log.error("%s 손절 등록 실패 — 진입을 되돌린다", c["symbol"])
+                    self.broker.close_long(c["symbol"])
+                    self.n_reject_sl += 1
+                    cyc["rejects"].append({"symbol": c["symbol"],
+                                           "reason": "stop_arm_failed",
+                                           "trigger": trig})
+                    self._tell(
+                        f"⚠️ <b>손절 등록 실패 — 진입을 되돌렸다</b>\n"
+                        f"종목: <b>{c['symbol']}</b>\n"
+                        f"발동가 {trig:.8g} 로 스톱리밋을 못 걸었다.\n"
+                        f"보호 없는 포지션은 남기지 않는다.")
+                    continue
             p = Position(
                 symbol=c["symbol"], entry_ts=ts_now, entry_price=st.entry_price,
                 tp_price=st.tp_price, sl_price=st.sl_price,
@@ -1000,6 +1066,8 @@ class RsiPaper:
               "n_reject_tp": self.n_reject_tp,
               "n_kernelfail": self.n_kernelfail,
               "n_tapmiss": self.n_tapmiss,
+              "n_exit_sl": self.n_exit_sl, "n_exit_rsi": self.n_exit_rsi,
+              "n_reject_sl": self.n_reject_sl,
               "saved_at": datetime.now(timezone.utc).isoformat()}
         tmp = self.state_path.with_suffix(".tmp")
         tmp.parent.mkdir(parents=True, exist_ok=True)
@@ -1030,6 +1098,9 @@ class RsiPaper:
         self.n_reject_tp = int(st.get("n_reject_tp", 0))
         self.n_kernelfail = int(st.get("n_kernelfail", 0))
         self.n_tapmiss = int(st.get("n_tapmiss", 0))
+        self.n_exit_sl = int(st.get("n_exit_sl", 0))
+        self.n_exit_rsi = int(st.get("n_exit_rsi", 0))
+        self.n_reject_sl = int(st.get("n_reject_sl", 0))
         log.info("상태 복원 — 보유 %d · 누적 $%.2f · 신호 %d · 체결 %d (저장 %s)",
                  len(self.pos), self.equity, self.n_signal, self.n_fill,
                  st.get("saved_at", "?")[:19])
@@ -1052,6 +1123,9 @@ class RsiPaper:
                         "n_reject_tp": self.n_reject_tp,
                         "n_kernelfail": self.n_kernelfail,
                         "n_tapmiss": self.n_tapmiss,
+                        "n_exit_sl": self.n_exit_sl,
+                        "n_exit_rsi": self.n_exit_rsi,
+                        "n_reject_sl": self.n_reject_sl,
                         "exit_slip_bp_mean":
                             round(self.exit_slip_sum / self.n_exit_mkt, 2)
                             if self.n_exit_mkt else 0.0}
@@ -1162,16 +1236,25 @@ def selftest() -> None:
     # 이익이 생길 여지가 없고, 되돌림 진입을 막기만 한다.
     class _StubBroker:
         """거래소 대역 — 요청한 값 그대로 채워 준다."""
-        def __init__(self):
+        def __init__(self, arm_sl_ok=True):
             self.opened = []
-        def detect_tp_fills(self, syms):
+            self.stops = []            # (종목, 발동가, 지정가)
+            self.arm_sl_ok = arm_sl_ok
+            self.closed = []
+        def detect_exit_fills(self, syms):
             return {}
+        def arm_stop_loss(self, symbol, trigger, limit_price=0.0):
+            self.stops.append((symbol, trigger, limit_price))
+            return self.arm_sl_ok
+        def cancel_stop_loss(self, symbol):
+            pass
         def open_long(self, symbol, ref_price):
             self.opened.append((symbol, ref_price))
             return {"price": ref_price, "quantity": 1.0}
         def arm_take_profit(self, symbol, qty, tp_price):
             return True
         def close_long(self, symbol):
+            self.closed.append(symbol)
             return None
     pl_ = RsiPaper(PaperConfig(slots=2, warmup_bars=50, max_slip_bp=100.0),
                    ["A"], OUT_DIR)
@@ -1248,6 +1331,64 @@ def selftest() -> None:
         raise SystemExit(f"레버리지를 못 맞췄는데 진입했다 — {cv_['fills']}")
     log.info("✔ 레버리지 확인 — 기본 1x · 인자가 브로커까지 도달 · "
              "주문별 훅 동작 · 못 맞추면 진입 안 함")
+
+    # ── 30분봉 사양 (2026-08-24) — 설정이 **주문까지** 가는가 ──────
+    #    문서가 요구한 검증이다: "클래스 단위 검증만으로는 팩토리가 인자를
+    #    버려도 통과한다."
+    _a30 = _build_parser().parse_args(
+        ["--tf", "30m", "--hold-bars", "96", "--entry-rsi", "12",
+         "--tp", "0.08", "--sl", "0.005", "--exit-rsi-below", "10",
+         "--entry-mode", "level", "--slots", "1"])
+    _c30 = _cfg_from_args(_a30)
+    _s30 = _c30.sources[0]
+    if (_s30.tf, _s30.entry_rsi, _s30.tp_pct, _s30.sl_pct, _s30.max_hold_bars,
+            _s30.entry_mode, _s30.exit_rsi_below, _c30.slots) != (
+            "30m", 12.0, 0.08, 0.005, 96, "level", 10.0, 1):
+        raise SystemExit(f"30분봉 사양이 설정에 안 닿는다 — {_s30} slots={_c30.slots}")
+
+    # 손절이 **주문으로** 나가는가 — 발동가 = 진입 × (1 − 0.5%)
+    _ps = RsiPaper(PaperConfig(slots=1, warmup_bars=50, entry_rsi=99,
+                               tp_pct=0.08, sl_pct=0.005), ["A"], OUT_DIR)
+    _ps.broker = _StubBroker()
+    _ps.price_fn = lambda sym: float(dn.iloc[-1])
+    _cs = _ps.step({"1h": {"A": mk(dn)}})
+    if not _ps.broker.stops:
+        raise SystemExit("손절 주문이 안 나갔다 — 보호 없는 포지션이 열린다")
+    _sym, _trig, _lim = _ps.broker.stops[0]
+    _ent = _cs["fills"][0]["entry_price"]
+    if abs(_trig - _ent * 0.995) > 1e-9:
+        raise SystemExit(f"손절 발동가가 틀렸다 — {_trig} vs {_ent * 0.995}")
+    if abs(_lim - _trig) > 1e-12:
+        raise SystemExit(f"지정가가 발동가와 다르다 — 간격 0 이어야 한다 ({_lim})")
+
+    # 손절을 **못 걸면 진입을 되돌린다**
+    _pf = RsiPaper(PaperConfig(slots=1, warmup_bars=50, entry_rsi=99,
+                               tp_pct=0.08, sl_pct=0.005), ["A"], OUT_DIR)
+    _pf.broker = _StubBroker(arm_sl_ok=False)
+    _pf.price_fn = lambda sym: float(dn.iloc[-1])
+    _cf = _pf.step({"1h": {"A": mk(dn)}})
+    if _cf["fills"] or _pf.pos or _pf.n_reject_sl != 1:
+        raise SystemExit(f"손절을 못 걸었는데 포지션이 남았다 — {_cf['fills']}")
+    if "A" not in _pf.broker.closed:
+        raise SystemExit("손절 실패 시 진입을 안 되돌렸다")
+    log.info("✔ 손절 배선 확인 — 발동 %.6g = 진입×0.995 · 지정가 간격 0 · "
+             "못 걸면 진입 되돌림", _trig)
+
+    # RSI 재진입 청산 — 문턱 아래로 다시 떨어지면 나간다
+    _pr = RsiPaper(PaperConfig(slots=1, warmup_bars=50, entry_rsi=99,
+                               tp_pct=9.0, sl_pct=0.0, exit_rsi_below=50.0),
+                   ["A"], OUT_DIR)
+    _pr.price_fn = lambda sym: float(dn.iloc[-1])
+    _pr.step({"1h": {"A": mk(dn)}})              # 진입 (RSI<=99)
+    if not _pr.pos:
+        raise SystemExit("RSI 청산 검사 — 진입이 안 됐다")
+    _cr = _pr.step({"1h": {"A": mk(dn)}})        # 단조 하락 → RSI 0 → 청산
+    if not _cr["exits"] or _cr["exits"][0]["reason"] != "rsi":
+        raise SystemExit(f"RSI 재진입 청산이 안 났다 — {_cr['exits']}")
+    if _pr.n_exit_rsi != 1:
+        raise SystemExit("RSI 청산 계정이 안 올랐다")
+    log.info("✔ RSI 재진입 청산 확인 — 문턱 %.0f 이하로 떨어지면 나간다 "
+             "(지정가 손절 미체결분의 대체 출구)", 50.0)
 
     # ── 레이트리밋 감시 (2026-08-20 IP 차단 사고)
     import scripts.binance.rsi_extreme_paper as _self
@@ -1592,6 +1733,9 @@ def _build_parser() -> argparse.ArgumentParser:
                    help="exchange_accounts.id (실거래 계좌)")
     p.add_argument("--dry-run", action="store_true",
                    help="--live 와 함께 — 주문 대신 로그만 남긴다")
+    p.add_argument("--exit-rsi-below", type=float, default=0.0,
+                   help="보유 중 RSI 가 이 값 이하로 다시 떨어지면 시장가 청산. "
+                        "0 이면 끔. 지정가 손절 미체결분의 유일한 대체 출구다")
     p.add_argument("--leverage", type=int, default=1,
                    help="거래소 레버리지(실거래 전용). **노출이 아니라 증거금** "
                         "점유율을 정한다 — 노출은 --notional 이 정한다. "
@@ -1620,7 +1764,8 @@ def _cfg_from_args(a) -> PaperConfig:
             specs.append(SourceSpec(tf=f[0], entry_rsi=float(f[1]),
                                     tp_pct=float(f[2]), sl_pct=float(f[3]),
                                     max_hold_bars=int(f[4]),
-                                    entry_mode=(f[5] if len(f) == 6 else "level")))
+                                    entry_mode=(f[5] if len(f) == 6 else "level"),
+                                    exit_rsi_below=float(a.exit_rsi_below)))
         return PaperConfig(slots=a.slots, notional_usd=a.notional,
                            sources=specs, cycle_offset_s=a.offset,
                            fetch_workers=a.workers, feed_mode=a.feed,
@@ -1629,6 +1774,7 @@ def _cfg_from_args(a) -> PaperConfig:
     return PaperConfig(slots=a.slots, entry_rsi=a.entry_rsi, tf=a.tf,
                        max_hold_bars=a.hold_bars, entry_mode=a.entry_mode,
                        tp_pct=a.tp, sl_pct=a.sl, notional_usd=a.notional,
+                       exit_rsi_below=float(a.exit_rsi_below),
                        cycle_offset_s=a.offset, fetch_workers=a.workers,
                        feed_mode=a.feed, live=bool(a.live),
                        shadow=bool(a.shadow_of), leverage=int(a.leverage))
