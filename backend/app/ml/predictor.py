@@ -132,7 +132,7 @@ class TrendPredictor:
             # Try exact timeframe first
             rows = db.query(OHLCV).filter(
                 OHLCV.symbol == symbol,
-                OHLCV.time_frame == timeframe,
+                OHLCV.tf_filter(timeframe),
             ).order_by(OHLCV.timestamp.desc()).limit(limit).all()
 
             if not rows:
@@ -142,7 +142,7 @@ class TrendPredictor:
                 need_1m = limit * tf_minutes + 100
                 rows = db.query(OHLCV).filter(
                     OHLCV.symbol == symbol,
-                    OHLCV.time_frame == '1m',
+                    OHLCV.tf_filter('1m'),
                 ).order_by(OHLCV.timestamp.desc()).limit(need_1m).all()
 
                 if not rows:

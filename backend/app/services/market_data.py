@@ -90,7 +90,7 @@ class MarketDataService:
             # Query only what's needed
             query_filters = [
                 OHLCV.symbol == symbol,
-                OHLCV.time_frame == interval,
+                OHLCV.tf_filter(interval),
                 OHLCV.timestamp >= start_date
             ]
             if to_date:
@@ -124,7 +124,7 @@ class MarketDataService:
                 db = SessionLocal()
                 query_filters_refetch = [
                     OHLCV.symbol == symbol,
-                    OHLCV.time_frame == interval,
+                    OHLCV.tf_filter(interval),
                     OHLCV.timestamp >= start_date
                 ]
                 if to_date:
@@ -150,7 +150,7 @@ class MarketDataService:
         try:
             count = db.query(OHLCV).filter(
                 OHLCV.symbol == symbol, 
-                OHLCV.time_frame == interval
+                OHLCV.tf_filter(interval)
             ).count()
         finally:
             db.close()
@@ -179,7 +179,7 @@ class MarketDataService:
             try:
                 db_candles = db.query(OHLCV).filter(
                     OHLCV.symbol == symbol, 
-                    OHLCV.time_frame == interval
+                    OHLCV.tf_filter(interval)
                 ).order_by(OHLCV.timestamp.asc()).all()
                 
                 # Only return if we have a substantial amount, otherwise fallback to synthetic
@@ -231,7 +231,7 @@ class MarketDataService:
             db_candles = db.query(OHLCV).filter(
                 and_(
                     OHLCV.symbol == symbol, 
-                    OHLCV.time_frame == interval,
+                    OHLCV.tf_filter(interval),
                     OHLCV.timestamp >= start_dt,
                     OHLCV.timestamp < end_dt
                 )
@@ -261,7 +261,7 @@ class MarketDataService:
                     db_candles = db.query(OHLCV).filter(
                         and_(
                             OHLCV.symbol == symbol, 
-                            OHLCV.time_frame == interval,
+                            OHLCV.tf_filter(interval),
                             OHLCV.timestamp >= start_dt,
                             OHLCV.timestamp < end_dt
                         )
@@ -386,7 +386,7 @@ class MarketDataService:
             db_candles = db.query(OHLCV).filter(
                 and_(
                     OHLCV.symbol == symbol, 
-                    OHLCV.time_frame == interval,
+                    OHLCV.tf_filter(interval),
                     OHLCV.timestamp >= start_dt,
                     OHLCV.timestamp < end_dt
                 )
@@ -411,7 +411,7 @@ class MarketDataService:
                 base_candles_db = db.query(OHLCV).filter(
                     and_(
                         OHLCV.symbol == symbol, 
-                        OHLCV.time_frame == "1m",
+                        OHLCV.tf_filter("1m"),
                         OHLCV.timestamp >= start_dt,
                         OHLCV.timestamp < end_dt
                     )
@@ -438,7 +438,7 @@ class MarketDataService:
                      base_candles_db = db.query(OHLCV).filter(
                         and_(
                             OHLCV.symbol == symbol, 
-                            OHLCV.time_frame == "1m",
+                            OHLCV.tf_filter("1m"),
                             OHLCV.timestamp >= start_dt,
                             OHLCV.timestamp < end_dt
                         )
@@ -466,7 +466,7 @@ class MarketDataService:
                  db_candles = db.query(OHLCV).filter(
                     and_(
                         OHLCV.symbol == symbol, 
-                        OHLCV.time_frame == interval,
+                        OHLCV.tf_filter(interval),
                         OHLCV.timestamp >= start_dt,
                         OHLCV.timestamp < end_dt
                     )
@@ -489,7 +489,7 @@ class MarketDataService:
             print(f"No data for {date_str}. Checking for most recent trading day...")
             latest_record = db.query(OHLCV).filter(
                 OHLCV.symbol == symbol,
-                OHLCV.time_frame == "1m"  # Always check 1m as base
+                OHLCV.tf_filter("1m")  # Always check 1m as base
             ).order_by(OHLCV.timestamp.desc()).first()
             
             if latest_record:
@@ -503,7 +503,7 @@ class MarketDataService:
                 fallback_candles = db.query(OHLCV).filter(
                     and_(
                         OHLCV.symbol == symbol,
-                        OHLCV.time_frame == "1m",
+                        OHLCV.tf_filter("1m"),
                         OHLCV.timestamp >= fallback_start,
                         OHLCV.timestamp < fallback_end
                     )
@@ -686,7 +686,7 @@ class MarketDataService:
             logger.info(f"Checking existing data for {symbol} {interval}...")
             last_record = db.query(OHLCV.timestamp).filter(
                 OHLCV.symbol == symbol,
-                OHLCV.time_frame == interval
+                OHLCV.tf_filter(interval)
             ).order_by(OHLCV.timestamp.desc()).first()
             
             if last_record:
@@ -880,14 +880,14 @@ class MarketDataService:
             # Get the timestamp of the 10,000th newest record
             cutoff_record = db.query(OHLCV.timestamp).filter(
                 OHLCV.symbol == symbol,
-                OHLCV.time_frame == interval
+                OHLCV.tf_filter(interval)
             ).order_by(OHLCV.timestamp.desc()).offset(limit).limit(1).first()
             
             if cutoff_record:
                 cutoff_ts = cutoff_record[0]
                 deleted = db.query(OHLCV).filter(
                     OHLCV.symbol == symbol,
-                    OHLCV.time_frame == interval,
+                    OHLCV.tf_filter(interval),
                     OHLCV.timestamp <= cutoff_ts
                 ).delete(synchronize_session=False)
                 db.commit()

@@ -291,7 +291,7 @@ class DataMaintenanceScheduler:
         try:
             candles = db.query(OHLCV).filter(
                 OHLCV.symbol == symbol,
-                OHLCV.time_frame == "1m",
+                OHLCV.tf_filter("1m"),
             ).order_by(OHLCV.timestamp.asc()).all()
 
             if len(candles) < MIN_CANDLES_FOR_CHECK:

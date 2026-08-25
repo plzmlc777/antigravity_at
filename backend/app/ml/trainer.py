@@ -44,7 +44,7 @@ class TrendTrainer:
             # Try exact timeframe first
             rows = db.query(OHLCV).filter(
                 OHLCV.symbol == self.symbol,
-                OHLCV.time_frame == self.timeframe,
+                OHLCV.tf_filter(self.timeframe),
                 OHLCV.timestamp >= since
             ).order_by(OHLCV.timestamp).all()
 
@@ -61,7 +61,7 @@ class TrendTrainer:
             logger.info(f'[ML] No {self.timeframe} data, resampling from 1m')
             rows_1m = db.query(OHLCV).filter(
                 OHLCV.symbol == self.symbol,
-                OHLCV.time_frame == '1m',
+                OHLCV.tf_filter('1m'),
                 OHLCV.timestamp >= since
             ).order_by(OHLCV.timestamp).all()
 

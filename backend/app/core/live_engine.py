@@ -682,7 +682,7 @@ class LiveTradingEngine:
             existing = db.query(OHLCV).filter(
                 OHLCV.symbol == self.symbol,
                 OHLCV.timestamp == timestamp,
-                OHLCV.time_frame == "1m"
+                OHLCV.tf_filter("1m")
             ).first()
 
             if existing:

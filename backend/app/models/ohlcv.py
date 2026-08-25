@@ -20,7 +20,7 @@
 """
 from datetime import datetime
 
-from sqlalchemy import Column, DateTime, Float, String
+from sqlalchemy import Column, DateTime, Float, String, false, true
 
 from ..db.base import Base
 
@@ -40,6 +40,18 @@ class OHLCV(Base):
 
     # upsert 대상 컬럼. 제약 이름이 아니라 이 컬럼 조합으로 건다.
     CONFLICT_COLS = ("symbol", "ts")
+
+    @classmethod
+    def tf_filter(cls, interval: str):
+        """질의 조건용 시간대 필터. 이 테이블은 **1분봉 전용**이다.
+
+        ⚠ `OHLCV.time_frame == x` 로 쓰면 안 된다. `time_frame` 은 컬럼이
+          아니라 파이썬 프로퍼티라서 클래스 수준 비교가 그냥 `False` 로
+          접히고, SQLAlchemy 는 그걸 `WHERE false` 로 컴파일한다.
+          **예외 없이 0행**이 나온다 — 2026-08-25 실측으로 실서비스
+          28곳이 이 상태였다.
+        """
+        return true() if str(interval) == "1m" else false()
 
     @property
     def time_frame(self) -> str:
