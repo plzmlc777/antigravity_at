@@ -351,7 +351,9 @@ def _build_rsi_threshold(kwargs: dict, runtime: dict) -> SignalSource:
     """
     from .sources import RsiThresholdSource
     known = {"period", "entry_threshold", "side", "placebo", "placebo_seed",
-             "entry_mode"}
+             "entry_mode",
+             # 진입 게이트 (2026-08-25) — 거래 단위 분석에서 나온 셋
+             "min_atr_pct", "max_drop_pct", "min_vol_mult"}
     unknown = set(kwargs) - known
     if unknown:
         raise KeyError(
@@ -365,6 +367,9 @@ def _build_rsi_threshold(kwargs: dict, runtime: dict) -> SignalSource:
         placebo=str(kwargs.get("placebo", "")),
         placebo_seed=int(kwargs.get("placebo_seed", 0)),
         entry_mode=str(kwargs.get("entry_mode", "level")),
+        min_atr_pct=float(kwargs.get("min_atr_pct", 0.0)),
+        max_drop_pct=float(kwargs.get("max_drop_pct", 0.0)),
+        min_vol_mult=float(kwargs.get("min_vol_mult", 0.0)),
     )
 
 

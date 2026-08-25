@@ -81,6 +81,16 @@ class RsiConfig:
     exit_rsi_below: float = 0.0
     # 손절을 **지정가**로 건다. 트리거 후 손절가로 되돌아와야 체결된다.
     sl_limit: bool = False
+    # ── 진입 게이트 (2026-08-25) ─────────────────────────────────
+    #   거래 1,725건을 **거래 단위**로 갈라 찾았다. 월로 묶으면 47개가 되고
+    #   그중 11개월이 5거래 미만이라 정보를 스스로 버린다.
+    #   ⚠ **상위 5일을 뺀** 표본에서 판정했다. 2025-10-10 하루가 익절의
+    #     68%(341진입 310익절)라, 그 날을 표시하는 변수는 무엇이든 예측력이
+    #     있어 보인다 — 빼기 전엔 `hour` 가 70.3%p 를 갈랐다.
+    #   날짜 묶음 위약 p 0.001 · 앞→뒤 절반 확인 4/4 통과.
+    min_atr_pct: float = 0.0     # 30분봉 ATR 하한(%). Q1(<0.98%) 익절률 6.1%
+    max_drop_pct: float = 0.0    # 직전 하락 폭 상한(음수). Q1(-20%↓) 18.4%
+    min_vol_mult: float = 0.0    # 거래량 배수 하한. Q5(15배↑) 20.1%
     # 방아쇠와 지정가를 **벌린다**(진입가 대비 비율). 0 = 같은 값(가장 불리).
     # 실전 스톱리밋은 stopPrice 와 price 를 따로 잡는다 — 그래야 주문이
     # 만들어지는 순간 체결 가능해지고, 슬리피지가 이 폭 안으로 갇힌다.
@@ -146,6 +156,9 @@ class RsiConfig:
                               "entry_threshold": self.entry_threshold,
                               "side": self.side,
                               "entry_mode": self.entry_mode,
+                              "min_atr_pct": self.min_atr_pct,
+                              "max_drop_pct": self.max_drop_pct,
+                              "min_vol_mult": self.min_vol_mult,
                               "placebo": self.placebo,
                               "placebo_seed": self.placebo_seed}}
         elif self.signal == "volcap":
@@ -192,6 +205,8 @@ class RsiConfig:
                 #   간격 축을 넣으면 세 칸이 조용히 한 덩어리가 된다.
                 #   지정가일 때만 붙여 기존 키는 그대로 둔다.
                 + (f"_sllim{self.sl_limit_offset:g}" if self.sl_limit else "")
+                + (f"_g{self.min_atr_pct:g}_{-self.max_drop_pct:g}_{self.min_vol_mult:g}"
+                   if (self.min_atr_pct or self.max_drop_pct or self.min_vol_mult) else "")
                 + (f"_s{self.placebo_seed}" if self.placebo else ""))
 
 
@@ -231,6 +246,13 @@ def verify_reaches(cfg: RsiConfig) -> None:
         bad.append(("placebo", src.placebo, cfg.placebo))
     if getattr(src, "entry_mode", None) != cfg.entry_mode:
         bad.append(("entry_mode", getattr(src, "entry_mode", None), cfg.entry_mode))
+    # 게이트도 **도달을 증명한다** — 설정에 넣고 소스가 안 받으면 조용히 꺼진다
+    if cfg.signal == "rsi":
+        for k in ("min_atr_pct", "max_drop_pct", "min_vol_mult"):
+            g = float(getattr(src, k, 0.0) or 0.0)
+            w = float(getattr(cfg, k, 0.0) or 0.0)
+            if abs(g - w) > 1e-9:
+                bad.append((k, g, w))
     pol = pipe.policy
     for k, want in (("sl_pct", cfg.sl_pct), ("tp_pct", cfg.tp_pct),
                     ("max_hold_bars", cfg.max_hold_bars),
@@ -312,8 +334,11 @@ def selftest() -> None:
     rng = np.random.default_rng(5)
     px = 100 * np.exp(np.cumsum(rng.normal(0, 0.006, 3000)))
     ix = pd.date_range("2024-01-01", periods=3000, freq="h")
+    # ⚠ `volume` 을 넣는다 — 진입 게이트(거래량 배수)가 쓴다. 없으면
+    #   게이트 자기검사가 "컬럼 없음"으로 죽는다(2026-08-25).
     bars = pd.DataFrame({"open": px, "high": px * 1.002,
-                         "low": px * 0.998, "close": px}, index=ix)
+                         "low": px * 0.998, "close": px,
+                         "volume": rng.lognormal(10, 1.0, 3000)}, index=ix)
     ctx = SourceContext(symbol="TEST", eval_freq_minutes=60, ohlcv_eval=bars)
     cnt = {}
     for thr in (20.0, 30.0, 40.0):
@@ -551,6 +576,35 @@ def selftest() -> None:
     if len(set(_keys)) != len(_keys):
         raise SystemExit(f"칸이 다른데 키가 같다 — 원장에서 섞인다: {_keys}")
     log.info("✔ 키 유일성 확인 — 시장가·지정가 간격 4종이 서로 다른 키")
+
+    # ⚠ 게이트는 **신호를 줄여야** 한다. 설정만 받고 안 걸면 조용히 꺼진 것과
+    #   같다 — 그러면 게이트 격자가 전부 같은 결과를 낸다(교훈 #88).
+    _b = RsiThresholdSource(14, 30.0, "long").build_features(ctx)["rsi_signal"]
+    _n0 = int((_b != 0).sum())
+    _g = {}
+    for _lab, _kw in (("atr", dict(min_atr_pct=1.5)),
+                      ("drop", dict(max_drop_pct=-8.0)),
+                      ("vol", dict(min_vol_mult=5.0))):
+        _f = RsiThresholdSource(14, 30.0, "long", **_kw).build_features(ctx)["rsi_signal"]
+        _g[_lab] = int((_f != 0).sum())
+        if _g[_lab] > _n0:
+            raise SystemExit(f"게이트 {_lab} 가 신호를 **늘렸다** — {_g[_lab]} > {_n0}")
+    if min(_g.values()) >= _n0:
+        raise SystemExit(f"게이트가 신호를 하나도 안 줄였다 — 기본 {_n0} / {_g}")
+    _all = RsiThresholdSource(14, 30.0, "long", min_atr_pct=1.5,
+                              max_drop_pct=-8.0, min_vol_mult=5.0
+                              ).build_features(ctx)["rsi_signal"]
+    _na = int((_all != 0).sum())
+    if _na > min(_g.values()):
+        raise SystemExit(f"셋을 모두 걸었는데 각각보다 신호가 많다 — {_na} > {min(_g.values())}")
+    log.info("✔ 게이트 감응 확인 — 기본 %d → atr %d / drop %d / vol %d / 셋 모두 %d",
+             _n0, _g["atr"], _g["drop"], _g["vol"], _na)
+    _s = RsiThresholdSource(14, 30.0, "long", min_atr_pct=1.5)
+    if abs(_s.min_atr_pct - 1.5) > 1e-9 or _s.gated is not True:
+        raise SystemExit("게이트 인자가 소스에 안 실렸다")
+    if RsiThresholdSource(14, 30.0, "long").gated is not False:
+        raise SystemExit("게이트 기본값이 꺼짐이 아니다")
+    log.info("✔ 게이트 기본 꺼짐 확인")
 
     log.info("✔ 요율 도달 확인 — 테이커 %.1fbp / 메이커 %.1fbp 편도 "
              "(익절은 메이커, 손절·시간은 테이커)",
@@ -977,6 +1031,12 @@ def main() -> int:
                    help="시간대. 보유상한(--hold)은 **봉 수**이니 같이 바꿔라")
     p.add_argument("--start", default="", help="구간 시작 YYYY-MM-DD (포함)")
     p.add_argument("--end", default="", help="구간 끝 YYYY-MM-DD (미포함)")
+    p.add_argument("--gate-atr", default="0",
+                   help="30분봉 ATR 하한 %% (쉼표). 0=끔. 실측 0.98 미만이 손익분기 미달")
+    p.add_argument("--gate-drop", default="0",
+                   help="직전 하락 폭 상한 %% (음수, 쉼표). 0=끔. -12 면 12%% 이상 폭락만")
+    p.add_argument("--gate-vol", default="0",
+                   help="거래량 배수 하한 (쉼표). 0=끔. 실측 15배 이상이 익절률 20.1%%")
     p.add_argument("--sl-limit-offsets", default="0",
                    help="지정가 손절의 방아쇠↔지정가 간격(진입가 대비, 쉼표). "
                         "0=같은 값(가장 불리) · 0.003=0.3%p 아래까지 받아준다. "
@@ -1019,6 +1079,9 @@ def main() -> int:
     seeds = [x.strip() for x in str(a.seed).split(",") if x.strip()]
     xrs = [x.strip() for x in str(a.exit_rsi_below).split(",") if x.strip()]
     sl_offsets = [x.strip() for x in str(a.sl_limit_offsets).split(",") if x.strip()]
+    g_atr = [x.strip() for x in str(a.gate_atr).split(",") if x.strip()]
+    g_drop = [x.strip() for x in str(a.gate_drop).split(",") if x.strip()]
+    g_vol = [x.strip() for x in str(a.gate_vol).split(",") if x.strip()]
     signals = [x.strip() for x in a.signal.split(",") if x.strip()]
     grid = [RsiConfig(signal=sg, side=s, period=int(pp),
                       entry_threshold=float(t),
@@ -1029,6 +1092,8 @@ def main() -> int:
                       entry_mode=em, exit_rsi_below=float(xr),
                       sl_limit=bool(a.sl_limit) or float(so) > 0,
                       sl_limit_offset=float(so),
+                      min_atr_pct=float(ga), max_drop_pct=float(gd),
+                      min_vol_mult=float(gv),
                       placebo=pl, placebo_seed=int(sd),
                       eval_freq_minutes=TF_MIN[a.tf])
             for sg in signals
@@ -1041,6 +1106,9 @@ def main() -> int:
             for tp in a.tps.split(",")
             for sl in a.sls.split(",")
             for so in sl_offsets
+            for ga in g_atr
+            for gd in g_drop
+            for gv in g_vol
             for hd in a.hold.split(",")
             for em in modes
             for xr in xrs
@@ -1091,6 +1159,8 @@ def main() -> int:
                        #   축이 늘 때마다 판독기가 조용히 틀린다(hold 가 그랬다).
                        "hold": cfg.max_hold_bars,
                        "sllim": cfg.sl_limit, "sloff": cfg.sl_limit_offset,
+                       "gatr": cfg.min_atr_pct, "gdrop": cfg.max_drop_pct,
+                       "gvol": cfg.min_vol_mult,
                        "placebo": cfg.placebo or "real"})
             trade_rows.append(tr)
         # ⚠ placebo 를 빼면 아래 집계가 **실측과 위약을 한 그룹에 섞는다**.

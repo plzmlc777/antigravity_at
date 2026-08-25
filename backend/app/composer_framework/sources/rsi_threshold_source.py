@@ -64,7 +64,9 @@ class RsiThresholdSource(SignalSource):
 
     def __init__(self, period: int = 14, entry_threshold: float = 30.0,
                  side: str = "long", placebo: str = "",
-                 placebo_seed: int = 0, entry_mode: str = "level") -> None:
+                 placebo_seed: int = 0, entry_mode: str = "level",
+                 min_atr_pct: float = 0.0, max_drop_pct: float = 0.0,
+                 min_vol_mult: float = 0.0) -> None:
         if side not in ("long", "short"):
             raise ValueError(f"side 는 long|short — 받은 값 {side!r}")
         if not (0.0 < entry_threshold < 100.0):
@@ -91,6 +93,29 @@ class RsiThresholdSource(SignalSource):
         self.placebo = placebo
         self.placebo_seed = int(placebo_seed)
         self.entry_mode = entry_mode
+        # ── 진입 게이트 (2026-08-25) ──────────────────────────────
+        #   1,725거래를 거래 단위로 갈라 찾은 셋. **상위 5일을 뺀** 표본에서
+        #   날짜 묶음 위약을 통과했고(p 0.001), 앞→뒤 절반 확인도 4/4 였다.
+        #   ⚠ 상위 5일을 뺀 이유 — 2025-10-10 하루가 익절의 68% 였다.
+        #     그 날을 표시하는 변수는 무엇이든 예측력이 있어 보인다
+        #     (`hour` 가 70.3%p 를 갈랐다). 빼야 진짜 특성이 남는다.
+        #
+        #   min_atr_pct  : 30분봉 ATR(진입가 대비 %) 하한. 실측 Q1(<0.98%)
+        #                  익절률 6.1% 로 **손익분기 7.8% 미달**. 0=끔
+        #   max_drop_pct : 직전 하락 폭 상한(음수). -12 면 12% 이상 떨어진
+        #                  것만. 실측 Q1(-20%↓) 18.4% vs Q5(-5.6%↑) 5.6%. 0=끔
+        #   min_vol_mult : 거래량 배수 하한. 실측 Q5(15배↑) 20.1%. 0=끔
+        if min_atr_pct < 0 or min_vol_mult < 0:
+            raise ValueError("min_atr_pct·min_vol_mult 는 0 이상")
+        if max_drop_pct > 0:
+            raise ValueError(f"max_drop_pct 는 0 이하(하락은 음수) — {max_drop_pct!r}")
+        self.min_atr_pct = float(min_atr_pct)
+        self.max_drop_pct = float(max_drop_pct)
+        self.min_vol_mult = float(min_vol_mult)
+
+    @property
+    def gated(self) -> bool:
+        return bool(self.min_atr_pct or self.max_drop_pct or self.min_vol_mult)
 
     def _apply_placebo(self, sig: pd.Series) -> pd.Series:
         """진입 대조군. 구현은 `apply_entry_placebo` **한 곳**뿐이다 —
@@ -130,6 +155,9 @@ class RsiThresholdSource(SignalSource):
             # t-1 과 t 만 본다(미래 없음). 체결은 커널이 t+1 시가에 한다.
             hit = (~inside) & inside.shift(1).fillna(False)
 
+        if self.gated:
+            hit = hit & self._gate_mask(ohlc, rsi, df.index)
+
         sig = pd.Series(0.0, index=df.index)
         sig.loc[hit] = val
         sig = self._apply_placebo(sig)
@@ -139,6 +167,62 @@ class RsiThresholdSource(SignalSource):
         out["rsi_signal"] = sig.reindex(eval_idx).fillna(0.0).astype(float)
         out["rsi_value"] = rsi.reindex(eval_idx).astype(float)
         return out
+
+    # ── 진입 게이트 ────────────────────────────────────────────
+    RECOVER = 30.0          # 하락 구간의 끝 — RSI 가 여기를 넘으면 구간이 아니다
+
+    def _gate_mask(self, ohlc, rsi: pd.Series, idx) -> pd.Series:
+        """세 조건을 모두 만족하는 봉만 True.
+
+        ⚠ 전부 **그 봉 종가까지의 정보**로만 만든다. 체결은 커널이 다음 봉
+          시가에 하므로 미래참조가 없다(교훈 #90 — 두 번 밀지 않는다).
+        """
+        need = [c for c in ("high", "low", "close", "volume")
+                if c not in ohlc.columns]
+        if need:
+            raise InsufficientSourceDataError(
+                f"게이트에 필요한 컬럼이 없다: {need}")
+        o = ohlc.astype(float).copy()
+        o.index = pd.to_datetime(o.index)
+        o = o.sort_index()
+        o = o[~o.index.duplicated(keep="last")].reindex(idx)
+        c, h, l, v = o["close"], o["high"], o["low"], o["volume"]
+
+        m = pd.Series(True, index=idx)
+
+        if self.min_atr_pct > 0:
+            pc = c.shift(1)
+            tr = pd.concat([h - l, (h - pc).abs(), (l - pc).abs()],
+                           axis=1).max(axis=1)
+            atr = tr.ewm(alpha=1.0 / 14, adjust=False).mean() / c * 100.0
+            m &= (atr >= self.min_atr_pct).fillna(False)
+
+        if self.max_drop_pct < 0 or self.min_vol_mult > 0:
+            below = (rsi <= self.RECOVER).fillna(False).to_numpy()
+            cv = c.to_numpy(); vv = v.to_numpy()
+            n = len(cv)
+            drop = np.full(n, np.nan)
+            vmul = np.full(n, np.nan)
+            start = 0
+            for i in range(n):
+                if not below[i]:
+                    start = i + 1
+                    continue
+                # 이번 하락 구간은 [start, i] — 미래를 안 본다
+                st = start
+                peak = cv[max(0, st - 1)]
+                seg = cv[st:i + 1]
+                if peak > 0 and len(seg):
+                    drop[i] = 100.0 * (seg.min() / peak - 1.0)
+                base = vv[max(0, st - 100):st]
+                b = base.mean() if len(base) else np.nan
+                if b and b > 0:
+                    vmul[i] = vv[st:i + 1].mean() / b
+            if self.max_drop_pct < 0:
+                m &= pd.Series(drop <= self.max_drop_pct, index=idx).fillna(False)
+            if self.min_vol_mult > 0:
+                m &= pd.Series(vmul >= self.min_vol_mult, index=idx).fillna(False)
+        return m
 
 
 def apply_entry_placebo(sig: pd.Series, placebo: str, seed: int) -> pd.Series:
