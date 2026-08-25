@@ -3,7 +3,8 @@
 미국 ETF 유니버스 일봉 백필 (기본 6년).
 
 us_universe.json 의 코어(+옵션으로 레버리지) 심볼을 순회하며
-USMarketDataService.fetch_daily_history() 로 OHLCV(time_frame='1d')를 채운다.
+USMarketDataService.fetch_daily_history() 로 `ohlcv_daily` 를 채운다.
+(2026-08-25: 구 `ohlcv` 를 걷어내며 목적지가 바뀌었다)
 
 실행:
   cd backend && python -m scripts.backfill_us_daily                 # 코어 전체 6년

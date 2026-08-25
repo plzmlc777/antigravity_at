@@ -186,10 +186,12 @@ def bh_return_pct(symbol: str, start: datetime, end: datetime):
         from sqlalchemy import text
         from app.db.session import engine
         q = text("""
-            SELECT (SELECT close FROM ohlcv WHERE symbol=:s AND time_frame='1m'
-                    AND timestamp >= :t0 ORDER BY timestamp LIMIT 1) AS c0,
-                   (SELECT close FROM ohlcv WHERE symbol=:s AND time_frame='1m'
-                    AND timestamp <= :t1 ORDER BY timestamp DESC LIMIT 1) AS c1
+            -- 2026-08-25: 구 `ohlcv` 는 걷어냈다. 같은 1분봉이 `ohlcv_1m` 에 있고
+            -- 그쪽이 더 과거(2021-)까지 덮는다. 키는 (symbol, ts).
+            SELECT (SELECT close FROM ohlcv_1m WHERE symbol=:s
+                    AND ts >= :t0 ORDER BY ts LIMIT 1) AS c0,
+                   (SELECT close FROM ohlcv_1m WHERE symbol=:s
+                    AND ts <= :t1 ORDER BY ts DESC LIMIT 1) AS c1
         """)
         with engine.connect() as conn:
             c0, c1 = conn.execute(q, {"s": symbol, "t0": start, "t1": end}).one()

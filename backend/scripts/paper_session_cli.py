@@ -88,9 +88,10 @@ def load_1m(symbol: str, days: int = 800) -> pd.DataFrame:
     try:
         end = datetime.now().replace(second=0, microsecond=0)
         start = end - timedelta(days=days)
-        sql = text("SELECT timestamp, open, high, low, close, volume FROM ohlcv "
-                   "WHERE symbol = :sym AND time_frame = '1m' "
-                   "AND timestamp >= :start ORDER BY timestamp")
+        # 2026-08-25: 구 `ohlcv` 대체. 1분봉은 `ohlcv_1m` (symbol, ts).
+        sql = text("SELECT ts AS timestamp, open, high, low, close, volume "
+                   "FROM ohlcv_1m WHERE symbol = :sym "
+                   "AND ts >= :start ORDER BY ts")
         rows = db.execute(sql, {"sym": symbol, "start": start}).fetchall()
         df = pd.DataFrame(rows, columns=["timestamp", "open", "high", "low", "close", "volume"])
         df["timestamp"] = pd.to_datetime(df["timestamp"])
@@ -113,9 +114,10 @@ def load_daily(symbol: str, days: int = 2600) -> pd.DataFrame:
     try:
         end = datetime.now()
         start = end - timedelta(days=days)
-        sql = text("SELECT timestamp, open, high, low, close, volume FROM ohlcv "
-                   "WHERE symbol = :sym AND time_frame = '1d' "
-                   "AND timestamp >= :start ORDER BY timestamp")
+        # 2026-08-25: 일봉은 `ohlcv_daily` (symbol, date).
+        sql = text("SELECT date AS timestamp, open, high, low, close, volume "
+                   "FROM ohlcv_daily WHERE symbol = :sym "
+                   "AND date >= :start ORDER BY date")
         rows = db.execute(sql, {"sym": symbol, "start": start}).fetchall()
         df = pd.DataFrame(rows, columns=["timestamp", "open", "high", "low", "close", "volume"])
         df["timestamp"] = pd.to_datetime(df["timestamp"])

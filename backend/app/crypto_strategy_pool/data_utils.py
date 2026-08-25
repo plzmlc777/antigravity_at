@@ -20,17 +20,19 @@ def fetch_1m_feed(
 ) -> List[Dict[str, Any]]:
     """DB ohlcv 테이블에서 1m feed fetch. timestamp는 ISO string으로 반환."""
     q = """
-    SELECT timestamp, open, high, low, close, volume
-    FROM ohlcv WHERE symbol=:s AND time_frame='1m'
+    -- 2026-08-25: 구 `ohlcv` 대체. 같은 1분봉이 `ohlcv_1m` 에 있고
+    -- 그쪽이 더 과거(2021-)까지 덮는다. 키는 (symbol, ts).
+    SELECT ts AS timestamp, open, high, low, close, volume
+    FROM ohlcv_1m WHERE symbol=:s
     """
     params = {"s": symbol}
     if start_date:
-        q += " AND timestamp >= :start"
+        q += " AND ts >= :start"
         params["start"] = start_date
     if end_date:
-        q += " AND timestamp <= :end"
+        q += " AND ts <= :end"
         params["end"] = end_date
-    q += " ORDER BY timestamp"
+    q += " ORDER BY ts"
 
     with engine.connect() as conn:
         rows = conn.execute(text(q), params).fetchall()

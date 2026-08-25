@@ -255,7 +255,10 @@ class USMarketDataService:
     async def fetch_daily_history(self, symbol: str, years: float = 6.0,
                                   end_date: date = None,
                                   drop_incomplete: bool = True) -> int:
-        """usa06012 연속조회로 일봉을 긁어 OHLCV(time_frame='1d')에 upsert.
+        """usa06012 연속조회로 일봉을 긁어 **`ohlcv_daily`** 에 upsert.
+
+        ⚠ 2026-08-25 — 구 `ohlcv` 를 걷어내며 목적지가 바뀌었다. 분봉은
+          `ohlcv_1m`, 일봉은 `ohlcv_daily` 다. `_upsert` 가 갈라 보낸다.
 
         분봉은 약 7개월(2026-01-01 이후)까지만 제공되므로, 장기 백테스트용
         시계열은 일봉으로 확보한다. 실측 깊이: AAPL 2020-08-10까지 (1,500봉/15페이지).
@@ -388,8 +391,9 @@ class USMarketDataService:
             rows = (
                 db.query(OHLCV)
                 .filter(
+                    # 2026-08-25: 모델이 `ohlcv_1m` 을 가리킨다 — 1분봉 전용이라
+                    # time_frame 컬럼이 없다. 조건에서 뺀다.
                     OHLCV.symbol == symbol,
-                    OHLCV.time_frame == "1m",
                     OHLCV.timestamp >= start_ref,
                     OHLCV.timestamp < end_ref,
                 )
@@ -409,22 +413,41 @@ class USMarketDataService:
 
     @staticmethod
     def _upsert(batch: List[Dict]) -> int:
+        """`time_frame` 을 보고 제 테이블로 보낸다.
+
+        ⚠ 2026-08-25 — 구 `ohlcv` 를 걷어냈다. 하나였던 목적지가 둘이 됐다.
+            1m → `ohlcv_1m`   (symbol, ts)
+            1d → `ohlcv_daily`(symbol, date)
+          섞어 담으면 일봉이 1분봉 원장을 오염시킨다. 여기서 가른다.
+        """
         if not batch:
             return 0
+        tf = {str(b.get("time_frame") or "1m") for b in batch}
+        if len(tf) != 1:
+            logger.error("[USMarketData] 한 배치에 봉이 섞였다: %s", sorted(tf))
+            return 0
+        tf = tf.pop()
+        if tf == "1d":
+            return USMarketDataService._upsert_daily(batch)
+        if tf == "1m":
+            return USMarketDataService._upsert_minute(batch)
+        logger.error("[USMarketData] 모르는 time_frame=%r — 저장하지 않는다", tf)
+        return 0
+
+    @staticmethod
+    def _upsert_minute(batch: List[Dict]) -> int:
         from sqlalchemy.dialects.postgresql import insert
 
         from ..db.session import SessionLocal
         from ..models.ohlcv import OHLCV
 
+        rows = [{k: v for k, v in b.items() if k != "time_frame"} for b in batch]
         db = SessionLocal()
         try:
-            # 제약조건 이름이 아니라 인덱스 컬럼으로 arbiter 를 지정한다.
-            # 로컬은 uix_symbol_timestamp_tf(제약), 민트는 ohlcv_symbol_tf_ts_uniq
-            # (유니크 인덱스)로 이름이 다르다 — 컬럼 집합은 동일하므로
-            # index_elements 로 지정해야 양쪽에서 모두 동작한다.
-            stmt = insert(OHLCV).values(batch)
+            # arbiter 는 제약 **이름**이 아니라 컬럼으로 준다 — 환경마다 이름이 다르다.
+            stmt = insert(OHLCV).values(rows)
             stmt = stmt.on_conflict_do_update(
-                index_elements=["symbol", "timestamp", "time_frame"],
+                index_elements=["symbol", "ts"],
                 set_={
                     "open": stmt.excluded.open,
                     "high": stmt.excluded.high,
@@ -435,10 +458,47 @@ class USMarketDataService:
             )
             db.execute(stmt)
             db.commit()
-            return len(batch)
+            return len(rows)
         except Exception as e:
             db.rollback()
-            logger.error(f"[USMarketData] upsert 실패: {e}")
+            logger.error(f"[USMarketData] 1분봉 upsert 실패: {e}")
+            return 0
+        finally:
+            db.close()
+
+    @staticmethod
+    def _upsert_daily(batch: List[Dict]) -> int:
+        from sqlalchemy import text as _text
+
+        from ..db.session import SessionLocal
+
+        db = SessionLocal()
+        try:
+            # `ohlcv_daily` 는 분봉에서 만든 일봉도 담는다. 거래소가 준 일봉은
+            # n_minutes=0 으로 표시해 "유도하지 않았다"를 남긴다.
+            q = _text("""
+                INSERT INTO ohlcv_daily (symbol, date, open, high, low, close,
+                                         volume, n_minutes, is_partial, built_at)
+                VALUES (:symbol, :date, :open, :high, :low, :close,
+                        :volume, 0, false, now())
+                ON CONFLICT (symbol, date) DO UPDATE SET
+                    open = EXCLUDED.open, high = EXCLUDED.high,
+                    low = EXCLUDED.low, close = EXCLUDED.close,
+                    volume = EXCLUDED.volume
+            """)
+            rows = [{
+                "symbol": b["symbol"],
+                "date": b["timestamp"].date() if hasattr(b["timestamp"], "date")
+                        else b["timestamp"],
+                "open": b["open"], "high": b["high"], "low": b["low"],
+                "close": b["close"], "volume": b["volume"],
+            } for b in batch]
+            db.execute(q, rows)
+            db.commit()
+            return len(rows)
+        except Exception as e:
+            db.rollback()
+            logger.error(f"[USMarketData] 일봉 upsert 실패: {e}")
             return 0
         finally:
             db.close()

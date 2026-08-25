@@ -52,15 +52,17 @@ def main() -> int:
 
     db = SessionLocal()
     try:
+        # 2026-08-25: 구 `ohlcv` 를 걷어냈다. 미국 일봉은 `ohlcv_daily` 로 옮겼다
+        # (106종목 · 144,875행). 컬럼이 timestamp → date 로 바뀐다.
         rows = db.execute(text("""
             SELECT symbol,
-                   COUNT(*)                                        AS n,
-                   SUM(CASE WHEN volume = 0 THEN 1 ELSE 0 END)     AS zeros,
-                   MIN(timestamp)::date                            AS first_dt,
-                   MAX(timestamp)::date                            AS last_dt,
-                   MAX(CASE WHEN volume = 0 THEN timestamp END)::date AS last_zero_dt
-            FROM ohlcv
-            WHERE time_frame = '1d' AND symbol = ANY(:s)
+                   COUNT(*)                                    AS n,
+                   SUM(CASE WHEN volume = 0 THEN 1 ELSE 0 END) AS zeros,
+                   MIN(date)                                   AS first_dt,
+                   MAX(date)                                   AS last_dt,
+                   MAX(CASE WHEN volume = 0 THEN date END)     AS last_zero_dt
+            FROM ohlcv_daily
+            WHERE symbol = ANY(:s)
             GROUP BY symbol
         """), {"s": symbols}).all()
 
@@ -72,8 +74,8 @@ def main() -> int:
                 first_valid[sym] = r[3]
                 continue
             nxt = db.execute(text("""
-                SELECT MIN(timestamp)::date FROM ohlcv
-                WHERE symbol = :s AND time_frame = '1d' AND timestamp::date > :z
+                SELECT MIN(date) FROM ohlcv_daily
+                WHERE symbol = :s AND date > :z
             """), {"s": sym, "z": r[5]}).scalar()
             first_valid[sym] = nxt or r[4]
     finally:

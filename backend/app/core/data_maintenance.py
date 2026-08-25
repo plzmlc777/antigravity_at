@@ -194,11 +194,12 @@ class DataMaintenanceScheduler:
         db = SessionLocal()
         try:
             rows = db.execute(text("""
-                SELECT symbol, time_frame, count(*) as cnt,
-                       min(timestamp) as earliest, max(timestamp) as latest
-                FROM ohlcv
-                WHERE time_frame = '1m'
-                GROUP BY symbol, time_frame
+                -- 2026-08-25: 구 `ohlcv` 대체. `ohlcv_1m` 은 1분봉 전용이라
+                -- time_frame 컬럼이 없다 — 상수로 채워 계약을 유지한다.
+                SELECT symbol, '1m' AS time_frame, count(*) as cnt,
+                       min(ts) as earliest, max(ts) as latest
+                FROM ohlcv_1m
+                GROUP BY symbol
                 HAVING count(*) >= :min_count
                 ORDER BY symbol
             """), {"min_count": MIN_CANDLES_FOR_CHECK}).fetchall()

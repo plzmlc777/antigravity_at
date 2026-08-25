@@ -108,7 +108,6 @@ class BinanceMarketDataService:
 
             query_filters = [
                 OHLCV.symbol == symbol,
-                OHLCV.time_frame == interval,
                 OHLCV.timestamp >= start_date
             ]
             if to_date:
@@ -167,7 +166,6 @@ class BinanceMarketDataService:
         try:
             re_query_filters = [
                 OHLCV.symbol == symbol,
-                OHLCV.time_frame == interval,
                 OHLCV.timestamp >= start_date
             ]
             if to_date:
@@ -232,12 +230,10 @@ class BinanceMarketDataService:
         try:
             first_record = db.query(OHLCV.timestamp).filter(
                 OHLCV.symbol == symbol,
-                OHLCV.time_frame == interval
             ).order_by(OHLCV.timestamp.asc()).first()
 
             last_record = db.query(OHLCV.timestamp).filter(
                 OHLCV.symbol == symbol,
-                OHLCV.time_frame == interval
             ).order_by(OHLCV.timestamp.desc()).first()
 
             if first_record and last_record:
@@ -299,7 +295,6 @@ class BinanceMarketDataService:
                         batch_data.append({
                             "symbol": symbol,
                             "timestamp": dt,
-                            "time_frame": interval,
                             "open": float(k[1]),
                             "high": float(k[2]),
                             "low": float(k[3]),
@@ -315,7 +310,7 @@ class BinanceMarketDataService:
                     from sqlalchemy.dialects.postgresql import insert
                     stmt = insert(OHLCV).values(batch_data)
                     stmt = stmt.on_conflict_do_update(
-                        constraint="uix_symbol_timestamp_tf",
+                        index_elements=["symbol", "ts"],
                         set_={
                             "open": stmt.excluded.open,
                             "high": stmt.excluded.high,
@@ -379,7 +374,7 @@ class BinanceMarketDataService:
                         try:
                             dt = datetime.utcfromtimestamp(k[0] / 1000)
                             batch_data.append({
-                                "symbol": symbol, "timestamp": dt, "time_frame": interval,
+                                "symbol": symbol, "timestamp": dt,
                                 "open": float(k[1]), "high": float(k[2]),
                                 "low": float(k[3]), "close": float(k[4]), "volume": float(k[5]),
                             })
@@ -390,7 +385,7 @@ class BinanceMarketDataService:
                         from sqlalchemy.dialects.postgresql import insert
                         stmt = insert(OHLCV).values(batch_data)
                         stmt = stmt.on_conflict_do_update(
-                            constraint="uix_symbol_timestamp_tf",
+                            index_elements=["symbol", "ts"],
                             set_={"open": stmt.excluded.open, "high": stmt.excluded.high,
                                    "low": stmt.excluded.low, "close": stmt.excluded.close,
                                    "volume": stmt.excluded.volume}
@@ -481,7 +476,7 @@ class BinanceMarketDataService:
                         try:
                             dt = datetime.utcfromtimestamp(k[0] / 1000)
                             batch_data.append({
-                                "symbol": symbol, "timestamp": dt, "time_frame": "1m",
+                                "symbol": symbol, "timestamp": dt,
                                 "open": float(k[1]), "high": float(k[2]),
                                 "low": float(k[3]), "close": float(k[4]), "volume": float(k[5]),
                             })
@@ -491,7 +486,7 @@ class BinanceMarketDataService:
                     if batch_data:
                         stmt = insert(OHLCV).values(batch_data)
                         stmt = stmt.on_conflict_do_update(
-                            constraint="uix_symbol_timestamp_tf",
+                            index_elements=["symbol", "ts"],
                             set_={"open": stmt.excluded.open, "high": stmt.excluded.high,
                                    "low": stmt.excluded.low, "close": stmt.excluded.close,
                                    "volume": stmt.excluded.volume}

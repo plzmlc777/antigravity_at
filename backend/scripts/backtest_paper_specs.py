@@ -59,8 +59,9 @@ def is_kr_symbol(sym: str) -> bool:
 def load_ohlcv_eval(symbol: str) -> pd.DataFrame | None:
     db = SessionLocal()
     try:
-        sql = text("""SELECT timestamp, open, high, low, close, volume FROM ohlcv
-                      WHERE symbol = :s AND time_frame = '1m' ORDER BY timestamp""")
+        # 2026-08-25: 구 `ohlcv` 대체. 1분봉은 `ohlcv_1m` (symbol, ts).
+        sql = text("""SELECT ts AS timestamp, open, high, low, close, volume
+                      FROM ohlcv_1m WHERE symbol = :s ORDER BY ts""")
         rows = db.execute(sql, {"s": symbol}).fetchall()
     finally:
         db.close()
@@ -137,8 +138,9 @@ def load_runtime(symbol: str) -> dict:
     try:
         db = SessionLocal()
         try:
-            sql = text("""SELECT timestamp, open, high, low, close, volume FROM ohlcv
-                          WHERE symbol = 'BTCUSDT' AND time_frame = '1m' ORDER BY timestamp""")
+        # 2026-08-25: 구 `ohlcv` 대체. 1분봉은 `ohlcv_1m` (symbol, ts).
+            sql = text("""SELECT ts AS timestamp, open, high, low, close, volume
+                          FROM ohlcv_1m WHERE symbol = 'BTCUSDT' ORDER BY ts""")
             rows = db.execute(sql).fetchall()
         finally:
             db.close()
