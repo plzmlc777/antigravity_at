@@ -22,19 +22,19 @@ def get_data_status(symbol: str, interval: str = "1m", db: Session = Depends(get
     # Normalize: try exact match first, then uppercase (Binance stores UPPER)
     last_record = db.query(OHLCV.timestamp).filter(
         OHLCV.symbol == symbol,
-        OHLCV.time_frame == interval
+        OHLCV.tf_filter(interval)
     ).order_by(OHLCV.timestamp.desc()).first()
 
     if not last_record and symbol != symbol.upper():
         symbol = symbol.upper()
         last_record = db.query(OHLCV.timestamp).filter(
             OHLCV.symbol == symbol,
-            OHLCV.time_frame == interval
+            OHLCV.tf_filter(interval)
         ).order_by(OHLCV.timestamp.desc()).first()
 
     count = db.query(func.count(OHLCV.id)).filter(
         OHLCV.symbol == symbol,
-        OHLCV.time_frame == interval
+        OHLCV.tf_filter(interval)
     ).scalar()
     
     if not last_record:
@@ -55,7 +55,7 @@ def get_data_status(symbol: str, interval: str = "1m", db: Session = Depends(get
 
     first_record = db.query(OHLCV.timestamp).filter(
         OHLCV.symbol == symbol,
-        OHLCV.time_frame == interval
+        OHLCV.tf_filter(interval)
     ).order_by(OHLCV.timestamp.asc()).first()
     
     start_date = first_record[0].strftime("%y.%m.%d") if first_record else None
@@ -180,7 +180,7 @@ async def get_candles(
             
             query = db.query(OHLCV).filter(
                 OHLCV.symbol == symbol,
-                OHLCV.time_frame == interval
+                OHLCV.tf_filter(interval)
             )
             candles = query.order_by(OHLCV.timestamp.asc()).limit(limit).all()
         

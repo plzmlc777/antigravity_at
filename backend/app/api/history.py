@@ -88,7 +88,7 @@ def get_session_details(
         OHLCV.symbol == session.symbol,
         OHLCV.timestamp >= start,
         OHLCV.timestamp <= end,
-        OHLCV.time_frame == "1m"
+        OHLCV.tf_filter("1m")
     ).order_by(OHLCV.timestamp.asc())
     
     candles = candles_query.all()
