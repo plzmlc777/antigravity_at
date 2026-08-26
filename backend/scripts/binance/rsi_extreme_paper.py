@@ -1032,13 +1032,15 @@ class RsiPaper:
                         f"보호 없는 포지션을 남기지 않기 위한 설계다.")
                     continue
             # ⚠ 손절 스톱리밋 — 익절과 **같은 자리**에서 건다.
-            #   `close_position=True` 는 포지션이 있어야만 등록되므로 진입
-            #   직후가 유일한 기회다. 걸지 못하면 **보호 없는 포지션**이
+            #   수량은 익절과 **같은 체결 수량**을 넘긴다. 지정가 손절은
+            #   closePosition 을 못 쓰기 때문이다(-4136, 2026-08-26 실거래).
+            #   포지션이 있어야만 등록되므로 진입 직후가 유일한 기회다. 걸지 못하면 **보호 없는 포지션**이
             #   남으므로 되돌린다 — 손절이 83% 인 규약에서 손절 없는
             #   포지션은 그 규약이 아니다.
             if self.broker is not None and spec.sl_pct > 0:
                 trig = st.entry_price * (1 - spec.sl_pct)
-                if not self.broker.arm_stop_loss(c["symbol"], trig, trig):
+                if not self.broker.arm_stop_loss(
+                        c["symbol"], trig, trig, float(got["quantity"])):
                     log.error("%s 손절 등록 실패 — 진입을 되돌린다", c["symbol"])
                     self.broker.close_long(c["symbol"])
                     self.n_reject_sl += 1
@@ -1284,15 +1286,15 @@ def selftest() -> None:
             self.opened = []
             self.notional_usd = 0.0
             self.wallet = wallet
-            self.stops = []            # (종목, 발동가, 지정가)
+            self.stops = []            # (종목, 발동가, 지정가, 수량)
             self.arm_sl_ok = arm_sl_ok
             self.closed = []
         def detect_exit_fills(self, syms):
             return {}
         def wallet_balance(self):
             return self.wallet
-        def arm_stop_loss(self, symbol, trigger, limit_price=0.0):
-            self.stops.append((symbol, trigger, limit_price))
+        def arm_stop_loss(self, symbol, trigger, limit_price=0.0, qty=0.0):
+            self.stops.append((symbol, trigger, limit_price, qty))
             return self.arm_sl_ok
         def cancel_stop_loss(self, symbol):
             pass
@@ -1402,12 +1404,18 @@ def selftest() -> None:
     _cs = _ps.step({"1h": {"A": mk(dn)}})
     if not _ps.broker.stops:
         raise SystemExit("손절 주문이 안 나갔다 — 보호 없는 포지션이 열린다")
-    _sym, _trig, _lim = _ps.broker.stops[0]
+    _sym, _trig, _lim, _q = _ps.broker.stops[0]
     _ent = _cs["fills"][0]["entry_price"]
     if abs(_trig - _ent * 0.995) > 1e-9:
         raise SystemExit(f"손절 발동가가 틀렸다 — {_trig} vs {_ent * 0.995}")
     if abs(_lim - _trig) > 1e-12:
         raise SystemExit(f"지정가가 발동가와 다르다 — 간격 0 이어야 한다 ({_lim})")
+    # ⚠ 수량이 0 이면 거래소가 -4136 으로 막는다(지정가 손절은 closePosition
+    #   금지). 그리고 **거래소 체결 수량**이어야 한다 — 커널 장부 수량이
+    #   아니다. 둘은 다르다(2026-08-26 실거래: 장부 2242.78 / 체결 2248.0).
+    #   스텁 거래소는 1.0 을 채워 준다.
+    if abs(_q - 1.0) > 1e-9:
+        raise SystemExit(f"손절 수량이 거래소 체결 수량이 아니다 — {_q}")
 
     # 손절을 **못 걸면 진입을 되돌린다**
     _pf = RsiPaper(PaperConfig(slots=1, warmup_bars=50, entry_rsi=99,
@@ -1420,7 +1428,7 @@ def selftest() -> None:
     if "A" not in _pf.broker.closed:
         raise SystemExit("손절 실패 시 진입을 안 되돌렸다")
     log.info("✔ 손절 배선 확인 — 발동 %.6g = 진입×0.995 · 지정가 간격 0 · "
-             "못 걸면 진입 되돌림", _trig)
+             "수량 %.6g(체결과 동일) · 못 걸면 진입 되돌림", _trig, _q)
 
     # RSI 재진입 청산 — 문턱 아래로 다시 떨어지면 나간다
     _pr = RsiPaper(PaperConfig(slots=1, warmup_bars=50, entry_rsi=99,

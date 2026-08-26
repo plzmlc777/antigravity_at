@@ -265,15 +265,23 @@ class LiveBroker:
         return True
 
     def arm_stop_loss(self, symbol: str, trigger: float,
-                      limit_price: float = 0.0) -> bool:
+                      limit_price: float = 0.0, qty: float = 0.0) -> bool:
         """진입 **직후** 손절 스톱리밋을 거래소에 건다.
 
         ⚠ `limit_price` 0 이면 STOP_MARKET 이다 — 체결은 보장되나 가격이
           보장되지 않는다. 30분봉 사양의 격자에서 시장가 손절은 연 **−100%**,
           지정가(간격 0)는 **+430%** 였다. 기본은 **발동가와 같은 지정가**다.
 
-        ⚠ `close_position=True` 는 포지션이 있어야만 등록된다(GTE_GTC).
-          진입 직후에만 걸 수 있고 미리 걸어둘 수 없다.
+        ⚠ **지정가 손절에는 `closePosition` 을 쓸 수 없다.** 공식 문서가
+          "Close-All, used with STOP_MARKET or TAKE_PROFIT_MARKET" 라고
+          못박고 있고, `STOP` 에 얹으면 거래소가 **-4136 Target strategy
+          invalid for orderType STOP, closePosition true** 로 막는다
+          (2026-08-26 TRXUSDT 실거래에서 실제로 맞았다 — 진입했다가 손절을
+          못 걸어 되돌렸다). 그래서 **체결 수량 + reduceOnly** 로 건다.
+          `qty` 는 진입 응답의 체결 수량이어야 한다 — 익절과 같은 값이다.
+
+        ⚠ `close_position=True`(스탑마켓 경로) 는 포지션이 있어야만 등록된다
+          (GTE_GTC). 진입 직후에만 걸 수 있고 미리 걸어둘 수 없다.
 
         ⚠ `price_protect` 는 **끈다**. 켜면 표시가·계약가 괴리가 클 때 체결을
           막는데, 그 순간이 정확히 손절이 필요한 순간이다."""
@@ -284,10 +292,18 @@ class LiveBroker:
             log.info("[DRY] %s 손절 스톱리밋 발동 %.8g · 지정 %.8g",
                      symbol, trigger, lim)
             return True
+        if limit_price > 0 and qty <= 0:
+            # 수량 없이 지정가 손절을 걸 길이 없다. 조용히 시장가로 바꾸면
+            # 규약이 달라진다(격자에서 시장가 손절은 연 -100%) — 소리내어 죽는다.
+            log.error("%s 지정가 손절에 수량이 없다 — 진입을 되돌려야 한다", symbol)
+            return False
         try:
             r = _run(self._adapter.place_algo_stop(
                 symbol, side="SELL", trigger_price=trigger, limit_price=lim,
-                take_profit=False, close_position=True,
+                take_profit=False,
+                # 지정가(STOP) 는 closePosition 금지 → 수량+reduceOnly.
+                # 시장가(STOP_MARKET) 만 closePosition 이 허용된다.
+                close_position=(limit_price <= 0), quantity=qty,
                 working_type="CONTRACT_PRICE", price_protect=False))
         except Exception as e:                        # noqa: BLE001
             log.error("%s 손절 등록 실패: %s", symbol, e)
@@ -295,10 +311,17 @@ class LiveBroker:
         if r.get("status") != "success":
             log.error("%s 손절 거절: %s", symbol, r.get("message") or r)
             return False
-        self.sl_orders[symbol] = LiveOrder(symbol, str(r.get("order_id") or ""),
-                                          float(lim), 0.0)
+        # ⚠ 어댑터는 조건부 주문 번호를 `algo_id` 로 돌려준다. `order_id` 를
+        #   읽으면 **빈 문자열**이 저장되고, 그러면 `cancel_stop_loss` 가
+        #   `not o.order_id` 에서 조용히 되돌아가 **손절이 영원히 안 걷힌다**
+        #   (2026-08-26 실계좌 시험에서 발각 — 취소했는데 그대로 남아 있었다).
+        algo_id = str(r.get("algo_id") or r.get("order_id") or "")
+        if not algo_id:
+            log.warning("%s 손절은 등록됐는데 주문번호를 못 받았다 — 취소는 "
+                        "종목 전체 조건부 정리로 후퇴한다", symbol)
+        self.sl_orders[symbol] = LiveOrder(symbol, algo_id, float(lim), 0.0)
         log.info("%s 손절 스톱리밋 — 발동 %.8g · 지정 %.8g (id %s)",
-                 symbol, trigger, lim, r.get("order_id"))
+                 symbol, trigger, lim, algo_id or "?")
         return True
 
     def cancel_stop_loss(self, symbol: str) -> None:
@@ -307,10 +330,16 @@ class LiveBroker:
         ⚠ 청산할 때 **익절과 손절을 둘 다** 걷어야 한다. 하나만 걷으면
           남은 쪽이 다음 진입을 엉뚱하게 청산한다."""
         o = self.sl_orders.pop(symbol, None)
-        if o is None or self.dry_run or not o.order_id:
+        if self.dry_run:
             return
         try:
-            r = _run(self._adapter.cancel_algo_order(symbol, o.order_id))
+            if o is not None and o.order_id:
+                r = _run(self._adapter.cancel_algo_order(symbol, o.order_id))
+            else:
+                # 번호를 모른다(재기동으로 장부가 비었거나 등록 응답이
+                # 번호를 안 줬다). 남겨두면 고아가 되므로 **종목 전체**
+                # 조건부 주문을 걷는다. 이 세션은 종목당 손절 하나만 건다.
+                r = _run(self._adapter.cancel_all_algo_orders(symbol))
             if (r or {}).get("status") != "success":
                 log.warning("%s 손절 취소 실패: %s", symbol,
                             (r or {}).get("message") or r)
