@@ -184,6 +184,28 @@ def _equity_same(a: float, b: float) -> bool:
     return abs(a - b) <= EQUITY_RTOL * max(abs(a), abs(b), 1.0)
 
 
+def _case_same(ref: dict, now: dict) -> tuple[bool, bool]:
+    """(일치하는가, 평가액 비교를 건너뛰었는가).
+
+    ⚠ 2026-08-26: **미청산으로 끝나는 케이스의 `final_equity` 는 회귀 기준이
+      될 수 없다.** 열린 다리가 마지막 봉 가격으로 평가되므로, 코드가 한 줄도
+      안 바뀌어도 그 봉의 1분봉이 채워지면 값이 움직인다. 실제로 GRVT 2건이
+      `거래 0 → 0` 인데 에쿼티만 달라져 관문이 아홉 시간 동안 매시 주문을
+      막았다(1분봉 08-24 결손 361봉이 간헐적으로 메워지는 중이었다).
+
+      대신 **거래 시퀀스와 종료 방향은 완전 일치**를 계속 요구한다. 거래
+      기록에 진입·청산 시각·가격·사유가 다 들어 있으므로 손익 회계는 그쪽에서
+      잡힌다. 청산으로 끝난 케이스(현재 81/111)는 평가액도 그대로 대조한다.
+    """
+    if ref["trades"] != now["trades"]:
+        return False, False
+    if ref.get("side_after") != now.get("side_after"):
+        return False, False
+    if ref.get("side_after", "flat") != "flat":
+        return True, True          # 열린 포지션 — 평가액은 가격이지 행동이 아니다
+    return _equity_same(ref["final_equity"], now["final_equity"]), False
+
+
 def key_of(symbol: str, spec: dict) -> str:
     """케이스 유일키.
 
@@ -214,7 +236,7 @@ def cmd_build(args) -> int:
         if r2.get("skipped"):
             skipped.append((k, f"2회차 {r2['skipped']}"))
             continue
-        if r1["trades"] != r2["trades"] or not _equity_same(r1["final_equity"], r2["final_equity"]):
+        if not _case_same(r1, r2)[0]:
             nondet.append(k)
             log.warning("%-52s 비결정적 — 기준에서 제외 (거래 %d vs %d)",
                         k[:52], len(r1["trades"]), len(r2["trades"]))
@@ -293,14 +315,17 @@ def cmd_verify(args) -> int:
 
     log.info("골든 검증: %d 기준 (%s)", len(entries), ref_path)
 
-    ok, bad, gone = 0, [], []
+    ok, bad, gone, n_eq_skip = 0, [], [], 0
     for k, e in entries.items():
         r = replay(e["symbol"], e["spec"], float(e["cap"]), float(e["fee"]),
                    e["bar_end"], e.get("bar_start"))
         if r.get("skipped"):
             gone.append((k, r["skipped"]))
             continue
-        if r["trades"] == e["trades"] and _equity_same(r["final_equity"], e["final_equity"]):
+        same, eq_skipped = _case_same(e, r)
+        if eq_skipped:
+            n_eq_skip += 1
+        if same:
             ok += 1
             continue
         d = None
@@ -317,6 +342,9 @@ def cmd_verify(args) -> int:
     print(f"골든 재생 검증 — 기준 {len(entries)}")
     print("=" * 92)
     print(f"  일치 {ok} / 불일치 {len(bad)} / 재생불가 {len(gone)}")
+    if n_eq_skip:
+        print(f"  (그중 {n_eq_skip}건은 **미청산 종료**라 평가액 대조를 뺐다 — "
+              f"거래 시퀀스·종료 방향은 완전 일치를 요구했다)")
     for b in bad[:12]:
         print(f"\n  ✗ {b['key']}")
         print(f"      거래 {b['n_ref']} → {b['n_now']}   에쿼티 {b['eq_ref']} → {b['eq_now']}")
