@@ -186,14 +186,31 @@ class LiveBroker:
             log.error("지갑 조회 실패: %s", e)
             return None
 
-    def positions(self) -> dict:
-        """거래소의 열린 롱 포지션 {종목: 수량}. **진실의 원본.**"""
+    def positions(self, strict: bool = False) -> dict | None:
+        """거래소의 열린 롱 포지션 {종목: 수량}. **진실의 원본.**
+
+        ⚠ `strict=True` 면 조회 실패에 **None** 을 돌려준다. 빈 딕셔너리와
+          구분해야 한다 — 2026-08-27 03:33, 시각 동기가 어긋나 `-1021` 로
+          조회가 실패했는데 호출부가 그걸 "포지션이 사라졌다"로 읽었다.
+          장부를 닫고 보호 주문까지 걷었는데 거래소엔 포지션이 그대로 남아
+          **다섯 시간 동안 익절도 손절도 없는 고아**가 됐다.
+          모르는 것과 없는 것은 다르다.
+        """
         from app.adapters.binance_futures import FAPI_V2
         try:
             rows = _run(self._adapter._signed_get(f"{FAPI_V2}/positionRisk", {}))
         except Exception as e:                        # noqa: BLE001
-            log.error("포지션 조회 실패: %s", e)
-            return {}
+            # ⚠ 시각 동기는 30분에 한 번이라 그 사이 드리프트로 -1021
+            #   (Timestamp outside recvWindow) 이 난다. 그게 2026-08-27 고아
+            #   포지션의 첫 단추였다. **즉시 재동기하고 한 번만 다시 묻는다.**
+            log.warning("포지션 조회 실패 — 시각 재동기 후 재시도: %s", e)
+            try:
+                _run(self._adapter.sync_server_time())
+                rows = _run(self._adapter._signed_get(f"{FAPI_V2}/positionRisk", {}))
+                log.info("포지션 조회 재시도 성공")
+            except Exception as e2:                   # noqa: BLE001
+                log.error("포지션 조회 실패(재시도까지): %s", e2)
+                return None if strict else {}
         out = {}
         for p in rows or []:
             q = float(p.get("positionAmt", 0) or 0)
@@ -398,7 +415,14 @@ class LiveBroker:
           가리는 법 — 아직 **살아 있는** 주문이 있는 쪽이 안 채워진 쪽이다.
           포지션이 닫히면 반대쪽은 거래소가 자동 취소하거나 우리가 걷는다.
         """
-        pos = self.positions()
+        pos = self.positions(strict=True)
+        if pos is None:
+            # 거래소를 못 읽었다. 이 상태에서 "없으니 닫혔다" 로 가면
+            # 살아 있는 포지션을 장부에서 지우고 보호 주문까지 걷는다.
+            # **판정을 다음 사이클로 미룬다** — 늦는 것이 틀리는 것보다 낫다.
+            log.error("포지션 조회 실패 — 이번 사이클 청산 판정을 건너뛴다 "
+                      "(장부를 함부로 닫지 않는다)")
+            return {}
         live_lim = self.open_orders()               # 남아 있는 지정가(익절)
         try:
             live_algo = self.open_algo_orders()     # 남아 있는 조건부(손절)
@@ -420,8 +444,19 @@ class LiveBroker:
                 filled[sym] = ("tp", tp.price)      # 손절을 안 건 세션
             elif sl is not None and tp is None:
                 filled[sym] = ("sl", sl.price)
+            elif tp_alive and sl_alive:
+                # ⚠ 둘 다 **살아 있다** = 아무것도 안 채워졌다. 그런데 포지션이
+                #   없다? 그건 청산이 아니라 **조회가 이상한 것**이다.
+                #   2026-08-27 실측으로 이 조합이 정확히 그 상황이었다.
+                #   장부를 되돌려 놓고 다음 사이클에 다시 본다.
+                self.tp_orders[sym] = tp or self.tp_orders.get(sym)
+                self.sl_orders[sym] = sl or self.sl_orders.get(sym)
+                log.error("%s 포지션이 안 보이는데 익절·손절이 **둘 다 살아 "
+                          "있다** — 채워진 것이 없다는 뜻이다. 청산으로 세지 "
+                          "않고 장부를 유지한다", sym)
+                continue
             else:
-                # 둘 다 사라졌거나 둘 다 남았다 — 가릴 수 없다.
+                # 둘 다 사라졌다 — 가릴 수 없다.
                 # **추측하지 않는다.** 0 을 주고 상위가 경고로 드러낸다.
                 filled[sym] = ("unknown", 0.0)
                 log.warning("%s 포지션이 사라졌는데 어느 주문이 채워졌는지 "
