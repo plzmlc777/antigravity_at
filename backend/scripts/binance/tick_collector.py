@@ -34,6 +34,22 @@
 ⚠ 재연결 사이의 공백은 **세어서 보고한다**. 조용한 결손은 나중에 "데이터가
   원래 그랬다"로 오독된다.
 
+## 가짜 체결 — 버려야 한다 (2026-08-27 전선 실측)
+
+바이낸스가 **가격 0 · 수량 0** 인 체결을 섞어 보낸다. 표식은 `X:"NA"` · `st:1`
+이고 정상 체결은 `X:"MARKET"` 이다. 우리 결함이 아니라 원본이 그렇다 —
+전선 60초 표본과 저장분의 비율이 일치했다(BNB 1.11% vs 1.14%).
+
+    전 유니버스  1억 1,948만 건 중 **13만 1,362건**(0.110%) · 238/359 종목
+    유동성이 클수록 많다 — BNB 1.14% · XRP 0.76% · SOL 0.73% · BTC 0.64%
+
+⚠ 이게 왜 위험한가: 최저가·로그수익률·변동성을 **조용히** 망친다. 실측에서
+  1000BONKUSDT 의 24시간 변동폭이 105% 로 나왔는데 실제는 4% 였다. 0 이 하나
+  섞이면 min 이 0 이 되고 log(0) 이 -inf 가 된다. 봉수·타임스탬프는 멀쩡해서
+  **대조 없이는 안 보인다**.
+
+  그래서 **받는 자리에서 버린다**. 읽는 쪽 필터에 맡기면 다음 사람이 놓친다.
+
 사용:
   python3 scripts/binance/tick_collector.py --universe configs/rsi_paper_universe.txt
   python3 scripts/binance/tick_collector.py --smoke 60      # 60초만 돌려보고 끝
@@ -82,8 +98,13 @@ class Buffer:
         self.flush_secs = flush_secs
         self.last = time.time()
         self.written = 0
+        self.dropped = 0          # 가격·수량 0 인 가짜 체결(바이낸스 원본)
 
     def add(self, sym: str, ts_ms: int, price: float, qty: float, maker: bool):
+        # ⚠ 가짜 체결은 **여기서** 버린다. 읽는 쪽에 맡기면 다음 사람이 놓친다.
+        if price <= 0.0 or qty <= 0.0:
+            self.dropped += 1
+            return
         day = datetime.fromtimestamp(ts_ms / 1000, timezone.utc).strftime("%Y-%m-%d")
         self.rows[(sym, day)].append((ts_ms, price, qty, maker))
         self.n += 1
@@ -192,8 +213,11 @@ async def run(syms: list[str], buf: Buffer, budget_gb: float,
                     if buf.due():
                         w = buf.flush()
                         f = prune(budget_gb)
-                        log.info("적재 %s행 · 누적 %s행 · 디스크 %.2f GB%s",
+                        log.info("적재 %s행 · 누적 %s행 · 가짜폐기 %s(%.3f%%) · "
+                                 "디스크 %.2f GB%s",
                                  f"{w:,}", f"{buf.written:,}",
+                                 f"{buf.dropped:,}",
+                                 100.0 * buf.dropped / max(buf.written + buf.dropped, 1),
                                  disk_bytes() / 1024 ** 3,
                                  f" · 삭제 {f/1024**3:.2f} GB" if f else "")
         except Exception as e:                             # noqa: BLE001
@@ -204,8 +228,9 @@ async def run(syms: list[str], buf: Buffer, budget_gb: float,
     buf.flush()
     prune(budget_gb)
     el = time.time() - t_start
-    log.info("종료 — %.1f분 · 적재 %s행 · 연결 %d회 · 공백 %d회(합 %.0f초) · "
-             "디스크 %.2f GB", el / 60, f"{buf.written:,}", n_conn,
+    log.info("종료 — %.1f분 · 적재 %s행 · 가짜폐기 %s · 연결 %d회 · "
+             "공백 %d회(합 %.0f초) · 디스크 %.2f GB", el / 60,
+             f"{buf.written:,}", f"{buf.dropped:,}", n_conn,
              len(gaps), sum(gaps), disk_bytes() / 1024 ** 3)
     if gaps:
         log.info("  공백 상세 — 최대 %.0f초 · 중앙 %.0f초", max(gaps),
