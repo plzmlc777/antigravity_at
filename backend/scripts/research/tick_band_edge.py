@@ -122,6 +122,11 @@ def one(sym: str, cfg: Cfg, cut_ms: int, rng) -> list[dict]:
     H = g.price.max().to_numpy(float)
     L = g.price.min().to_numpy(float)
     C = g.price.last().to_numpy(float)
+    # ⚠ 봉 **번호**만 남기면 나중에 다른 표와 못 붙인다. 창 시작이 다르면
+    #   10시간씩 어긋난 채 100% 매칭됐다고 보고된다(2026-08-27 실측).
+    #   시각은 지어내지 말고 자료에서 가져온다.
+    TS = pd.to_datetime(g.price.max().index.to_numpy() * 60_000,
+                        unit="ms", utc=True)
     n = len(C)
     if n < max(BAND_WINS) + cfg.hold + 10:
         return []
@@ -156,7 +161,8 @@ def one(sym: str, cfg: Cfg, cut_ms: int, rng) -> list[dict]:
                                                        else edge - slf * w)
                         r, why, mins = _walk(H, L, i, edge, tp2, sl2,
                                              dirn, cfg.hold)
-                        rows.append({"symbol": sym, "W": W, "tpf": tpf,
+                        rows.append({"symbol": sym, "ts": TS[i],
+                                     "W": W, "tpf": tpf,
                                      "slf": slf, "buf": buf, "arm": arm,
                                      "side": "지지" if long else "저항",
                                      "dir": "롱" if dirn else "숏",
@@ -177,7 +183,8 @@ def one(sym: str, cfg: Cfg, cut_ms: int, rng) -> list[dict]:
                     tp = edge + tpf * w if long else edge - tpf * w
                     sl = edge - slf * w if long else edge + slf * w
                     r, why, mins = _walk(H, L, k, edge, tp, sl, long, cfg.hold)
-                    rows.append({"symbol": sym, "W": W, "tpf": tpf, "slf": slf,
+                    rows.append({"symbol": sym, "ts": TS[k],
+                                 "W": W, "tpf": tpf, "slf": slf,
                                  "buf": buf, "arm": "무작위",
                                  "side": "지지" if long else "저항",
                                  "dir": "롱" if long else "숏", "i": k,
