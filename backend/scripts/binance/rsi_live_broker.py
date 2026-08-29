@@ -25,6 +25,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import threading
+import time
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
@@ -100,6 +101,7 @@ class LiveBroker:
     #   우리 루프가 봉 마감에 판정하면 최대 30분 늦는다 — 그 사이 −0.5% 는
     #   훨씬 지나간다. 거래소가 밀리초에 트리거하게 맡긴다.
     sl_orders: dict = field(default_factory=dict)     # 종목 → LiveOrder
+    entry_ms: dict = field(default_factory=dict)      # 종목 → 진입 시각(ms)
 
     # ── 레버리지 ────────────────────────────────────────────
     def want_leverage(self, symbol: str) -> int:
@@ -261,6 +263,8 @@ class LiveBroker:
             log.error("%s 진입은 됐는데 체결가/수량이 0 — px=%s qty=%s", symbol, px, q)
             return None
         log.info("%s 실거래 진입 — %.6f @ %.8g (%dx)", symbol, q, px, lev)
+        # 청산 체결을 되찾을 때 이 시각 이후만 본다 — 지난 거래가 섞이면 안 된다.
+        self.entry_ms[symbol] = int(time.time() * 1000) - 5_000
         return {"price": px, "quantity": q, "leverage": lev}
 
     def arm_take_profit(self, symbol: str, qty: float, tp_price: float) -> bool:
@@ -456,13 +460,27 @@ class LiveBroker:
                           "않고 장부를 유지한다", sym)
                 continue
             else:
-                # 둘 다 사라졌다 — 가릴 수 없다.
-                # **추측하지 않는다.** 0 을 주고 상위가 경고로 드러낸다.
-                filled[sym] = ("unknown", 0.0)
-                log.warning("%s 포지션이 사라졌는데 어느 주문이 채워졌는지 "
-                            "가릴 수 없다 (익절잔존=%s 손절잔존=%s) — 수동 "
-                            "청산·강제청산 가능성", sym, tp_alive, sl_alive)
+                # 둘 다 사라졌다 — 어느 주문인지는 못 가린다. 그래도
+                # **체결가는 사실로 알 수 있다.** 거래소에 물어본다.
+                px_x, qty_x = self.closing_fill(sym)
+                filled[sym] = ("unknown", px_x)
+                if px_x > 0:
+                    log.warning("%s 포지션이 사라졌다 — 어느 주문인지는 못 "
+                                "가리지만 체결가는 거래소에서 되찾았다: "
+                                "%.8g × %.6g (익절잔존=%s 손절잔존=%s)",
+                                sym, px_x, qty_x, tp_alive, sl_alive)
+                else:
+                    log.error("%s 포지션이 사라졌는데 체결 내역도 못 읽었다 "
+                              "(익절잔존=%s 손절잔존=%s) — 손익이 추정치가 "
+                              "된다", sym, tp_alive, sl_alive)
             if filled[sym][0] != "unknown":
+                # 지정가는 보통 주문가 그대로 채워지지만, **확인 없이 믿지
+                # 않는다.** 체결 내역이 읽히면 그쪽이 사실이다.
+                px_x, _ = self.closing_fill(sym)
+                if px_x > 0 and abs(px_x - filled[sym][1]) > 1e-12:
+                    log.info("%s 체결가 정정 — 주문가 %.8g → 실체결 %.8g",
+                             sym, filled[sym][1], px_x)
+                    filled[sym] = (filled[sym][0], px_x)
                 log.info("%s %s 체결 확인 — @ %.8g (거래소 대조)",
                          sym, filled[sym][0], filled[sym][1])
             # 반대쪽이 남아 있으면 걷는다 — 안 걷으면 다음 진입이 잘린다
@@ -473,6 +491,40 @@ class LiveBroker:
                 self.sl_orders[sym] = sl or self.sl_orders.get(sym)
                 self.cancel_stop_loss(sym)
         return filled
+
+    def closing_fill(self, symbol: str) -> tuple[float, float]:
+        """이 종목의 **청산 체결가**를 거래소 체결 내역에서 되찾는다.
+
+        반환 (가중평균 체결가, 수량). 못 찾으면 (0.0, 0.0).
+
+        ⚠ 왜 필요한가 — 2026-08-29 MUSDT. 손절이 지정가 그대로(0.9970 ·
+          0.9804) 채워졌는데, 익절·손절이 **둘 다 사라져** 어느 쪽인지 못
+          가렸고 상위가 `fill_px=0` 을 받아 **30분 뒤 현재가**를 체결가로
+          적었다. 손실이 -0.50% → -1.94% 로 3배 부풀었다.
+          가릴 수 없으면 추측할 게 아니라 **거래소에 물어보면 된다.**
+        """
+        from app.adapters.binance_futures import FAPI
+        since = int(self.entry_ms.get(symbol, 0))
+        try:
+            rows = _run(self._adapter._signed_get(
+                f"{FAPI}/userTrades",
+                {"symbol": symbol, "limit": 200,
+                 **({"startTime": since} if since else {})}))
+        except Exception as exc:                      # noqa: BLE001
+            log.warning("%s 체결 내역 조회 실패 — 체결가를 못 되찾는다: %s",
+                        symbol, exc)
+            return 0.0, 0.0
+        # 꼬리에서부터 **연속된 SELL** 만 모은다 = 이번 청산의 체결들.
+        qty = notional = 0.0
+        for t in reversed(rows or []):
+            if str(t.get("side")) != "SELL":
+                break
+            q = float(t.get("qty", 0) or 0)
+            qty += q
+            notional += q * float(t.get("price", 0) or 0)
+        if qty <= 0:
+            return 0.0, 0.0
+        return notional / qty, qty
 
     def open_algo_orders(self) -> dict:
         """살아 있는 조건부 주문 {종목: [algoId]}."""
