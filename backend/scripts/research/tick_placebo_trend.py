@@ -195,10 +195,14 @@ def main() -> int:
     R = pd.DataFrame([{"win_h": k[0], "window": k[1], "delta": k[2],
                        "fwd": k[3], "arm": k[4], **v} for k, v in obs.items()])
     LEN = np.array([x["n"] for x in S])
+    # ⚠ 격자를 도니 **가장 긴 조합**의 기억으로 하한을 잡는다(교훈#108)
+    MEM = max(WINDOWS) + max(DELTAS) + max(WIN_H) + max(FWD)
+    log.info("위약 시프트 하한 %d분 (기억) · 판 중앙 %d분", MEM, int(np.median(LEN)))
     rng = np.random.default_rng(cfg.seed)
     acc: dict = {}
     for r in range(cfg.reps):
-        for k, v in scan(S, cfg, rng.integers(1, LEN)).items():
+        for k, v in scan(S, cfg,
+                         rng.integers(MEM, np.maximum(LEN - MEM, MEM + 1))).items():
             acc.setdefault(k, []).append(v)
         if (r + 1) % 25 == 0:
             log.info("위약 %d/%d · %.1f분", r+1, cfg.reps, (time.time()-t0)/60)
