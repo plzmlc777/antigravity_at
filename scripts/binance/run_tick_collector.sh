@@ -21,7 +21,8 @@ BUDGET="${TICK_BUDGET_GB:-50}"
 # ⚠ **실거래 유니버스**를 쓴다. 연구 유니버스(rsi_paper_universe.txt)에는 거래
 #   불가 종목이 18개 섞여 있다(SETTLING 16 · 목록삭제 2, 2026-08-27 실측).
 #   구독해도 틱이 안 오고 스트림만 낭비한다.
-UNI="${TICK_UNIVERSE:-configs/rsi_live_universe.txt}"
+# ⚠ 2026-08-31 — 수집은 **신규 편입된** 유니버스를 쓴다. 실계좌 파일과 다르다.
+UNI="${TICK_UNIVERSE:-configs/binance_collect_universe.txt}"
 echo "[tick] ts=$(date -u +%Y-%m-%dT%H:%M:%SZ) budget=${BUDGET}GB uni=${UNI}"
 
 exec nice -n 5 python3 scripts/binance/tick_collector.py \
