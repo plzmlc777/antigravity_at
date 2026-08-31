@@ -275,6 +275,9 @@ def _sess_period(name: str) -> dict:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--json", action="store_true",
+                   help="표를 JSON 으로 낸다. 정기보고가 **텍스트를 파싱하지 "
+                        "않도록** 하기 위한 통로다 — 파싱은 언젠가 조용히 깨진다.")
     ap.add_argument("--cap", type=int, default=0,
                     help="비교를 **앞에서 N거래**로 자른다. 0이면 전부. "
                          "표본 수가 다르면 자르고 비교하는 게 정직하다")
@@ -362,6 +365,24 @@ def main() -> int:
     def _line(r):
         return "  ".join(str(v).rjust(w[i]) if i else str(v).ljust(w[0])
                          for i, v in enumerate(r))
+    if a.json:
+        import json as _json
+        cost = None
+        try:
+            g = float(out["그림자"]["총손익%p"]); l = float(out["실거래"]["총손익%p"])
+            cost = round(g - l, 4)
+        except Exception:                                     # noqa: BLE001
+            pass
+        print(_json.dumps(
+            {"hdr": hdr, "rows": rows, "slots": SLOTS,
+             "n_live": int(out["실거래"].get("거래", 0) or 0),
+             "n_bt": int(out["백테스트"].get("거래", 0) or 0),
+             "held": {k: out.get(k, {}).get("보유중")
+                      for k in ("그림자", "실거래")},
+             "equity": {k: out.get(k, {}).get("누적$")
+                        for k in ("그림자", "실거래")},
+             "fill_cost_pp": cost}, ensure_ascii=False))
+        return 0
     print(f"\n=== 3자 비교 · 슬롯 {SLOTS} 적용{f' · 앞 {a.cap}거래' if a.cap else ''} ===")
     print(_line(hdr))
     print("  ".join("─" * x for x in w))

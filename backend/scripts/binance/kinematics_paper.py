@@ -105,18 +105,22 @@ class State:
     equity: float = 1.0
     positions: list = None          # [{symbol, entry_ts, entry_px, exit_ts, stake}]
     n_trades: int = 0
+    pending: list = None            # 지연 진입 대기열 [{symbol, sig_ts, enter_at}]
 
     def __post_init__(self):
         if self.positions is None:
             self.positions = []
+        if self.pending is None:
+            self.pending = []
 
 
 def load_state(p: Path) -> State:
     if not p.exists():
         return State()
     d = json.loads(p.read_text())
+    # ⚠ 옛 상태 파일에는 pending 이 없다 — 없으면 빈 목록이다
     return State(equity=d["equity"], positions=d["positions"],
-                 n_trades=d.get("n_trades", 0))
+                 n_trades=d.get("n_trades", 0), pending=d.get("pending", []))
 
 
 def save_state(p: Path, s: State) -> None:
@@ -177,7 +181,8 @@ def signal_now(b: pd.DataFrame) -> dict | None:
 
 
 def cycle(syms: list[str], st: State, ledger: Path, now: datetime,
-          slots: int, short: bool, fr: dict, both: bool = False) -> dict:
+          slots: int, short: bool, fr: dict, both: bool = False,
+          delay: int = 0) -> dict:
     since = int((now - timedelta(minutes=WIN_H + WINDOW + 2 * DELTA + 60))
                 .timestamp() * 1000)
     px_cache: dict[str, float] = {}
@@ -247,17 +252,51 @@ def cycle(syms: list[str], st: State, ledger: Path, now: datetime,
             keep.append(p)
     st.positions = keep
 
+    # ── 대기열 승격 — 신호 시각 + 지연이 지난 것만 **그때 가격으로** 진입
+    #
+    # 44시간 실측: 진입 후 첫 30분은 먹힌 구간·중립·잃은 구간이 **전부 음수**
+    # (-1.03 / -8.07 / -9.37). 1시간 급락 종목은 아직 떨어지는 중이다.
+    # 그 30분을 건너뛰면 보유 60분에서 -1.78 → +4.75, 90분에서 +1.75 → +24.52.
+    #
+    # ⚠ 승격 때 **재판정하지 않는다.** 신호 시각의 결정을 그대로 집행한다 —
+    #   재판정하면 지연 검정이 아니라 다른 규칙이 된다.
+    promoted = []
+    if delay > 0 and st.pending:
+        still = []
+        for q in st.pending:
+            if pd.Timestamp(q["enter_at"]) > pd.Timestamp(now):
+                still.append(q)
+                continue
+            px = px_cache.get(q["symbol"])
+            if px is None:
+                # ⚠ 시세를 모르면 **진입하지 않는다**. 추정가로 채우면 성과표가
+                #   조용히 오염된다(교훈#107).
+                log.info("  대기 %s 시세 없음 — 취소", q["symbol"])
+                continue
+            st.positions.append({
+                "symbol": q["symbol"], "sig_ts": q["sig_ts"],
+                "entry_ts": str(now), "entry_px": px,
+                "z_vel": q["z_vel"], "z_acc": q["z_acc"],
+                "exit_ts": str(now + timedelta(minutes=HOLD)),
+                "stake": st.equity / slots, "short": bool(q["short"]),
+                "fr": float(fr.get(q["symbol"], 0.0))})
+            promoted.append(q["symbol"])
+        st.pending = still
+
     # ── 빈 슬롯 채움 — z_vel 낮은 순, 중복 금지
-    held = {p["symbol"] for p in st.positions}
-    free = slots - len(st.positions)
+    # ⚠ 대기열도 슬롯을 **차지한다**. 안 세면 지연 동안 과다 편입된다.
+    held = ({p["symbol"] for p in st.positions}
+            | {q["symbol"] for q in st.pending})
+    free = slots - len(st.positions) - len(st.pending)
     opened = []
     if free > 0 and cands:
         avail = [x for x in cands if x["symbol"] not in held]
         if both:
             # ⚠ 롱·숏 슬롯을 **따로** 채운다. 한쪽만 채우면 시장 중립이 깨진다.
             half = slots // 2
-            nl = sum(1 for p in st.positions if not p.get("short"))
-            ns = len(st.positions) - nl
+            nl = (sum(1 for p in st.positions if not p.get("short"))
+                  + sum(1 for q in st.pending if not q.get("short")))
+            ns = len(st.positions) + len(st.pending) - nl
             L = sorted([x for x in avail if not x["side_short"]],
                        key=lambda x: x["z_vel"])[:max(half - nl, 0)]
             S2 = sorted([x for x in avail if x["side_short"]],
@@ -269,6 +308,14 @@ def cycle(syms: list[str], st: State, ledger: Path, now: datetime,
                        key=lambda x: -x["z_vel"] if short else x["z_vel"])[:free]
         stake = st.equity / slots
         for x in c:
+            if delay > 0:
+                st.pending.append({
+                    "symbol": x["symbol"], "sig_ts": str(now),
+                    "enter_at": str(now + timedelta(minutes=delay)),
+                    "z_vel": x["z_vel"], "z_acc": x["z_acc"],
+                    "short": bool(x.get("side_short", short))})
+                opened.append(x)
+                continue
             p = {"symbol": x["symbol"], "entry_ts": str(now),
                  "entry_px": x["px"], "z_vel": x["z_vel"], "z_acc": x["z_acc"],
                  "exit_ts": str(now + timedelta(minutes=HOLD)), "stake": stake,
@@ -277,7 +324,8 @@ def cycle(syms: list[str], st: State, ledger: Path, now: datetime,
             st.positions.append(p)
             opened.append(p)
     return {"cands": len(cands), "opened": len(opened), "closed": len(closed),
-            "held": len(st.positions)}
+            "held": len(st.positions), "pending": len(st.pending),
+            "promoted": len(promoted)}
 
 
 def main() -> int:
@@ -290,6 +338,9 @@ def main() -> int:
                    help="숏 방향. 밴드·가속·선별이 전부 거울이 된다")
     p.add_argument("--both", action="store_true",
                    help="롱·숏 **동시 보유**. 슬롯을 반씩 나눠 시장 노출을 상쇄한다")
+    p.add_argument("--delay-min", type=int, default=0,
+                   help="신호 뒤 이만큼 기다렸다 **그때 가격으로** 진입한다. "
+                        "44시간 실측에서 첫 30분은 세 구간 전부 음수였다")
     p.add_argument("--dir", default="",
                    help="상태·원장 디렉터리. 비우면 runs/kinematics_paper/s{슬롯}")
     a = p.parse_args()
@@ -300,7 +351,8 @@ def main() -> int:
 
     syms = [s.strip().upper() for s in
             (ROOT / a.universe).read_text().split() if s.strip()]
-    tag = f"s{a.slots}" + ("both" if a.both else "short" if a.short else "")
+    tag = (f"s{a.slots}" + ("both" if a.both else "short" if a.short else "")
+           + (f"_d{a.delay_min}" if a.delay_min else ""))
     d = Path(a.dir) if a.dir else OUT / tag
     d.mkdir(parents=True, exist_ok=True)
     state_p, ledger = d / "state.json", d / "trades.csv"
@@ -309,8 +361,11 @@ def main() -> int:
     log.info("운동학 페이퍼 — %d종목 · %s · 슬롯 %d(%s) · 보유 %d분 · 경로 %s",
              len(syms), side, a.slots,
              f"롱{a.slots//2}+숏{a.slots//2}" if a.both else side, HOLD, d)
-    log.info("상태 — 자본 %.4f · 보유 %d · 누적거래 %d",
-             st.equity, len(st.positions), st.n_trades)
+    if a.delay_min:
+        log.info("**진입 지연 %d분** — 신호 시각에 예약하고 그때 가격으로 산다",
+                 a.delay_min)
+    log.info("상태 — 자본 %.4f · 보유 %d · 대기 %d · 누적거래 %d",
+             st.equity, len(st.positions), len(st.pending), st.n_trades)
 
     while not _stop:
         now = datetime.now(timezone.utc).replace(second=0, microsecond=0)
@@ -319,12 +374,13 @@ def main() -> int:
         try:
             fr = funding_rates() if a.short or True else {}
             r = cycle(syms, st, ledger, now, a.slots, a.short, fr,
-                      a.both)
+                      a.both, a.delay_min)
             save_state(state_p, st)
-            log.info("%s · 후보 %d · 진입 %d · 청산 %d · 보유 %d/%d · "
-                     "자본 %.4f(%+.2f%%) · 누적 %d · %.0f초",
+            log.info("%s · 후보 %d · 예약 %d · 승격 %d · 대기 %d · 청산 %d "
+                     "· 보유 %d/%d · 자본 %.4f(%+.2f%%) · 누적 %d · %.0f초",
                      now.strftime("%m-%d %H:%M"), r["cands"], r["opened"],
-                     r["closed"], r["held"], a.slots, st.equity,
+                     r.get("promoted", 0), r.get("pending", 0), r["closed"],
+                     r["held"], a.slots, st.equity,
                      (st.equity - 1) * 100, st.n_trades, time.time() - t0)
         except Exception as e:                                  # noqa: BLE001
             log.exception("사이클 실패: %s", e)

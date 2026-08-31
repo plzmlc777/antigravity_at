@@ -30,21 +30,29 @@ KEYS = [("n_signal", "신호"), ("n_fill", "체결"), ("n_skip", "슬롯포화")
         ("n_pricefail", "시세실패"), ("n_reject_order", "주문거절"),
         ("n_reject_tp", "익절거절"), ("n_reject_sl", "손절거절"),
         ("n_kernelfail", "커널실패"),
-        ("n_slipreject", "괴리거부"), ("n_tapmiss", "탭결손")]
+        ("n_slipreject", "괴리거부"), ("n_tapmiss", "탭결손"),
+        # ⚠ 2026-08-31 묵은봉 추가. DIAUSDT 가 09:00 봉을 09:30 사이클에
+        #   다시 신호로 내 진입했다(제 봉 RSI 30.42 — 신호가 아니었다).
+        #   표엔 **신호 1 · 체결 1 · 거절 0** 으로 정상처럼 보였다.
+        ("n_stalebar", "묵은봉"),
+        # 2026-08-31 대표님 지시 — 재기동 뒤 한 봉은 진입하지 않는다.
+        #   이 값이 0 이 아니면 그 사이 후보를 기록만 하고 넘겼다는 뜻.
+        ("n_quiet", "침묵")]
 # ⚠ 2026-08-24 30분봉 이관 — 세션 이름이 바뀌면 **여기도** 바꿔야 한다.
 #   안 바꾸면 정지된 옛 세션의 낡은 장부를 거래소와 비교해 `⚠ 불일치`
 #   오경보가 난다(실제로 이관 직후 그랬다). 교훈 #102.
 rows = [("실거래", "30m_rsi12_LIVE"), ("그림자", "30m_rsi12_SHADOW"),
         ("구5분봉", "5m_rsi10")]
-print("%-8s %6s %6s %8s %8s %8s %8s %8s %8s %8s %7s %6s" %
+print("%-8s %6s %6s %8s %8s %8s %8s %8s %8s %8s %7s %7s %6s %6s" %
       ("세션", "신호", "체결", "슬롯포화", "시세실패", "주문거절",
-       "익절거절", "손절거절", "커널실패", "괴리거부", "탭결손", "보유"))
+       "익절거절", "손절거절", "커널실패", "괴리거부", "탭결손",
+       "묵은봉", "침묵", "보유"))
 for label, name in rows:
     f = ROOT / name / "state.json"
     if not f.exists():
         print("%-8s  (상태 파일 없음 — %s)" % (label, name)); continue
     d = json.loads(f.read_text())
-    print("%-8s %6d %6d %8d %8d %8d %8d %8d %8d %8d %7d %6d" % (
+    print("%-8s %6d %6d %8d %8d %8d %8d %8d %8d %8d %7d %7d %6d %6d" % (
         label, *[int(d.get(k, 0)) for k, _ in KEYS], len(d.get("pos", []))))
 PY
 

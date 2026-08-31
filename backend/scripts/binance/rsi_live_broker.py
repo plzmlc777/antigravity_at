@@ -32,6 +32,13 @@ from typing import Any, Optional
 log = logging.getLogger("rsi_live")
 
 
+def _err_code(exc) -> Optional[int]:
+    """바이낸스 오류 코드를 뽑는다. `Binance API Error [-2019]: ...` 꼴."""
+    import re
+    m = re.search(r"\[(-?\d{4,5})\]", str(exc))
+    return int(m.group(1)) if m else None
+
+
 _LOOP: Optional[asyncio.AbstractEventLoop] = None
 _LOOP_LOCK = threading.Lock()
 
@@ -102,6 +109,15 @@ class LiveBroker:
     #   훨씬 지나간다. 거래소가 밀리초에 트리거하게 맡긴다.
     sl_orders: dict = field(default_factory=dict)     # 종목 → LiveOrder
     entry_ms: dict = field(default_factory=dict)      # 종목 → 진입 시각(ms)
+    # 마지막 주문 실패의 거래소 사유 {"code": int|None, "msg": str}.
+    # ⚠ 상위가 **경중을 가리려면** 사유를 알아야 한다. 2026-08-31 에
+    #   `-2019 Margin insufficient` 가 평범한 「진입 거절」로 나갔는데,
+    #   빈 슬롯이 있는데 증거금이 없다는 건 **우리가 모르는 포지션이
+    #   있다**는 뜻이었다(고아). 사유 없이는 구분할 수 없다.
+    last_error: Any = None
+    # 고아 즉시청산처럼 **조용하면 안 되는** 사건의 알림 통로.
+    # 상위(엔진)가 자기 텔레그램 발송기를 꽂아 준다. callable(str).
+    notify: Any = None
 
     # ── 레버리지 ────────────────────────────────────────────
     def want_leverage(self, symbol: str) -> int:
@@ -245,26 +261,54 @@ class LiveBroker:
             log.error("%s 레버리지 미설정 — 진입하지 않는다", symbol)
             return None
         qty = self.notional_usd / ref_price
+        self.last_error = None
         if self.dry_run:
             log.info("[DRY] %s 시장가 진입 %.6f (기준 %.8g)", symbol, qty, ref_price)
             return {"price": ref_price, "quantity": qty}
+        # 체결 내역을 되찾을 때 이 시각 이후만 본다 — 지난 거래가 섞이면 안 된다.
+        placed_ms = int(time.time() * 1000) - 5_000
         try:
             r = _run(self._adapter.place_buy_order(symbol, 0.0, qty))
         except Exception as e:                        # noqa: BLE001
             log.error("%s 진입 실패: %s", symbol, e)
+            self.last_error = {"code": _err_code(e), "msg": str(e)}
             return None
         if r.get("status") != "success":
-            log.error("%s 진입 거절: %s", symbol, r.get("message") or r)
+            m = r.get("message") or str(r)
+            log.error("%s 진입 거절: %s", symbol, m)
+            self.last_error = {"code": _err_code(m), "msg": str(m)}
             return None
         px = float(r.get("price") or 0)
         q = float(r.get("quantity") or 0)
         if px <= 0 or q <= 0:
             # ⚠ 체결가 0 을 위로 올리면 상위가 이론가로 대체해 회계가 어긋난다.
-            log.error("%s 진입은 됐는데 체결가/수량이 0 — px=%s qty=%s", symbol, px, q)
-            return None
+            #   하지만 **주문은 이미 나갔다** — 여기서 그냥 None 을 주면
+            #   포지션이 열린 채 장부에서 사라진다(2026-08-31 NAORISUSDT).
+            #   추측하지 말고 거래소 체결 내역에 물어본다.
+            log.error("%s 체결가/수량이 0 (px=%s qty=%s) — 체결 내역에서 되찾는다",
+                      symbol, px, q)
+            fpx, fq = self.entry_fill(symbol, placed_ms)
+            if fpx > 0 and fq > 0:
+                px, q = fpx, fq
+                log.warning("%s 진입가 복구 — %.6f @ %.8g (체결 내역)", symbol, q, px)
+            else:
+                # 마지막 방어선. 포지션이 실제로 열렸는지 확인하고, 열렸는데
+                # 값을 모르면 **즉시 되판다** — 보호 장치 없는 고아를 남기느니
+                # 왕복 수수료를 무는 편이 싸다.
+                held = float((self.positions() or {}).get(symbol, 0) or 0)
+                if held > 0:
+                    log.error("%s 체결가를 끝내 못 찾았는데 포지션 %.6f 이 열려 "
+                              "있다 — 고아를 남기지 않고 즉시 청산한다", symbol, held)
+                    try:
+                        _run(self._adapter.close_position(symbol))
+                        self._tell_orphan(symbol, held)
+                    except Exception as exc:          # noqa: BLE001
+                        log.critical("%s 고아 청산 실패 — 수동 개입 필요: %s",
+                                     symbol, exc)
+                return None
         log.info("%s 실거래 진입 — %.6f @ %.8g (%dx)", symbol, q, px, lev)
         # 청산 체결을 되찾을 때 이 시각 이후만 본다 — 지난 거래가 섞이면 안 된다.
-        self.entry_ms[symbol] = int(time.time() * 1000) - 5_000
+        self.entry_ms[symbol] = placed_ms
         return {"price": px, "quantity": q, "leverage": lev}
 
     def arm_take_profit(self, symbol: str, qty: float, tp_price: float) -> bool:
@@ -518,6 +562,56 @@ class LiveBroker:
         qty = notional = 0.0
         for t in reversed(rows or []):
             if str(t.get("side")) != "SELL":
+                break
+            q = float(t.get("qty", 0) or 0)
+            qty += q
+            notional += q * float(t.get("price", 0) or 0)
+        if qty <= 0:
+            return 0.0, 0.0
+        return notional / qty, qty
+
+    def _tell_orphan(self, symbol: str, qty: float) -> None:
+        """고아를 되판 사실은 **반드시 크게 알린다** — 조용하면 못 본다."""
+        if self.notify is None:
+            log.critical("%s 고아 즉시청산 — 알림 경로가 없어 로그만 남긴다", symbol)
+            return
+        try:
+            self.notify(
+                f"🚨 <b>고아 방지 즉시청산</b> — 실전 리그 1군\n"
+                f"종목: <b>{symbol}</b> · 수량 {qty:.6f}\n"
+                f"사유: 진입은 체결됐는데 <b>체결가를 끝내 확정 못 함</b>\n"
+                f"보호 장치 없는 포지션을 남기지 않으려 즉시 되팔았다.\n"
+                f"이 왕복은 장부에 없다 — 수기 대조가 필요하다.")
+        except Exception as exc:                      # noqa: BLE001
+            log.error("고아 청산 알림 실패: %s", exc)
+
+    def entry_fill(self, symbol: str, since_ms: int) -> tuple[float, float]:
+        """이 종목의 **진입 체결가**를 거래소 체결 내역에서 되찾는다.
+
+        반환 (가중평균 체결가, 수량). 못 찾으면 (0.0, 0.0).
+
+        ⚠ 왜 필요한가 — 2026-08-31 NAORISUSDT. 시장가 매수가 `FILLED` 로
+          돌아왔는데 직후 `GET /fapi/v1/order` 가 **-2013 Order does not
+          exist** 로 실패해(주문이 아직 전파되지 않은 노드) `avgPrice=0`
+          이었다. 상위는 거절로 처리했지만 **포지션은 실제로 열려 있었고**,
+          익절·손절 없이 1.3시간 방치된 뒤 다음 신호까지 -2019 로 막았다.
+          주문 조회가 안 되면 **체결 내역에 물어보면 된다** — 체결은 주문과
+          다른 자원이라 같은 지연을 겪지 않는다.
+        """
+        from app.adapters.binance_futures import FAPI
+        try:
+            rows = _run(self._adapter._signed_get(
+                f"{FAPI}/userTrades",
+                {"symbol": symbol, "limit": 200,
+                 **({"startTime": int(since_ms)} if since_ms else {})}))
+        except Exception as exc:                      # noqa: BLE001
+            log.warning("%s 체결 내역 조회 실패 — 진입가를 못 되찾는다: %s",
+                        symbol, exc)
+            return 0.0, 0.0
+        # 꼬리에서부터 **연속된 BUY** 만 모은다 = 이번 진입의 체결들.
+        qty = notional = 0.0
+        for t in reversed(rows or []):
+            if str(t.get("side")) != "BUY":
                 break
             q = float(t.get("qty", 0) or 0)
             qty += q

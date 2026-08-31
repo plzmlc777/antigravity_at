@@ -290,6 +290,19 @@ class PaperConfig:
     #   마감 후 **0.1~0.3초**에 확정된다. 40초는 통째로 낭비였다.
     #   이 전략의 수익은 진입 봉 안에서 끝난다(익절가 도달까지 중앙 2개
     #   1분봉). 대기 1초가 곧 손실이다.
+    # 재기동 직후 **한 봉은 거래하지 않는다** (대표님 지시 2026-08-31).
+    #
+    # ⚠ 왜 — 웹소켓 피드는 접속 순간 진행 중이던 봉을 버린다(`first_full`).
+    #   시가를 못 봤으니 옳은 설계지만, 그 결과 재기동 뒤 **첫 한 봉 동안
+    #   프레임 전체가 한 봉 뒤처진다**(실측 2026-08-31: 10:00·10:30 사이클
+    #   359/359 종목 · 11:00 에 1/359 로 자연 회복).
+    #
+    #   관문(묵은 봉)이 우연히 막아 주긴 하지만, 우연에 기대지 않는다.
+    #   재기동 직후엔 **정본과 같은 값을 못 본다**는 사실 자체가 거래하지
+    #   않을 이유다. 0 이면 이 규칙을 끈다(REST 피드는 마감 봉만 주므로 불필요).
+    #
+    #   ⚠ 막는 것은 **진입뿐이다.** 청산은 계속 돈다 — 막으면 포지션이 갇힌다.
+    quiet_bars_after_start: int = 0
     bar_wait_s: float = 2.0
     # 시세 조회 병렬도. 순차면 377종목에 43초(실측) — 그동안 급등이 지나간다.
     # ⚠ 16 은 과했다 — 5세션이 동시에 377종목을 긁어 IP 가 차단됐다.
@@ -556,6 +569,12 @@ class RsiPaper:
         self.exit_slip_sum = 0.0     # 청산 slip_bp 합 (손절·시간만료만)
         self.n_exit_mkt = 0          # 시장가로 나간 청산 건수
         self.n_dead = 0              # 거래 멈춘 종목이라 거른 신호
+        # 제 봉이 아직 안 온 종목이라 거른 신호 (2026-08-31 DIAUSDT)
+        self.n_stalebar = 0
+        # 재기동 직후 침묵 규칙으로 건너뛴 사이클
+        self.n_quiet = 0
+        # 침묵 해제 시각(봉 끝 ms). 첫 사이클에서 정한다.
+        self.quiet_until_ms = 0
         self.n_slipreject = 0        # 괴리 상한 초과로 거부한 체결
         # ⚠ 2026-08-22 — 예전엔 아래 넷이 전부 n_pricefail 한 통에 들어갔다.
         #   시세를 못 받은 것과 거래소가 거절한 것이 같은 숫자로 섞이면
@@ -623,14 +642,66 @@ class RsiPaper:
                      "(설정값 $%.2f)", cap, self.cfg.slots, notl, base)
         return notl
 
-    def _tell(self, text: str) -> None:
-        """실거래 알림. 실패해도 거래를 막지 않는다."""
+    # 알림 등급 (2026-08-31 신설)
+    #
+    # ⚠ 왜 — 08-31 08:30 에 NAORISUSDT 가 **체결됐는데 장부에 안 들어간**
+    #   사건이 「⚠️ 실거래 진입 거절」 로 나갔다. 그건 흔한 일이라 대표님이
+    #   평범하게 읽으셨고, 고아 포지션은 1.3시간 방치됐다. 이상이 전부
+    #   같은 모양이면 **경중을 가릴 수 없고, 가릴 수 없으면 안 본다.**
+    #
+    #   정보 — 정상 운영이다. 진입·익절·손절·시간청산.
+    #   주의 — 뜻대로 안 됐지만 **체계는 여전히 옳다.** 기회 상실, 되돌림 성공.
+    #   비상 — **실자금이 무방비이거나 장부가 현실과 다르다.** 즉시 확인.
+    LEVELS = {"info": "", "warn": "⚠️ <b>[주의]</b>\n",
+              "alarm": "🚨🚨 <b>[비상 · 즉시 확인]</b>\n"}
+
+    def _tell(self, text: str, level: str = "info") -> None:
+        """실거래 알림. 실패해도 거래를 막지 않는다.
+
+        `level` 은 **읽는 사람이 몇 초 안에 경중을 가르게** 하는 장치다.
+        등급을 안 주면 정보로 나간다 — 조용히 비상을 정보로 만들지 않도록,
+        비상 경로는 반드시 `level="alarm"` 을 명시한다."""
         if self.notify is None:
             return
         try:
-            self.notify(text)
+            self.notify(self.LEVELS.get(level, "") + text)
         except Exception as exc:                              # noqa: BLE001
-            log.error("텔레그램 발송 실패 (거래는 정상): %s", exc)
+            # ⚠ 비상 알림이 안 나간 것은 그 자체로 사건이다 — 로그 등급을 올린다.
+            (log.critical if level == "alarm" else log.error)(
+                "텔레그램 발송 실패 (거래는 정상) — 등급 %s: %s", level, exc)
+
+
+    def _rollback(self, symbol: str, why: str) -> bool:
+        """보호를 못 건 진입을 되돌린다. **되돌아갔는지 확인하고** 알린다.
+
+        ⚠ `close_long` 은 실패해도 `None` 을 준다(성공과 구분 불가). 확인 없이
+          「되돌렸다」고 알리면, 무방비 포지션이 남았는데 대표님은 정리된 줄
+          아신다. 2026-08-31 고아 사건과 같은 계열의 침묵이다."""
+        self.broker.close_long(symbol)
+        left = 0.0
+        try:
+            left = float((self.broker.positions() or {}).get(symbol, 0) or 0)
+        except Exception as exc:                              # noqa: BLE001
+            # 모르는 것과 없는 것은 다르다 (교훈 #106) — 모르면 비상이다.
+            log.critical("%s 되돌림 확인 실패: %s", symbol, exc)
+            self._tell(f"<b>{why} — 되돌림 결과를 모른다</b>\n"
+                       f"종목: <b>{symbol}</b>\n"
+                       f"포지션 조회가 실패했다. <b>없다는 뜻이 아니다.</b>\n"
+                       f"거래소를 직접 확인하라.", level="alarm")
+            return False
+        if left > 0:
+            log.critical("%s 되돌림 실패 — 무방비 포지션 %.6f 이 남았다",
+                         symbol, left)
+            self._tell(f"<b>{why} — 되돌리지 못했다</b>\n"
+                       f"종목: <b>{symbol}</b> · 잔여 수량 {left:.6g}\n"
+                       f"<b>익절·손절 없는 포지션이 거래소에 남아 있다.</b>\n"
+                       f"즉시 수동 청산이 필요하다.", level="alarm")
+            return False
+        self._tell(f"<b>{why} — 진입을 되돌렸다</b>\n"
+                   f"종목: <b>{symbol}</b>\n"
+                   f"포지션 0 확인. 보호 없는 포지션은 남기지 않는다.",
+                   level="warn")
+        return True
 
     # ── 한 사이클: 마감 봉 기준으로 청산 먼저, 그 다음 진입 ──────
     def step(self, bars_by_tf: dict, closed: set | None = None,
@@ -807,8 +878,24 @@ class RsiPaper:
             spec = self.spec.get(tf)
             if spec is None:
                 continue
+            # 이번 사이클이 판정해야 할 봉. 벽시계에서 온다.
+            edge_tf = int(cyc["bars"].get(tf, 0) or 0)
             for sym, b in bars_by_tf.get(tf, {}).items():
                 if sym in self.pos or b is None or len(b) < spec.warmup_bars:
+                    continue
+                # ⚠ 종목 프레임이 아직 제 봉을 못 받았으면 **거른다**.
+                #   2026-08-31 DIAUSDT — 09:30 사이클이 09:00 봉(RSI 10.22)을
+                #   다시 신호로 내고 30분 묵은 기준가에 진입했다. 그 사이 값이
+                #   +1.64% 올라 진입 미끄러짐 163bp. 제 봉(09:30)의 RSI 는
+                #   **30.42 로 신호가 아니었다** — 없었어야 할 거래다.
+                #   묵은 봉을 쓰면 정본이 안 낸 신호를 실자금으로 낸다.
+                bar_end = int(b.index[-1].timestamp() * 1000) + TF_MS[tf]
+                if edge_tf and bar_end != edge_tf:
+                    self.n_stalebar += 1
+                    log.warning("%s %s 봉이 %d 봉 뒤처졌다 — 이번 사이클 거른다 "
+                                "(프레임 %d / 사이클 %d · 누적 %d)",
+                                sym, tf, (edge_tf - bar_end) // TF_MS[tf],
+                                bar_end, edge_tf, self.n_stalebar)
                     continue
                 c = b["close"].astype(float)
                 # 거래가 멈춘 종목은 RSI 가 의미 없다 — 계산 전에 거른다
@@ -874,6 +961,28 @@ class RsiPaper:
             cyc["halted"] = True
             self.save_state()
             return cyc
+
+        # ②-c 재기동 침묵 — 진입만 막는다. 청산(①)은 이미 끝났다.
+        #     피드가 접속 순간의 부분 봉을 버리므로, 첫 한 봉 동안 우리는
+        #     정본과 **같은 값을 보지 못한다.** 못 보는 동안은 사지 않는다.
+        base_ms = TF_MS[self.cfg.base_tf]
+        if self.cfg.quiet_bars_after_start > 0 and edge_ms:
+            if self.quiet_until_ms == 0:
+                self.quiet_until_ms = (edge_ms
+                                       + self.cfg.quiet_bars_after_start * base_ms)
+                log.warning("재기동 침묵 — %d봉(%d분) 동안 진입하지 않는다 "
+                            "(해제 봉 %d). 청산은 계속한다.",
+                            self.cfg.quiet_bars_after_start,
+                            self.cfg.quiet_bars_after_start * base_ms // 60000,
+                            self.quiet_until_ms)
+            if edge_ms < self.quiet_until_ms:
+                self.n_quiet += 1
+                cyc["quiet"] = True
+                left = (self.quiet_until_ms - edge_ms) // 60000
+                log.warning("재기동 침묵 중 — 후보 %d건을 기록만 하고 "
+                            "진입하지 않는다 (%d분 남음)", len(cands), left)
+                self.save_state()
+                return cyc
 
         # ③ 선택 — 빈 슬롯만큼 **무작위**. 결합 세션은 두 시간대 후보를
         #    **한 통에 합쳐서** 뽑는다 (시간대 우선순위를 두지 않는다).
@@ -982,12 +1091,24 @@ class RsiPaper:
                     cyc["rejects"].append({"symbol": c["symbol"],
                                            "reason": "order_rejected",
                                            "ref": ref, "px": px})
+                    # ⚠ 사유로 경중을 가른다. **빈 슬롯이 있는데 증거금이
+                    #   없다**(-2019)는 건 우리가 모르는 포지션이 계좌에
+                    #   있다는 뜻이다 — 2026-08-31 고아 사건이 정확히 그랬다.
+                    err = getattr(self.broker, "last_error", None) or {}
+                    code, emsg = err.get("code"), err.get("msg", "사유 불명")
+                    free = self.cfg.slots - len(self.pos)
+                    grave = (code == -2019 and free > 0)
                     self._tell(
-                        f"⚠️ <b>실거래 진입 거절</b> — 실전 리그 1군\n"
+                        f"<b>실거래 진입 거절</b> — 실전 리그 1군\n"
                         f"종목: <b>{c['symbol']}</b>\n"
-                        f"사유: 거래소가 주문을 거절 (마진 부족·최소 명목·수량 단위)\n"
+                        f"거래소 사유: <code>{emsg}</code>\n"
                         f"정본 {ref:.8g} / 시도가 {px:.8g}\n"
-                        f"→ 이 기회는 놓쳤다. 그림자는 잡았을 것이다.")
+                        + (f"⛔ 빈 슬롯이 {free}개인데 증거금이 없다 — "
+                           f"<b>계좌에 우리가 모르는 포지션이 있을 수 있다.</b>\n"
+                           f"거래소 포지션을 즉시 대조하라.\n"
+                           if grave else "")
+                        + "→ 이 기회는 놓쳤다. 그림자는 잡았을 것이다.",
+                        level=("alarm" if grave else "warn"))
                     continue
                 px = float(got["price"])
                 slip = 1e4 * (px / ref - 1.0) if ref > 0 else 0.0
@@ -1021,15 +1142,10 @@ class RsiPaper:
                 if not self.broker.arm_take_profit(
                         c["symbol"], float(got["quantity"]), tp_px):
                     log.error("%s 익절 지정가 실패 — 진입을 되돌린다", c["symbol"])
-                    self.broker.close_long(c["symbol"])
                     self.n_reject_tp += 1
                     cyc["rejects"].append({"symbol": c["symbol"],
                                            "reason": "tp_limit_rejected"})
-                    self._tell(
-                        f"⚠️ <b>익절 지정가 실패 — 진입을 되돌렸다</b>\n"
-                        f"종목: <b>{c['symbol']}</b>\n"
-                        f"진입은 됐으나 익절 주문이 거절돼 즉시 청산했다.\n"
-                        f"보호 없는 포지션을 남기지 않기 위한 설계다.")
+                    self._rollback(c["symbol"], "익절 지정가 실패")
                     continue
             # ⚠ 손절 스톱리밋 — 익절과 **같은 자리**에서 건다.
             #   수량은 익절과 **같은 체결 수량**을 넘긴다. 지정가 손절은
@@ -1042,16 +1158,12 @@ class RsiPaper:
                 if not self.broker.arm_stop_loss(
                         c["symbol"], trig, trig, float(got["quantity"])):
                     log.error("%s 손절 등록 실패 — 진입을 되돌린다", c["symbol"])
-                    self.broker.close_long(c["symbol"])
                     self.n_reject_sl += 1
                     cyc["rejects"].append({"symbol": c["symbol"],
                                            "reason": "stop_arm_failed",
                                            "trigger": trig})
-                    self._tell(
-                        f"⚠️ <b>손절 등록 실패 — 진입을 되돌렸다</b>\n"
-                        f"종목: <b>{c['symbol']}</b>\n"
-                        f"발동가 {trig:.8g} 로 스톱리밋을 못 걸었다.\n"
-                        f"보호 없는 포지션은 남기지 않는다.")
+                    self._rollback(c["symbol"],
+                                   f"손절 등록 실패(발동 {trig:.8g})")
                     continue
             p = Position(
                 symbol=c["symbol"], entry_ts=ts_now, entry_price=st.entry_price,
@@ -1072,7 +1184,14 @@ class RsiPaper:
                     f"수량: {st.qty:,.6g} · 명목 ${notl:,.2f}"
                     f"{' (복리)' if self.cfg.compound else ''}\n"
                     f"익절 지정가: {st.tp_price:.8g} (+{100*spec.tp_pct:g}%)\n"
-                    f"손절 없음 · 보유 상한 {spec.max_hold_bars}봉({spec.max_hold_bars*TF_MS[c['src']]//3600000}시간)\n"
+                    # ⚠ 2026-08-31 까지 여기에 「손절 없음」이 **박혀** 있었다.
+                    #   사양은 이미 --sl 0.005 였는데 알림은 매번 손절이 없다고
+                    #   보고했다. 사양을 말할 땐 사양에서 읽어라.
+                    + (f"손절 스톱리밋: {st.sl_price:.8g} "
+                       f"(-{100*spec.sl_pct:g}%)\n" if spec.sl_pct > 0
+                       else "손절 없음\n")
+                    + f"보유 상한 {spec.max_hold_bars}봉"
+                      f"({spec.max_hold_bars*TF_MS[c['src']]//3600000}시간)\n"
                     f"슬롯 {len(self.pos)}/{self.cfg.slots} · 누적 실현 ${self.equity:+,.2f}")
 
         return cyc
@@ -1087,9 +1206,20 @@ class RsiPaper:
         안 남기면 몇 달 뒤 이 표본이 어떤 파라미터로 쌓인 건지 알 수 없다.
         이미 다른 설정으로 쌓인 폴더면 **크게 경고한다** — 조용히 섞이면
         표본 전체가 못 쓰게 된다."""
+        # ⚠ 체결 지연을 정하는 값들도 **반드시** 남긴다. 2026-08-29 에
+        #   `--offset 20` 이 진입 지연 25초 중 20초를 먹고 있었는데
+        #   config.json 에 없어서 원장만 봐서는 알 수 없었다.
+        #   나중에 이 표본이 어떤 지연으로 쌓인 건지 밝힐 수 있어야 한다.
         cur = {"sources": [asdict(x) for x in self.cfg.sources],
                "slots": self.cfg.slots, "notional_usd": self.cfg.notional_usd,
-               "seed": self.cfg.seed, **extra}
+               "seed": self.cfg.seed,
+               "cycle_offset_s": self.cfg.cycle_offset_s,
+               "bar_wait_s": self.cfg.bar_wait_s,
+               "quiet_bars_after_start": self.cfg.quiet_bars_after_start,
+               "fetch_workers": self.cfg.fetch_workers,
+               "feed_mode": self.cfg.feed_mode,
+               "leverage": self.cfg.leverage,
+               "compound": self.cfg.compound, **extra}
         f = self.out / "config.json"
         f.parent.mkdir(parents=True, exist_ok=True)
         if f.exists():
@@ -1107,7 +1237,9 @@ class RsiPaper:
               "n_signal": self.n_signal, "n_skip": self.n_skip,
               "n_pricefail": self.n_pricefail, "slip_sum": self.slip_sum,
               "exit_slip_sum": self.exit_slip_sum, "n_exit_mkt": self.n_exit_mkt,
-              "n_dead": self.n_dead, "n_slipreject": self.n_slipreject,
+              "n_dead": self.n_dead, "n_stalebar": self.n_stalebar,
+              "n_quiet": self.n_quiet,
+              "n_slipreject": self.n_slipreject,
               "n_reject_order": self.n_reject_order,
               "n_reject_tp": self.n_reject_tp,
               "n_kernelfail": self.n_kernelfail,
@@ -1139,6 +1271,8 @@ class RsiPaper:
         self.exit_slip_sum = float(st.get("exit_slip_sum", 0.0))
         self.n_exit_mkt = int(st.get("n_exit_mkt", 0))
         self.n_dead = int(st.get("n_dead", 0))
+        self.n_stalebar = int(st.get("n_stalebar", 0))
+        self.n_quiet = int(st.get("n_quiet", 0))
         self.n_slipreject = int(st.get("n_slipreject", 0))
         self.n_reject_order = int(st.get("n_reject_order", 0))
         self.n_reject_tp = int(st.get("n_reject_tp", 0))
@@ -1164,6 +1298,8 @@ class RsiPaper:
                                         if self.n_fill else 0.0,
                         "n_exit_mkt": self.n_exit_mkt,
                         "n_dead": self.n_dead,
+                        "n_stalebar": self.n_stalebar,
+                        "n_quiet": self.n_quiet,
                         "n_slipreject": self.n_slipreject,
                         "n_reject_order": self.n_reject_order,
                         "n_reject_tp": self.n_reject_tp,
@@ -1200,6 +1336,87 @@ def selftest() -> None:
     if len(cyc["fills"]) != 2 or len(pp.pos) != 2:
         raise SystemExit(f"슬롯 2인데 체결 {len(cyc['fills'])}건")
     log.info("✔ 신호·슬롯 확인 — 하락 2종목 신호, 상승 1종목 무시, 슬롯만큼 선택")
+
+    # ── 묵은 봉 관문 (2026-08-31 DIAUSDT) ───────────────────────────
+    #   09:30 사이클이 09:00 봉을 다시 신호로 냈다. 그 봉 RSI 는 10.22 였지만
+    #   **제 봉(09:30)의 RSI 는 30.42** — 신호가 아니었다. 없었어야 할 거래에
+    #   163bp 진입 미끄러짐까지 물었다. 프레임이 제 봉을 못 받았으면 거른다.
+    ps2 = RsiPaper(PaperConfig(slots=2, warmup_bars=50), ["A", "B"], OUT_DIR)
+    ps2.price_fn = lambda sym: 60.0
+    _tf, _ms = "1h", TF_MS["1h"]
+    _edge = int(idx[-1].timestamp() * 1000) + _ms          # 제 봉의 끝
+    stale = mk(dn).iloc[:-1]                               # A 만 한 봉 뒤처짐
+    c_st = ps2.step({_tf: {"A": stale, "B": mk(dn * 1.01)}},
+                    closed={_tf}, edge_ms=_edge)
+    got = {c["symbol"] for c in c_st["signals"]}
+    if got != {"B"}:
+        raise SystemExit(f"묵은 봉을 걸러야 한다 — 기대 B / 실제 {got}")
+    if ps2.n_stalebar != 1:
+        raise SystemExit(f"묵은 봉 계수가 안 늘었다 — {ps2.n_stalebar}")
+    if any(f["symbol"] == "A" for f in c_st["fills"]):
+        raise SystemExit("묵은 봉으로 체결했다 — 실자금 경로다")
+    # 봉이 따라잡으면 다시 신호가 되어야 한다 (영구 차단이 아니다)
+    ps3 = RsiPaper(PaperConfig(slots=2, warmup_bars=50), ["A"], OUT_DIR)
+    ps3.price_fn = lambda sym: 60.0
+    c_ok = ps3.step({_tf: {"A": mk(dn)}}, closed={_tf}, edge_ms=_edge)
+    if {c["symbol"] for c in c_ok["signals"]} != {"A"} or ps3.n_stalebar:
+        raise SystemExit("제 봉인데 걸렀다 — 관문이 과하다")
+    # 사이클 봉을 모르면(0) 판정하지 않는다 — 모른다고 막으면 다 막힌다
+    ps4 = RsiPaper(PaperConfig(slots=2, warmup_bars=50), ["A"], OUT_DIR)
+    ps4.price_fn = lambda sym: 60.0
+    c_un = ps4.step({_tf: {"A": stale}}, closed={_tf}, edge_ms=0)
+    if not c_un["signals"] or ps4.n_stalebar:
+        raise SystemExit("봉 라벨을 모르는데 걸렀다")
+    log.info("✔ 묵은 봉 관문 확인 — 한 봉 뒤처진 종목만 거름 · 따라잡으면 "
+             "복귀 · 라벨 없으면 판정 안 함")
+
+    # ── 재기동 침묵 (대표님 지시 2026-08-31) ───────────────────────
+    #   재기동 직후 한 봉은 정본과 같은 값을 못 본다 — 그동안 사지 않는다.
+    #   ⚠ 막는 것은 **진입뿐**이다. 청산까지 막으면 포지션이 갇힌다.
+    _e0 = int(idx[-1].timestamp() * 1000) + TF_MS["1h"]
+    pq = RsiPaper(PaperConfig(slots=2, warmup_bars=50, quiet_bars_after_start=1),
+                  ["A"], OUT_DIR)
+    pq.price_fn = lambda sym: 60.0
+    cq1 = pq.step({"1h": {"A": mk(dn)}}, closed={"1h"}, edge_ms=_e0)
+    if cq1["fills"] or pq.pos:
+        raise SystemExit(f"침묵 중인데 진입했다 — {cq1['fills']}")
+    if not cq1["signals"] or not cq1.get("quiet") or pq.n_quiet != 1:
+        raise SystemExit(f"후보는 기록하고 표시를 남겨야 한다 — {cq1.get('quiet')} "
+                         f"n_quiet {pq.n_quiet}")
+    # 한 봉 지나면 정상으로 돌아온다 — 프레임도 같이 전진시킨다
+    _idx2 = pd.date_range("2026-01-01", periods=121, freq="h", tz="UTC")
+    _dn2 = pd.Series(np.linspace(100, 59.7, 121), index=_idx2)
+    _b2 = pd.DataFrame({"open": _dn2, "high": _dn2 * 1.001,
+                        "low": _dn2 * 0.999, "close": _dn2}, index=_idx2)
+    cq2 = pq.step({"1h": {"A": _b2}}, closed={"1h"},
+                  edge_ms=int(_idx2[-1].timestamp() * 1000) + TF_MS["1h"])
+    if not cq2["fills"]:
+        raise SystemExit("침묵이 풀렸는데도 진입을 안 한다 — 규칙이 영구가 됐다")
+
+    # 청산은 침묵 중에도 돈다 — 보유분을 가둬선 안 된다
+    pq2 = RsiPaper(PaperConfig(slots=2, warmup_bars=50, quiet_bars_after_start=1,
+                               tp_pct=0.01), ["A"], OUT_DIR)
+    pq2.price_fn = lambda sym: 60.0
+    pq2.pos["A"] = Position(symbol="A", entry_ts="2026-01-01T00:00:00+00:00",
+                            entry_price=100.0, tp_price=1e9, sl_price=0.0,
+                            signal_rsi=5.0, src="1h", qty=1.0, cash=100.0,
+                            bars_held=999)
+    cq3 = pq2.step({"1h": {"A": mk(dn)}}, closed={"1h"}, edge_ms=_e0)
+    if not cq3["exits"]:
+        raise SystemExit("침묵이 청산까지 막았다 — 포지션이 갇힌다")
+    # 자동 결정: 웹소켓만 1봉, REST 는 0봉
+    class _A:
+        quiet_bars, feed = -1, "ws"
+    if _quiet_bars(_A()) != 1:
+        raise SystemExit("웹소켓 자동값이 1봉이 아니다")
+    _A.feed = "rest"
+    if _quiet_bars(_A()) != 0:
+        raise SystemExit("REST 는 침묵이 필요 없다")
+    _A.quiet_bars, _A.feed = 3, "ws"
+    if _quiet_bars(_A()) != 3:
+        raise SystemExit("명시값이 자동값을 못 이긴다")
+    log.info("✔ 재기동 침묵 확인 — 한 봉 진입 정지 · 후보는 기록 · **청산은 계속** "
+             "· 한 봉 뒤 복귀 · 웹소켓만 자동 적용")
 
     p = pp.pos["A"]
     # 체결가가 **주입한 현재가**인지 — 지나간 봉 시가로 채우면 여기서 걸린다
@@ -1284,6 +1501,7 @@ def selftest() -> None:
         """거래소 대역 — 요청한 값 그대로 채워 준다."""
         def __init__(self, arm_sl_ok=True, wallet=None):
             self.opened = []
+            self.opened_syms: set = set()   # 되돌리면 빠진다
             self.notional_usd = 0.0
             self.wallet = wallet
             self.stops = []            # (종목, 발동가, 지정가, 수량)
@@ -1291,6 +1509,10 @@ def selftest() -> None:
             self.closed = []
         def detect_exit_fills(self, syms):
             return {}
+        def positions(self):
+            # ⚠ 되돌림 **확인**에 쓰인다. 없으면 확인 실패 경로로 빠져
+            #   기동마다 가짜 CRITICAL 이 찍힌다 — 진짜 비상이 묻힌다.
+            return {s: 1.0 for s in self.opened_syms} if self.opened_syms else {}
         def wallet_balance(self):
             return self.wallet
         def arm_stop_loss(self, symbol, trigger, limit_price=0.0, qty=0.0):
@@ -1300,11 +1522,13 @@ def selftest() -> None:
             pass
         def open_long(self, symbol, ref_price):
             self.opened.append((symbol, ref_price))
+            self.opened_syms.add(symbol)
             return {"price": ref_price, "quantity": 1.0}
         def arm_take_profit(self, symbol, qty, tp_price):
             return True
         def close_long(self, symbol):
             self.closed.append(symbol)
+            self.opened_syms.discard(symbol)
             return None
     pl_ = RsiPaper(PaperConfig(slots=2, warmup_bars=50, max_slip_bp=100.0),
                    ["A"], OUT_DIR)
@@ -1823,6 +2047,9 @@ def _build_parser() -> argparse.ArgumentParser:
                    help="사이클 시작 오프셋(초). 여러 세션이 몰리지 않게 어긋낸다")
     p.add_argument("--workers", type=int, default=4,
                    help="시세 조회 병렬도. 올리면 빨라지지만 레이트리밋을 먹는다")
+    p.add_argument("--quiet-bars", type=int, default=-1,
+                   help="재기동 직후 진입하지 않을 봉 수. -1=자동"
+                        "(웹소켓 1봉 · REST 0봉). 청산은 언제나 계속된다.")
     p.add_argument("--feed", default="rest", choices=["rest", "ws"],
                    help="시세 공급원. ws = 체결 웹소켓 (REST weight 0)")
     p.add_argument("--once", action="store_true", help="한 사이클만 (점검용)")
@@ -1872,6 +2099,7 @@ def _cfg_from_args(a) -> PaperConfig:
                                     exit_rsi_below=float(a.exit_rsi_below)))
         return PaperConfig(slots=a.slots, notional_usd=a.notional,
                            sources=specs, cycle_offset_s=a.offset,
+                           quiet_bars_after_start=_quiet_bars(a),
                            fetch_workers=a.workers, feed_mode=a.feed,
                            live=bool(a.live), shadow=bool(a.shadow_of),
                            leverage=int(a.leverage),
@@ -1882,8 +2110,20 @@ def _cfg_from_args(a) -> PaperConfig:
                        exit_rsi_below=float(a.exit_rsi_below),
                        compound=bool(a.compound),
                        cycle_offset_s=a.offset, fetch_workers=a.workers,
+                       quiet_bars_after_start=_quiet_bars(a),
                        feed_mode=a.feed, live=bool(a.live),
                        shadow=bool(a.shadow_of), leverage=int(a.leverage))
+
+
+def _quiet_bars(a) -> int:
+    """재기동 직후 침묵 봉 수. -1 이면 피드가 정한다.
+
+    ⚠ 웹소켓만 필요하다. REST 는 마감된 봉만 돌려주므로 접속 시점과 무관하게
+      항상 정본과 같은 봉을 본다. 웹소켓은 접속 순간의 부분 봉을 버리므로
+      첫 한 봉 동안 프레임이 한 봉 뒤처진다(2026-08-31 실측 359/359)."""
+    if int(a.quiet_bars) >= 0:
+        return int(a.quiet_bars)
+    return 1 if a.feed == "ws" else 0
 
 
 def main() -> int:
@@ -1933,6 +2173,8 @@ def main() -> int:
                                notional_usd=cfg.notional_usd,
                                dry_run=a.dry_run,
                                leverage=cfg.leverage)
+        # 고아 즉시청산은 조용하면 못 본다 — 알림 통로를 꽂아 준다.
+        pp.broker.notify = pp.notify
         pp.broker.connect()
         # 재시작 대조 — 거래소가 진실이다. 우리 장부에 없는 포지션은 손대지
         # 않고 **드러내기만** 한다(수동 개입일 수 있다).
