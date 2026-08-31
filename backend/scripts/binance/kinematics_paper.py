@@ -144,12 +144,24 @@ def bars(sym: str, since_ms: int) -> pd.DataFrame | None:
     t = t[(t.ts_ms >= since_ms) & (t.price > 0) & (t.qty > 0)]
     if len(t) < 500:
         return None
-    g = t.sort_values("ts_ms").groupby(t.ts_ms // 60_000)
-    b = pd.DataFrame({"cl": g.price.last(), "ntr": g.price.size()})
+    t = t.sort_values("ts_ms")
+    # ⚠ 잡음 지표 — 연속 체결의 **방향 반전**과 **도착 간격 불규칙성**.
+    #   틱에만 있다. 5분봉으로는 못 만든다.
+    pr_ = t.price.to_numpy(float)
+    sg = np.sign(np.diff(pr_, prepend=pr_[0]))
+    prv = pd.Series(np.where(sg == 0, np.nan, sg)).ffill().to_numpy()
+    fl = (sg != 0) & (np.roll(prv, 1) != 0) & (sg != np.roll(prv, 1))
+    dt_ = np.diff(t.ts_ms.to_numpy(), prepend=int(t.ts_ms.iloc[0])).astype(float)
+    t = t.assign(_fl=fl.astype(float), _dt=dt_)
+    g = t.groupby(t.ts_ms // 60_000)
+    b = pd.DataFrame({"cl": g.price.last(), "ntr": g.price.size(),
+                      "flip": g._fl.sum(), "dtm": g._dt.mean(),
+                      "dts": g._dt.std()})
     b.index = pd.to_datetime(b.index * 60_000, unit="ms", utc=True)
     b = b.reindex(pd.date_range(b.index.min(), b.index.max(), freq="1min",
                                 tz="UTC"))
     b["cl"] = b.cl.ffill(); b["ntr"] = b.ntr.fillna(0.0)
+    b["flip"] = b.flip.fillna(0.0)
     return b
 
 
@@ -176,13 +188,24 @@ def signal_now(b: pd.DataFrame) -> dict | None:
     live = b.ntr.rolling(60).median().shift(1).iloc[-1]
     if not (np.isfinite(zv) and np.isfinite(za) and np.isfinite(live)):
         return None
+    # 잡음 지배 점수의 두 재료 (최근 60분) — 순위는 앵커에서 매긴다
+    fl60, n60 = b.flip.tail(60).sum(), b.ntr.tail(60).sum()
+    dtm60 = b.dtm.tail(60).mean() if "dtm" in b else np.nan
+    dts60 = b.dts.tail(60).mean() if "dts" in b else np.nan
+    bump = float(fl60 / n60) if n60 > 0 else np.nan
+    irr = float(dts60 / dtm60) if (np.isfinite(dtm60) and dtm60 > 0) else np.nan
+    # 1시간 되돌림 — 부호를 뒤집어 **큰 값 = 롱**
+    rev = float(-(c[-1] / c[-61] - 1.0) * 100.0) if n >= 61 else np.nan
     return {"z_vel": float(zv), "z_acc": float(za), "live": float(live),
-            "px": float(c[-1]), "ts": b.index[-1]}
+            "px": float(c[-1]), "ts": b.index[-1],
+            "bump": bump, "irr": irr, "rev": rev}
 
 
 def cycle(syms: list[str], st: State, ledger: Path, now: datetime,
           slots: int, short: bool, fr: dict, both: bool = False,
-          delay: int = 0) -> dict:
+          delay: int = 0, hold: int = HOLD, pick: str = "zvel",
+          sig: str = "kine", entry_hour: int = -1) -> dict:
+    sig_kind = sig
     since = int((now - timedelta(minutes=WIN_H + WINDOW + 2 * DELTA + 60))
                 .timestamp() * 1000)
     px_cache: dict[str, float] = {}
@@ -195,11 +218,24 @@ def cycle(syms: list[str], st: State, ledger: Path, now: datetime,
         if sig is None:
             continue
         px_cache[s] = sig["px"]
+        if sig["live"] < MIN_LIVE_TR:
+            continue
+        if sig_kind == "rev":
+            # ⚠ 되돌림 신호에는 **밴드가 없다**. 살아 있는 종목 전부가 후보이고
+            #   횡단면 순위로만 롱·숏을 가른다. z_vel 자리에 되돌림을 넣어
+            #   아래 선별 로직을 그대로 쓴다(큰 값 = 롱).
+            if not np.isfinite(sig.get("rev", np.nan)):
+                continue
+            # ⚠ 부호 주의 — 아래 선별은 **z_vel 낮은 순**으로 롱을 고른다
+            #   (운동학에서 z_vel 이 음수일수록 많이 떨어진 것). rev 는 반대로
+            #   클수록 많이 떨어진 것이라 **한 번 더 뒤집어** 넣는다.
+            #   안 뒤집으면 양쪽 다 **중간에서** 집는다(2026-08-31 실측 확인).
+            cands.append({"symbol": s, "side_short": None,
+                          **{**sig, "z_vel": -sig["rev"]}})
+            continue
         # 숏은 밴드·가속 조건이 거울이다
         ok_l = (Z_LO <= sig["z_vel"] <= Z_HI and sig["z_acc"] < ACC_MAX)
         ok_s = (-Z_HI <= sig["z_vel"] <= -Z_LO and sig["z_acc"] > -ACC_MAX)
-        if sig["live"] < MIN_LIVE_TR:
-            continue
         if both:
             if ok_l:
                 cands.append({"symbol": s, "side_short": False, **sig})
@@ -252,6 +288,13 @@ def cycle(syms: list[str], st: State, ledger: Path, now: datetime,
             keep.append(p)
     st.positions = keep
 
+    if sig_kind == "rev" and cands:
+        # z_vel 이 낮은 쪽(= 많이 떨어진 쪽)이 롱, 높은 쪽이 숏
+        order = sorted(cands, key=lambda x: x["z_vel"])
+        h = len(order) // 2
+        for k, x in enumerate(order):
+            x["side_short"] = (k >= len(order) - h)
+
     # ── 대기열 승격 — 신호 시각 + 지연이 지난 것만 **그때 가격으로** 진입
     #
     # 44시간 실측: 진입 후 첫 30분은 먹힌 구간·중립·잃은 구간이 **전부 음수**
@@ -283,6 +326,10 @@ def cycle(syms: list[str], st: State, ledger: Path, now: datetime,
             promoted.append(q["symbol"])
         st.pending = still
 
+    # ⚠ 진입 시각 제한 — 하루 한 번만 여는 갈래용. 청산·승격은 항상 돈다.
+    if entry_hour >= 0 and not (now.hour == entry_hour and now.minute == 0):
+        cands = []
+
     # ── 빈 슬롯 채움 — z_vel 낮은 순, 중복 금지
     # ⚠ 대기열도 슬롯을 **차지한다**. 안 세면 지연 동안 과다 편입된다.
     held = ({p["symbol"] for p in st.positions}
@@ -297,10 +344,27 @@ def cycle(syms: list[str], st: State, ledger: Path, now: datetime,
             nl = (sum(1 for p in st.positions if not p.get("short"))
                   + sum(1 for q in st.pending if not q.get("short")))
             ns = len(st.positions) + len(st.pending) - nl
-            L = sorted([x for x in avail if not x["side_short"]],
-                       key=lambda x: x["z_vel"])[:max(half - nl, 0)]
-            S2 = sorted([x for x in avail if x["side_short"]],
-                        key=lambda x: -x["z_vel"])[:max(half - ns, 0)]
+            pl = [x for x in avail if not x["side_short"]]
+            ps = [x for x in avail if x["side_short"]]
+            if pick == "noise":
+                # ⚠ **잡음 지배** — 체결 방향 반전율 + 도착 간격 불규칙성의
+                #   앵커 내 순위합. 큰 쪽부터. 두 지표의 눈금이 달라 순위로 합친다.
+                def noisy(pool):
+                    ok = [x for x in pool
+                          if np.isfinite(x.get("bump", np.nan))
+                          and np.isfinite(x.get("irr", np.nan))]
+                    if len(ok) < half:
+                        return []
+                    rb = {id(x): r for r, x in enumerate(
+                        sorted(ok, key=lambda y: y["bump"]))}
+                    ri = {id(x): r for r, x in enumerate(
+                        sorted(ok, key=lambda y: y["irr"]))}
+                    return sorted(ok, key=lambda y: -(rb[id(y)] + ri[id(y)]))
+                L = noisy(pl)[:max(half - nl, 0)]
+                S2 = noisy(ps)[:max(half - ns, 0)]
+            else:
+                L = sorted(pl, key=lambda x: x["z_vel"])[:max(half - nl, 0)]
+                S2 = sorted(ps, key=lambda x: -x["z_vel"])[:max(half - ns, 0)]
             c = L + S2
         else:
             # 롱은 z_vel 낮은 순, 숏은 **높은 순** — 밴드 끝에서 먼 쪽부터
@@ -318,7 +382,7 @@ def cycle(syms: list[str], st: State, ledger: Path, now: datetime,
                 continue
             p = {"symbol": x["symbol"], "entry_ts": str(now),
                  "entry_px": x["px"], "z_vel": x["z_vel"], "z_acc": x["z_acc"],
-                 "exit_ts": str(now + timedelta(minutes=HOLD)), "stake": stake,
+                 "exit_ts": str(now + timedelta(minutes=hold)), "stake": stake,
                  "short": bool(x.get("side_short", short)),
                  "fr": float(fr.get(x["symbol"], 0.0))}
             st.positions.append(p)
@@ -341,6 +405,18 @@ def main() -> int:
     p.add_argument("--delay-min", type=int, default=0,
                    help="신호 뒤 이만큼 기다렸다 **그때 가격으로** 진입한다. "
                         "44시간 실측에서 첫 30분은 세 구간 전부 음수였다")
+    p.add_argument("--hold-min", type=int, default=HOLD,
+                   help="보유 분. 기본 120")
+    p.add_argument("--pick", default="zvel", choices=["zvel", "noise"],
+                   help="선별 기준. noise = 체결 방향 반전율 + 도착 간격 "
+                        "불규칙성의 순위합(잡음 지배). **틱에만 있다**")
+    p.add_argument("--signal", default="kine", choices=["kine", "rev"],
+                   help="kine = 위약 승률 속도(밴드 있음) · "
+                        "rev = 1시간 되돌림(밴드 없음, 횡단면 순위만)")
+    p.add_argument("--entry-hour", type=int, default=-1,
+                   help="이 UTC 시각 정각에만 새로 연다(-1 이면 항상). "
+                        "하루 한 번 여는 갈래용")
+    p.add_argument("--tag", default="", help="경로 꼬리표")
     p.add_argument("--dir", default="",
                    help="상태·원장 디렉터리. 비우면 runs/kinematics_paper/s{슬롯}")
     a = p.parse_args()
@@ -352,7 +428,8 @@ def main() -> int:
     syms = [s.strip().upper() for s in
             (ROOT / a.universe).read_text().split() if s.strip()]
     tag = (f"s{a.slots}" + ("both" if a.both else "short" if a.short else "")
-           + (f"_d{a.delay_min}" if a.delay_min else ""))
+           + (f"_d{a.delay_min}" if a.delay_min else "")
+           + (f"_{a.tag}" if a.tag else ""))
     d = Path(a.dir) if a.dir else OUT / tag
     d.mkdir(parents=True, exist_ok=True)
     state_p, ledger = d / "state.json", d / "trades.csv"
@@ -360,10 +437,15 @@ def main() -> int:
     side = "롱숏동시" if a.both else ("숏" if a.short else "롱")
     log.info("운동학 페이퍼 — %d종목 · %s · 슬롯 %d(%s) · 보유 %d분 · 경로 %s",
              len(syms), side, a.slots,
-             f"롱{a.slots//2}+숏{a.slots//2}" if a.both else side, HOLD, d)
+             f"롱{a.slots//2}+숏{a.slots//2}" if a.both else side, a.hold_min, d)
     if a.delay_min:
         log.info("**진입 지연 %d분** — 신호 시각에 예약하고 그때 가격으로 산다",
                  a.delay_min)
+    if a.pick != "zvel" or a.signal != "kine" or a.entry_hour >= 0 \
+            or a.hold_min != HOLD:
+        log.info("변형 — 신호 %s · 선별 %s · 보유 %d분 · 진입시각 %s",
+                 a.signal, a.pick, a.hold_min,
+                 f"UTC {a.entry_hour}시" if a.entry_hour >= 0 else "항상")
     log.info("상태 — 자본 %.4f · 보유 %d · 대기 %d · 누적거래 %d",
              st.equity, len(st.positions), len(st.pending), st.n_trades)
 
@@ -374,7 +456,8 @@ def main() -> int:
         try:
             fr = funding_rates() if a.short or True else {}
             r = cycle(syms, st, ledger, now, a.slots, a.short, fr,
-                      a.both, a.delay_min)
+                      a.both, a.delay_min, a.hold_min, a.pick, a.signal,
+                      a.entry_hour)
             save_state(state_p, st)
             log.info("%s · 후보 %d · 예약 %d · 승격 %d · 대기 %d · 청산 %d "
                      "· 보유 %d/%d · 자본 %.4f(%+.2f%%) · 누적 %d · %.0f초",

@@ -42,6 +42,15 @@ except Exception:
 
 SYMBOL = "061090"
 SYMBOL_NAME = "세나테크놀로지"
+# 통합 거래량 조회에 쓸 키움 계좌 (조회 전용, 주문 안 함).
+KIWOOM_QUOTE_ACCOUNT_ID = 5
+
+# 토론방 집계 방식 버전. **바꿀 때마다 올린다.**
+#   1 = 오늘(00:00~) 작성글 + 임계값 2 분류기
+#   2 = 직전 24시간 + 임계값 1 + 부정문맥 무효화 (2026-08-26)
+# 버전이 다른 기록끼리 비교하면 "22배 급증" 같은 허위 신호가 나온다 —
+# 실제로는 수집 창이 넓어진 것뿐이다.
+DISCUSSION_SCHEMA = 2
 CORP_CODE = "01010615"
 KST = timezone(timedelta(hours=9))
 
@@ -99,11 +108,20 @@ def fetch_news(since_hours: int = 24) -> list:
     return items
 
 
-def fetch_discussion_today() -> list:
-    """오늘 작성된 '일반' 토론글만 (postType=normal). itemNewsPrice 자동 시세뉴스 제외."""
+def fetch_discussion_recent(hours: int = 24) -> list:
+    """**직전 `hours` 시간**의 '일반' 토론글 (postType=normal).
+
+    왜 '오늘'이 아닌가
+        08:30 브리프에서 `writtenAt` 이 오늘로 시작하는 글만 세면 **00:00~08:30
+        사이 글만** 잡힌다. 정작 봐야 할 전날 장중 토론(09:00~15:30)은 "어제
+        글"이라 통째로 빠진다. 실측: 최근 10회 발송에서 평균 0.9건이었고
+        10회 내내 전부 중립이었다 — 분석이랄 게 없었다.
+
+        같은 코드를 저녁에 돌리면 9건이 나온다. 창이 문제였지 수집이 아니다.
+    """
     base = "https://stock.naver.com/api/community/discussion/posts/by-item"
-    today = now_kst().strftime("%Y-%m-%d")
-    yesterday = (now_kst() - timedelta(days=1)).strftime("%Y-%m-%d")
+    cutoff = (now_kst() - timedelta(hours=hours)).strftime("%Y-%m-%d %H:%M:%S")
+    cutoff_date = cutoff[:10]
     posts = []
     offset = None
     for _ in range(6):
@@ -126,11 +144,12 @@ def fetch_discussion_today() -> list:
         posts.extend(page_posts)
         offset = d.get("lastOffset")
         last_date = page_posts[-1].get("writtenAt", "")[:10]
-        if last_date < yesterday:
+        if last_date < cutoff_date:
             break
+    # writtenAt 은 "YYYY-MM-DD HH:MM:SS" 라 문자열 비교가 곧 시간 비교다.
     return [
         p for p in posts
-        if p.get("writtenAt", "").startswith(today) and p.get("postType") == "normal"
+        if p.get("writtenAt", "") >= cutoff and p.get("postType") == "normal"
     ]
 
 
@@ -205,31 +224,58 @@ def fmt_qty(q: float) -> str:
 
 
 def classify_sentiment(text: str) -> str:
+    """토론글 한 편의 성향. 키워드 카운트 + **부정 문맥 무효화**.
+
+    2026-08-26 실측으로 두 가지를 고쳤다.
+      · 임계값이 전부 2 였다 (`sp>=2`, `b>s+1`, `s>b+1`). 짧은 토론글은
+        키워드가 하나뿐인 게 보통이라 **89%가 중립으로 떨어졌다.** 1 로 낮췄다.
+      · "매수세도 실종", "오늘매수는 내일손실자초" 가 **강세**로 잡혔다.
+        강세어 바로 뒤에 부정어가 오면 세지 않는다.
+
+    완벽한 감성 분석은 아니다. 소형주 토론방의 거친 표현을 대충 나누는
+    용도이고, 개별 판정보다 **분포의 흐름**을 보라고 만든 것이다.
+    """
     bullish_kw = [
         "상한가", "상승", "갑니다", "간다", "매수", "팟팅", "존버", "매집",
         "신고가", "돌파", "대장주", "호재", "급등", "랠리", "유망", "기대",
         "담는다", "담고", "가즈아", "가자", "오른다",
+        "반등", "저평가", "우상향", "홀딩", "모아", "싸다",
     ]
     bearish_kw = [
         "손절", "매도", "하락", "폭락", "청산", "탈출", "잡주",
         "물렸", "물림", "지하실", "마이너스", "사기", "환장", "지긋지긋",
         "던지", "던짐", "거품", "고평가", "떨어",
+        "후퇴", "사망", "실종", "손실", "망했", "답답", "빠진", "흘러",
+        "최악", "한숨", "포기",
     ]
     suspicious_kw = [
         "세력", "작전", "기법", "허매수", "리딩방", "털기", "뻥튀기", "의심",
         "조작", "장난질", "찌라시", "주포", "설거지",
+        "놀이터", "펌핑", "털고",
     ]
-    b = sum(1 for k in bullish_kw if k in text)
-    s = sum(1 for k in bearish_kw if k in text)
+    # 강세어 **직후**에 이런 말이 오면 그 강세어는 무효다.
+    negation_kw = ["실종", "없", "안", "못", "말", "금지", "자제", "주의",
+                   "자초", "손실", "위험"]
+
+    b = 0
+    for k in bullish_kw:
+        idx = text.find(k)
+        if idx < 0:
+            continue
+        tail = text[idx + len(k): idx + len(k) + 8]
+        if any(n in tail for n in negation_kw):
+            continue
+        b += 1
+    s_ = sum(1 for k in bearish_kw if k in text)
     sp = sum(1 for k in suspicious_kw if k in text)
-    if sp >= 2:
+
+    if sp >= 1:
         return "suspicious"
-    if b > s + 1:
+    if b > s_:
         return "bullish"
-    if s > b + 1:
+    if s_ > b:
         return "bearish"
     return "neutral"
-
 
 def compute_sentiment(posts: list) -> dict:
     stats = {"bullish": 0, "bearish": 0, "suspicious": 0, "neutral": 0}
@@ -237,6 +283,7 @@ def compute_sentiment(posts: list) -> dict:
         text = clean_html(p.get("title", "")) + " " + clean_html(p.get("contentSwReplaced", ""))
         stats[classify_sentiment(text)] += 1
     stats["total"] = sum(stats.values())
+    stats["schema"] = DISCUSSION_SCHEMA
     return stats
 
 
@@ -313,14 +360,101 @@ def save_brief(data: dict, message: str, sent: bool) -> bool:
 
 # ── 소형주 진단 ───────────────────────────────────────────────────────────
 
-def compute_smallcap(quote: dict, deal_trend: list) -> dict:
-    """거래대금·거래량 배수·변동성·52주 위치 등 소형주 핵심 지표."""
+def fetch_consolidated_volumes() -> dict:
+    """KRX + 넥스트레이드(NXT) **통합** 일자별 거래량. {YYYYMMDD: {...}}
+
+    왜 필요한가
+        네이버는 **KRX 거래량만** 준다 (2026-08-26 실측: 최근 5거래일 전부
+        0.0% 차이로 KRX 와 일치). 그런데 세나는 하루 거래량의 **40~58% 가
+        NXT** 에서 나온다. 네이버 값으로 거래대금을 계산하면 실제의 절반이
+        되고, 그 탓에 유동성 경고가 **한 등급 과장**된다 — 08-26 이 8.9억
+        (🩸 빈약)으로 나갔지만 통합은 16.5억(⚠️ 얕음)이었다.
+
+    실패하면 빈 dict 를 돌려준다. 호출부가 네이버 값으로 폴백하되 **"KRX
+    기준"이라고 표기**한다 — 조용히 절반짜리를 쓰지 않기 위해서다.
+    """
+    try:
+        import asyncio
+
+        from app.adapters.kiwoom_real import KiwoomRealAdapter
+        from app.core import security
+        from app.db.session import SessionLocal
+        from app.models.account import ExchangeAccount
+        from app.models.user import User  # noqa: F401  (mapper 해석용)
+
+        db = SessionLocal()
+        try:
+            acc = db.query(ExchangeAccount).filter(
+                ExchangeAccount.id == KIWOOM_QUOTE_ACCOUNT_ID).first()
+            if not acc:
+                return {}
+            adapter = KiwoomRealAdapter(
+                app_key=security.decrypt_key(acc.encrypted_access_key or ""),
+                secret_key=security.decrypt_key(acc.encrypted_secret_key or ""),
+                account_no=acc.account_number or "",
+                account_name=acc.account_name or "",
+                api_url=acc.api_url or "",
+                is_virtual=bool(getattr(acc, "is_virtual", False)),
+            )
+        finally:
+            db.close()
+
+        async def _fetch():
+            krx = await adapter.get_daily_candles(SYMBOL) or []
+            allm = await adapter.get_daily_candles(SYMBOL, market="SOR") or []
+            return krx, allm
+
+        krx_rows, all_rows = asyncio.run(_fetch())
+
+        def _key(c):
+            return str(c.get("timestamp", ""))[:10].replace("-", "")
+
+        krx = {_key(c): int(c.get("volume", 0) or 0) for c in krx_rows}
+        out = {}
+        for c in all_rows:
+            k = _key(c)
+            total = int(c.get("volume", 0) or 0)
+            kv = krx.get(k)
+            if not k or total <= 0 or kv is None:
+                continue
+            out[k] = {
+                "total": total,
+                "krx": kv,
+                "nxt": max(0, total - kv),
+                "nxt_share": (total - kv) / total if total else 0.0,
+                "close_all": float(c.get("close", 0) or 0),
+            }
+        return out
+    except Exception:
+        return {}
+
+
+def compute_smallcap(quote: dict, deal_trend: list, vol_map: dict = None) -> dict:
+    """거래대금·거래량 배수·변동성·52주 위치 등 소형주 핵심 지표.
+
+    `vol_map` 이 있으면 **통합(KRX+NXT) 거래량**으로 잰다. 없으면 네이버
+    값(KRX 만)으로 폴백하고 `vol_source="KRX"` 를 남긴다.
+    """
     diag = {}
     if not deal_trend:
         return diag
+    vol_map = vol_map or {}
     latest = deal_trend[0]
     close = latest["close"]
-    vol = latest["vol"]
+
+    # 거래량은 **통합(KRX+NXT)** 을 쓴다. 네이버는 KRX 만 주기 때문이다.
+    ent = vol_map.get(latest["date"])
+    if ent:
+        vol = ent["total"]
+        diag["vol_source"] = "ALL"
+        diag["vol_krx"] = ent["krx"]
+        diag["vol_nxt"] = ent["nxt"]
+        diag["nxt_share"] = ent["nxt_share"]
+        if ent.get("close_all"):
+            close = ent["close_all"]      # 통합 종가로 대금을 잰다
+    else:
+        vol = latest["vol"]
+        diag["vol_source"] = "KRX"
 
     # 거래대금 (종가 × 거래량) — 소형주 유동성 핵심
     if close > 0 and vol > 0:
@@ -335,8 +469,15 @@ def compute_smallcap(quote: dict, deal_trend: list) -> dict:
         else:
             diag["liq_flag"] = f"🔥 거래대금 활발 ({fmt_eok(value)})"
 
-    # 거래량 배수 — 직전일 vs 이전 10거래일 평균
-    prior_vols = [d["vol"] for d in deal_trend[1:11] if d["vol"] > 0]
+    # 거래량 배수 — 직전일 vs 이전 10거래일 평균.
+    # 기준을 섞으면 배수가 통째로 틀린다. 통합을 쓰면 **분모도 통합**이어야 한다.
+    if diag.get("vol_source") == "ALL":
+        prior_vols = [vol_map[d["date"]]["total"] for d in deal_trend[1:11]
+                      if d["date"] in vol_map and vol_map[d["date"]]["total"] > 0]
+        if not prior_vols:      # 통합 이력이 부족하면 배수는 내지 않는다
+            prior_vols = []
+    else:
+        prior_vols = [d["vol"] for d in deal_trend[1:11] if d["vol"] > 0]
     if vol > 0 and prior_vols:
         avg = sum(prior_vols) / len(prior_vols)
         if avg > 0:
@@ -429,10 +570,17 @@ def compute_insights(current: dict, history: list) -> list:
         insights.append("🆕 최초 데이터 수집 — 시계열 비교는 다음 회차부터")
         return insights
 
-    # 토론방 분위기 변화 — 같은 mode 직전 brief 비교
+    # 토론방 분위기 변화 — 같은 mode + **같은 집계 스키마**의 직전 brief 비교.
+    # 스키마가 다르면 비교 자체가 성립하지 않는다.
     cur_stats = current["sentiment"]
     cur_total = cur_stats.get("total", 0) or 1
-    prev_same_mode = next((h for h in history if h["mode"] == current["mode"]), None)
+    same_schema = [
+        h for h in history
+        if (h.get("discussion_stats") or {}).get("schema") == DISCUSSION_SCHEMA
+    ]
+    if not same_schema:
+        insights.append("💬 토론방 집계 방식이 바뀌었다 — 분위기 비교는 다음 회차부터")
+    prev_same_mode = next((h for h in same_schema if h["mode"] == current["mode"]), None)
     if prev_same_mode:
         prev_stats = prev_same_mode.get("discussion_stats") or {}
         prev_total = prev_stats.get("total", 0) or 1
@@ -447,7 +595,7 @@ def compute_insights(current: dict, history: list) -> list:
     # 토론방 활동량 급증
     cur_disc_n = current["sentiment"].get("total", 0)
     prev_disc_counts = [
-        (h.get("discussion_stats") or {}).get("total", 0) for h in history[:5]
+        (h.get("discussion_stats") or {}).get("total", 0) for h in same_schema[:5]
     ]
     prev_disc_counts = [c for c in prev_disc_counts if c]
     if cur_disc_n and prev_disc_counts:
@@ -504,7 +652,7 @@ def fetch_all_data(mode: str) -> dict:
         pass
     posts = []
     try:
-        posts = fetch_discussion_today()
+        posts = fetch_discussion_recent(hours=24)
     except Exception:
         pass
     disclosures = []
@@ -563,7 +711,11 @@ def build_message(data: dict) -> str:
     insights = data["insights"]
 
     lines = []
-    lines.append(f"🌅 *{SYMBOL_NAME}({SYMBOL}) 장 시작 전 브리프*")
+    # post 모드는 제목도 레이블도 달라야 한다. 20:10 에 나가는 글이
+    # "장 시작 전"이라고 적혀 있으면 읽는 사람이 어제 것으로 오해한다.
+    is_post = data.get("mode") == "post"
+    lines.append(f"{'🌆' if is_post else '🌅'} *{SYMBOL_NAME}({SYMBOL}) "
+                 f"{'장 마감 브리프' if is_post else '장 시작 전 브리프'}*")
     lines.append(f"_{ts.strftime('%Y-%m-%d %H:%M KST')}_")
     lines.append("")
 
@@ -580,7 +732,9 @@ def build_message(data: dict) -> str:
         prev = close - chg
         chg_pct = (chg / prev * 100) if prev else 0
         sign = "🔺" if chg > 0 else ("🔻" if chg < 0 else "➖")
-        lines.append(f"📊 *직전 거래일 ({dlabel})*")
+        # pre 는 전일 결과, post 는 당일 결과를 본다 (같은 deal_trend[0] 이지만
+        # 시각이 달라 의미가 다르다).
+        lines.append(f"📊 *{'오늘' if is_post else '직전 거래일'} ({dlabel})*")
         lines.append(f"  종가 `{int(close):,}` {sign} {chg:+,.0f} ({chg_pct:+.1f}%)")
         if "ret_5d" in diag:
             lines.append(f"  최근 {diag['ret_5d_n']}거래일 누적 `{diag['ret_5d']:+.1f}%`")
@@ -590,11 +744,22 @@ def build_message(data: dict) -> str:
         if diag.get("liq_flag"):
             vol = diag.get("latest_vol", 0)
             lines.append(f"  • {diag['liq_flag']}")
-            lines.append(f"     거래량 {int(vol):,}주")
+            if diag.get("vol_source") == "ALL":
+                # 어느 시장에서 얼마나 거래됐는지 보여야 이 숫자를 믿을 수 있다.
+                lines.append(
+                    f"     거래량 {int(vol):,}주 "
+                    f"(KRX {int(diag.get('vol_krx', 0)):,} + "
+                    f"NXT {int(diag.get('vol_nxt', 0)):,} · "
+                    f"NXT {diag.get('nxt_share', 0)*100:.0f}%)")
+            else:
+                # 폴백을 조용히 넘기지 않는다 — 절반짜리 숫자를 그대로 믿게 된다.
+                lines.append(f"     거래량 {int(vol):,}주 ⚠️ KRX 기준 (통합 조회 실패)")
         if "vol_ratio" in diag:
             r = diag["vol_ratio"]
             tag = "🚨 폭증" if r >= 3 else ("📈 증가" if r >= 1.5 else ("📉 위축" if r <= 0.5 else "보통"))
-            lines.append(f"  • 거래량 평소 대비 *{r:.1f}배* {tag} (이전 10일 평균 {diag['vol_avg']/10000:.1f}만주)")
+            src = "통합" if diag.get("vol_source") == "ALL" else "KRX"
+            lines.append(f"  • 거래량 평소 대비 *{r:.1f}배* {tag} "
+                         f"(이전 10일 {src} 평균 {diag['vol_avg']/10000:.1f}만주)")
         if "daily_vol" in diag:
             dv = diag["daily_vol"]
             tag = "초고변동" if dv >= 7 else ("고변동" if dv >= 4 else "보통")
@@ -659,7 +824,7 @@ def build_message(data: dict) -> str:
     total = sentiment.get("total", 0)
     if total > 0:
         holder_n = data.get("holder_n", 0)
-        lines.append(f"💬 *토론방 — 오늘 {total}건* (보유자인증 {holder_n}명)")
+        lines.append(f"💬 *토론방 — 직전 24시간 {total}건* (보유자인증 {holder_n}명)")
 
         # 한 줄 분위기 요약
         bull = sentiment.get("bullish", 0)
@@ -703,7 +868,7 @@ def build_message(data: dict) -> str:
         lines.append("")
 
     lines.append("───────────")
-    lines.append("_네이버 시세·수급·토론방 + OpenDART 공시 분석_")
+    lines.append("_네이버 시세·수급·토론방 + 키움 통합거래량(KRX+NXT) + OpenDART 공시_")
 
     msg = "\n".join(lines)
     if len(msg) > 4000:
@@ -752,7 +917,8 @@ def main():
     args = parser.parse_args()
 
     data = fetch_all_data(args.mode)
-    data["smallcap"] = compute_smallcap(data["quote"], data["deal_trend"])
+    data["vol_map"] = fetch_consolidated_volumes()
+    data["smallcap"] = compute_smallcap(data["quote"], data["deal_trend"], data["vol_map"])
     history = load_recent_briefs(limit=30)
     data["insights"] = compute_insights(data, history) + compute_supply_insights(data["deal_trend"])
 

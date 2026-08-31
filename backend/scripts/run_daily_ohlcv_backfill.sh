@@ -44,7 +44,10 @@ PYTHONPATH=. python3 - <<'PY' 2>&1 | tee -a "$LOG_FILE"
 from datetime import date, timedelta
 from sqlalchemy import text
 from app.db.session import engine
-d = date.today() - timedelta(days=1)
+# ⚠ **T-2 로 본다.** 아카이브는 T+1 이라 어제(T-1) 파일은 아직 없을 수 있다
+#   (실측 2026-08-18 12:52 UTC 기준 08-17 파일이 **404**). T-1 로 점검하면
+#   정상인 날에도 매일 거짓 경보가 뜬다 — 2026-08-18 에 실제로 그랬다.
+d = date.today() - timedelta(days=2)
 with engine.connect() as c:
     n = c.execute(text("SELECT count(*) FROM ohlcv_daily WHERE date = :d"),
                   {"d": d}).scalar() or 0
