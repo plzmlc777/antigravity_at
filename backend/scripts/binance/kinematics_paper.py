@@ -196,9 +196,20 @@ def signal_now(b: pd.DataFrame) -> dict | None:
     irr = float(dts60 / dtm60) if (np.isfinite(dtm60) and dtm60 > 0) else np.nan
     # 1시간 되돌림 — 부호를 뒤집어 **큰 값 = 롱**
     rev = float(-(c[-1] / c[-61] - 1.0) * 100.0) if n >= 61 else np.nan
+    # 아시아 세션(00:00-08:00 UTC) 수익률 — 세션 이월 신호.
+    #   **큰 값 = 그날 아시아에서 많이 오른 종목**. 4년 1,473일 실측에서
+    #   아시아 상위를 미주 세션에 롱, 하위를 숏 치는 스프레드가 두 창 모두 양수
+    #   (샤프 0.77~1.04 · 연 +42%). 신호는 08:00 UTC 에 끝나고 거래는 13:00 UTC
+    #   에 시작하니 **다섯 시간 묵은 신호**인데, 더 신선한 유럽(08-13)보다
+    #   잘 맞았다 — 단순 모멘텀이 아니라 시차 이월이라는 근거.
+    idx0 = b.index[-1].normalize()
+    m_ = (b.index >= idx0) & (b.index < idx0 + pd.Timedelta(hours=8))
+    a_ = b.cl[m_].dropna()
+    sess = (float((a_.iloc[-1] / a_.iloc[0] - 1.0) * 100.0)
+            if len(a_) >= 240 else np.nan)          # 480분 중 절반은 있어야
     return {"z_vel": float(zv), "z_acc": float(za), "live": float(live),
             "px": float(c[-1]), "ts": b.index[-1],
-            "bump": bump, "irr": irr, "rev": rev}
+            "bump": bump, "irr": irr, "rev": rev, "sess": sess}
 
 
 def cycle(syms: list[str], st: State, ledger: Path, now: datetime,
@@ -208,6 +219,12 @@ def cycle(syms: list[str], st: State, ledger: Path, now: datetime,
     sig_kind = sig
     since = int((now - timedelta(minutes=WIN_H + WINDOW + 2 * DELTA + 60))
                 .timestamp() * 1000)
+    if sig_kind == "sess":
+        # ⚠ 기본 되돌아보기(약 3.6시간)로는 아시아 세션(00:00-08:00 UTC)을
+        #   못 덮는다. 그날 자정까지 늘린다 — 안 늘리면 신호가 전부 결측이 되고
+        #   로그는 "후보 0"이라고만 말한다.
+        d0 = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        since = min(since, int(d0.timestamp() * 1000))
     px_cache: dict[str, float] = {}
     cands = []
     for s in syms:
@@ -219,6 +236,19 @@ def cycle(syms: list[str], st: State, ledger: Path, now: datetime,
             continue
         px_cache[s] = sig["px"]
         if sig["live"] < MIN_LIVE_TR:
+            continue
+        if sig_kind == "sess":
+            # ⚠⚠ 부호 — 아래 선별은 **z_vel 낮은 순으로 롱**을 고른다.
+            #   sess 는 클수록 아시아에서 많이 **오른** 것이고 우리는 그걸
+            #   **사고 싶다**. 그래서 부호를 뒤집어 넣는다.
+            #   (2026-08-31 되돌림 갈래에서 이 자리를 안 뒤집어 양쪽 다 중간에서
+            #    집었고, 로그는 "예약 10 · 롱5 숏5"로 정상처럼 보였다 — 교훈#88.
+            #    첫 진입 뒤 원장의 sess 값이 롱은 큰 양수, 숏은 큰 음수인지
+            #    **반드시 눈으로 확인할 것**.)
+            if not np.isfinite(sig.get("sess", np.nan)):
+                continue
+            cands.append({"symbol": s, "side_short": None,
+                          **{**sig, "z_vel": -sig["sess"]}})
             continue
         if sig_kind == "rev":
             # ⚠ 되돌림 신호에는 **밴드가 없다**. 살아 있는 종목 전부가 후보이고
@@ -288,7 +318,7 @@ def cycle(syms: list[str], st: State, ledger: Path, now: datetime,
             keep.append(p)
     st.positions = keep
 
-    if sig_kind == "rev" and cands:
+    if sig_kind in ("rev", "sess") and cands:
         # z_vel 이 낮은 쪽(= 많이 떨어진 쪽)이 롱, 높은 쪽이 숏
         order = sorted(cands, key=lambda x: x["z_vel"])
         h = len(order) // 2
@@ -410,7 +440,7 @@ def main() -> int:
     p.add_argument("--pick", default="zvel", choices=["zvel", "noise"],
                    help="선별 기준. noise = 체결 방향 반전율 + 도착 간격 "
                         "불규칙성의 순위합(잡음 지배). **틱에만 있다**")
-    p.add_argument("--signal", default="kine", choices=["kine", "rev"],
+    p.add_argument("--signal", default="kine", choices=["kine", "rev", "sess"],
                    help="kine = 위약 승률 속도(밴드 있음) · "
                         "rev = 1시간 되돌림(밴드 없음, 횡단면 순위만)")
     p.add_argument("--entry-hour", type=int, default=-1,
