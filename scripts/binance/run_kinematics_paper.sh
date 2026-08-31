@@ -18,5 +18,22 @@ set -uo pipefail
 cd "$(dirname "$0")/../../backend" || exit 1
 [ -f venv/bin/activate ] || { echo "[kine] venv 없음"; exit 1; }
 source venv/bin/activate
+# 슬롯 수는 인자로 받는다. 슬롯마다 상태·원장이 runs/kinematics_paper/s{N}/ 로
+# 분리되므로 여러 인스턴스가 서로 안 덮는다.
+SLOTS="${1:-10}"
+SIDE="${2:-long}"          # long | short | both
+DELAY="${3:-0}"            # 진입 지연(분). 0 이면 기존 동작 그대로
+EXTRA=""
+[ "${SIDE}" = "short" ] && EXTRA="--short"
+[ "${SIDE}" = "both" ]  && EXTRA="--both"
+[ "${DELAY}" != "0" ]   && EXTRA="${EXTRA} --delay-min ${DELAY}"
+# 4번째 인자부터는 그대로 넘긴다 — 변형 갈래용
+#   예) 6 both 5 --pick noise --tag noise
+#       10 both 5 --signal rev --hold-min 1440 --entry-hour 1 --tag utc01
+# ⚠ `shift 3` 는 인자가 3개 미만이면 **아무것도 안 밀고 실패**한다.
+#   `|| true` 가 그걸 삼켜 원래 인자가 "$@" 에 남고 파이썬에
+#   `--slots 10 10` 처럼 넘어가 argparse 가 죽는다. 인자 1~2개짜리
+#   갈래 다섯이 재시작 801회를 돌고 있었다(2026-08-31 발견).
+if [ "$#" -ge 3 ]; then shift 3; else shift "$#"; fi
 exec env PYTHONPATH=. nice -n 15 ionice -c3 \
-  python3 -m scripts.binance.kinematics_paper
+  python3 -m scripts.binance.kinematics_paper --slots "${SLOTS}" ${EXTRA} "$@"
