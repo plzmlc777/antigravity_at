@@ -70,7 +70,7 @@ class Cfg:
     z_lo: float = -1.25
     z_hi: float = -0.25
     acc_max: float = 0.5
-    holds: tuple = (12, 24, 48)  # 60 · 120 · 240분
+    holds: tuple = (12, 24, 48, 72, 96, 144)   # 1·2·4·6·8·12시간
     picks: tuple = (3, 5)
     gates: tuple = (0.3, 0.5, 0.7)   # 게이트형: 지표 상위 이 분위 안에서
     dirs: tuple = (1, -1)        # ⚠ 지표 방향을 **결과 보고 고르지 않는다**(교훈#91)
@@ -98,20 +98,14 @@ def wilder(x, n):
     return np.array(r, dtype=np.float32, copy=True)
 
 
-def main() -> int:
-    p = argparse.ArgumentParser(description=__doc__,
-                                formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--reps", type=int, default=None)
-    p.add_argument("--smoke", action="store_true")
-    a = p.parse_args()
-    logging.basicConfig(level=logging.INFO,
-                        format="%(asctime)s [%(levelname)s] %(message)s")
-    cfg = Cfg(**({"reps": a.reps} if a.reps else {}))
-    if a.smoke:
-        cfg = Cfg(reps=30)
-    log.info("설정 %s", cfg.dump())
-    t0 = time.time()
+def build_all(cfg):
+    """틱 특징봉 → (지표 12종, z_vel, z_acc, 생존, 종가, 시각축, 종목).
 
+    ⚠ `tick_combo.py` 가 같은 것을 쓴다. 복제하면 두 하네스가 조용히
+      갈라진다 — 여기 한 곳에서만 만든다.
+    """
+    import time as _t
+    t0 = _t.time()
     cols = ("op", "hi", "lo", "cl", "ntr", "qsum", "flip", "dtm", "dts", "tkb")
     d = {c: {} for c in cols}
     for f in sorted(BARS.glob("*.parquet")):
@@ -193,6 +187,25 @@ def main() -> int:
     log.info("지표 %d종 준비 · %.1f분", len(S), (time.time()-t0)/60)
 
     live = (F["ntr"].fillna(0).rolling(12).median().shift(1) >= 3.0).to_numpy()
+    return S, ZV, ZA, live, C, idx, syms, F
+
+
+def main() -> int:
+    p = argparse.ArgumentParser(description=__doc__,
+                                formatter_class=argparse.RawDescriptionHelpFormatter)
+    p.add_argument("--reps", type=int, default=None)
+    p.add_argument("--smoke", action="store_true")
+    a = p.parse_args()
+    logging.basicConfig(level=logging.INFO,
+                        format="%(asctime)s [%(levelname)s] %(message)s")
+    cfg = Cfg(**({"reps": a.reps} if a.reps else {}))
+    if a.smoke:
+        cfg = Cfg(reps=30)
+    log.info("설정 %s", cfg.dump())
+    t0 = time.time()
+
+    S, ZV, ZA, live, C, idx, syms, F = build_all(cfg)
+    n, m = C.shape
     OKL = ((ZV >= cfg.z_lo) & (ZV <= cfg.z_hi) & (ZA < cfg.acc_max) & live
            & np.isfinite(ZV))
     OKS = ((ZV >= -cfg.z_hi) & (ZV <= -cfg.z_lo) & (ZA > -cfg.acc_max) & live
@@ -312,6 +325,26 @@ def main() -> int:
           f"· 95분위 {np.quantile(bb, .95):+.4f}  **p = {pm:.3f}**")
     print(f"\n  z_vel 을 이긴 칸 {int((T.z대비 > 0).sum())}/{len(T)} · "
           f"그중 날짜t>1 인 칸 {int(((T.z대비 > 0) & (T.날짜t > 1)).sum())}")
+
+    # ── 보유 곡선 — 신호의 **초과**가 통행료를 어디서 넘는가
+    print("\n■ 보유 곡선 — z_vel 의 무작위 대비 초과 (통행료는 양쪽 다 같은 0.072%)")
+    print(f"  {'보유':>8s} {'앵커':>7s} {'날짜':>4s} {'무작위':>9s} {'z_vel':>9s} "
+          f"{'초과':>9s} {'초과/시간':>10s} {'날짜t':>7s} {'양수일':>7s}")
+    # ⚠ z_vel 기준선은 **종목수마다 하나씩**이라 보유별로 여러 행이다.
+    #   한 행으로 가정하면 Series 가 나와 죽는다(2026-09-01).
+    zr = T[T.방식 == "z_vel"].set_index(["보유분", "N"])
+    rr2 = T[T.방식 == "무작위"].set_index(["보유분", "N"])
+    for (h, Np) in sorted(zr.index):
+        z = zr.loc[(h, Np)]
+        if (h, Np) not in rr2.index:
+            continue
+        r_ = rr2.loc[(h, Np)]
+        ex = float(z.일평균) - float(r_.일평균)
+        print(f"  {int(h):5d}분 N{int(Np)} {int(z.앵커):7,d} {int(z.날짜):4d} "
+              f"{float(r_.일평균):+9.4f} {float(z.일평균):+9.4f} {ex:+9.4f} "
+              f"{ex/(h/60):+10.4f} {float(z.날짜t):+7.2f} {str(z.양수일):>7s}")
+    print("  ⚠ 초과는 수수료가 상쇄된 값이다 — 자란다면 신호가 **더 먼 미래를 맞힌다**는 뜻.")
+    print("  ⚠ 보유가 길수록 비겹침 블록이 준다. 12시간이면 6일에 하루 2블록뿐이다.")
     OUT.mkdir(parents=True, exist_ok=True)
     T.to_csv(OUT / "synergy.csv", index=False)
     (OUT / "cfg.json").write_text(cfg.dump())
