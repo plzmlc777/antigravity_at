@@ -70,6 +70,8 @@
   python3 -m scripts.binance.build_live_universe            # 점검만
   python3 -m scripts.binance.build_live_universe --write
   python3 -m scripts.binance.build_live_universe --min-age-days 14 --write
+                                              # ⚠ **기본값은 7일**이다.
+                                              #   위는 문턱을 바꿔 쓰는 예시
 """
 from __future__ import annotations
 
