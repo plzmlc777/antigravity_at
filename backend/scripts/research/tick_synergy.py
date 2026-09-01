@@ -106,7 +106,10 @@ def build_all(cfg):
     """
     import time as _t
     t0 = _t.time()
-    cols = ("op", "hi", "lo", "cl", "ntr", "qsum", "flip", "dtm", "dts", "tkb")
+    # ⚠ 새 열을 tick_features 에 넣었으면 **여기도 늘려야** 한다.
+    #   안 늘리면 하위 하네스가 KeyError 로 죽는다(2026-09-01 H1).
+    cols = ("op", "hi", "lo", "cl", "ntr", "qsum", "flip", "dtm", "dts", "tkb",
+            "tkq", "qmax", "q90", "qmed", "qmax_buy", "nrun", "run_max")
     d = {c: {} for c in cols}
     for f in sorted(BARS.glob("*.parquet")):
         x = pd.read_parquet(f)

@@ -82,6 +82,12 @@ class TradeFeed:
         #   고·저·종가는 맞고 **시가만** 틀리므로 눈에 잘 안 띈다.
         #   종목별로 "경계부터 온전히 본 첫 봉"의 시작 시각을 기억해 그 이전은 버린다.
         self.first_full: dict[tuple[str, str], int] = {}
+        # 시계로 마감한 지점. 이 시각까지는 **빠짐없이** 마감돼 있다.
+        # 이후 첫 체결로 시작하는 봉은 처음부터 온전하다 — 그 봉을
+        # 부분 관측으로 버리면 한산한 종목이 영영 안 보인다.
+        # 듣기 시작한 시각. **이 전의 봉은 '거래가 없었다'고 말할 수 없다.**
+        # 안 듣고 있었을 뿐이다 — 모르는 것과 없는 것은 다르다(교훈 #106).
+        self.started_ms: int = 0
         # 마지막 체결가·시각. 체결을 이미 받고 있으므로 REST ticker 가 필요 없다.
         self.last_px: dict[str, tuple[float, float]] = {}
         self._stop = threading.Event()
@@ -115,9 +121,14 @@ class TradeFeed:
                 key = (sym, tf)
                 b = self.cur.get(key)
                 if b is None:
-                    # 이 종목·시간대의 첫 관측. 이 봉은 앞부분을 놓쳤을 수
-                    # 있으므로 **다음 봉부터** 온전하다고 본다.
-                    self.first_full[key] = ot + span
+                    # ⚠ **이미 정해진 first_full 을 덮어쓰지 않는다.**
+                    #   seal 이 진행 봉을 닫고 cur 를 비우면 이 분기가 다시
+                    #   온다. 그때 새로 잡으면 온전한 봉까지 부분 관측으로
+                    #   버려진다 — 고치려던 것보다 나빠진다.
+                    if key not in self.first_full:
+                        # 이 종목·시간대의 첫 관측. 이 봉은 앞부분을 놓쳤을 수
+                        # 있으므로 **다음 봉부터** 온전하다고 본다.
+                        self.first_full[key] = ot + span
                     self.cur[key] = _Bar(ot, px, qv)
                 elif b.ot == ot:
                     b.add(px, qv)
@@ -145,6 +156,79 @@ class TradeFeed:
         while gap_ot < new_ot:
             q.append((gap_ot, b.c, b.c, b.c, b.c, 0.0))
             gap_ot += span
+
+    def _safe_from(self, span: int) -> int:
+        """처음부터 온전히 들은 **첫 봉**의 시작 시각.
+
+        듣기 시작한 순간 진행 중이던 봉은 앞부분을 놓쳤다 — 그 봉을
+        "거래가 없었다"고 평평하게 메우면 거짓을 만든다."""
+        if not self.started_ms:
+            return 0
+        return ((self.started_ms // span) + 1) * span
+
+    def seal(self, edge_ms: int, tf: str, grace_ms: int = 2_000) -> int:
+        """경계가 지난 봉을 **체결을 기다리지 않고** 시계로 마감한다.
+
+        ⚠ 왜 필요한가 (2026-08-31 실측)
+            봉은 `_close_bar` 에서 **다음 봉의 첫 체결**이 와야 닫힌다.
+            사이클은 경계 +20초에 도는데, 한산한 종목은 첫 체결이 중앙값
+            **46.6초** 뒤에 붙는다. 그 종목들은 사이클 시점에 봉이 한 칸
+            뒤처져 있고(묵은봉), 관문이 걸러 그 사이클에서 사라진다.
+            실측: 걸린 34종목은 +20초 체결 **0/34**, 대조군은 **34/34**.
+            :30 경계는 :00 보다 한산해(체결 3건 미만 경계분 3.32배)
+            묵은봉이 :00 평균 2.3건 vs :30 평균 19.7건으로 몰렸다.
+
+        ⚠ 왜 이래도 되는가 — **정본이 그렇게 한다.**
+            바이낸스 klines 는 거래가 없어도 봉을 낸다(직전 종가로 평평하게).
+            백테스트가 쓰는 값이 바로 그것이다. 시계로 닫는 건 정본에서
+            벗어나는 게 아니라 **정본에 맞추는** 것이다.
+
+        ⚠ 유예 — `grace_ms` 만큼 지나야 마감한다. 경계 직전 체결이 늦게
+            배달될 수 있다. 기본 2초는 `bar_wait_s` 기본값과 같다.
+
+        반환: 이번에 마감·보충한 봉 수.
+        """
+        span = TF_MS[tf]
+        if edge_ms % span:
+            return 0                       # 이 시간대의 경계가 아니다
+        now_ms = int(time.time() * 1000)
+        if now_ms < edge_ms + grace_ms:
+            log.warning("seal 유예 미달 — %dms 남음. 이번엔 건너뛴다",
+                        edge_ms + grace_ms - now_ms)
+            return 0
+        n = 0
+        with self.lock:
+            for sym in self.symbols:
+                key = (sym, tf)
+                b = self.cur.get(key)
+                # ① 창이 완전히 지난 진행 봉을 닫는다
+                if b is not None and b.ot + span <= edge_ms:
+                    self._close_bar(key, b, b.ot + span, span)
+                    self.cur.pop(key, None)
+                    n += 1
+                q = self.closed.get(key)
+                if not q:
+                    continue
+                # ② 마지막 마감 봉과 경계 사이를 평평한 봉으로 메운다.
+                #
+                # ⚠ **처음부터 듣지 못한 봉은 지어내지 않는다.**
+                #   2026-08-31 시험에서 20/20 이 정본과 불일치했다. 피드가
+                #   19:33 에 붙어 19:30 봉을 앞부분부터 못 봤고(그래서 폐기),
+                #   그 빈자리를 직전 종가로 평평하게 메웠는데 **실제로는 거래가
+                #   있던 봉**이었다. 평평한 봉은 "거래가 없었다"는 주장인데,
+                #   안 듣고 있었던 것과 거래가 없던 것은 다르다(교훈 #106).
+                floor = max(self._safe_from(span), self.first_full.get(key, 0))
+                last_ot, last_c = q[-1][0], q[-1][4]
+                gap_ot = last_ot + span
+                if gap_ot < floor:
+                    # 못 본 구간이 남아 있다 — 이 종목은 이번 사이클에서
+                    # 뒤처진 채 둔다(오늘까지의 동작과 같다). 관문이 거른다.
+                    continue
+                while gap_ot < edge_ms:
+                    q.append((gap_ot, last_c, last_c, last_c, last_c, 0.0))
+                    gap_ot += span
+                    n += 1
+        return n
 
     def _handle(self, raw: str) -> None:
         try:
@@ -207,6 +291,8 @@ class TradeFeed:
                 await asyncio.sleep(3)
 
     def start(self) -> None:
+        # 이 순간부터 듣는다. 이 전 봉은 '거래가 없었다'고 말할 수 없다.
+        self.started_ms = int(time.time() * 1000)
         chunks = [self.symbols[i:i + SYMS_PER_CONN]
                   for i in range(0, len(self.symbols), SYMS_PER_CONN)]
 

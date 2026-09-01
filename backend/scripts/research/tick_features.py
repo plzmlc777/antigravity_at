@@ -47,6 +47,15 @@ BAR_MS = 5 * 60 * 1000
 log = logging.getLogger("tickfeat")
 
 
+def _maxrun(v: np.ndarray) -> int:
+    """가장 긴 동일값 연속 구간 길이."""
+    if len(v) == 0:
+        return 0
+    b = np.flatnonzero(np.diff(v) != 0)
+    edges = np.concatenate([[-1], b, [len(v)-1]])
+    return int(np.diff(edges).max())
+
+
 def one(sym: str) -> tuple[str, int]:
     d = TICKS / sym
     fs = sorted(d.glob("*.parquet"))
@@ -68,6 +77,8 @@ def one(sym: str) -> tuple[str, int]:
     t["_dt"] = np.diff(t.ts_ms.to_numpy(), prepend=int(t.ts_ms.iloc[0])).astype(float)
     t["_tb"] = (~t.is_buyer_maker).astype(np.float32)     # 테이커 매수 = 1
     t["_nv"] = t.price*t.qty          # 체결별 거래대금
+    _tb = t._tb.to_numpy()
+    t["_sw"] = np.concatenate([[0], (np.diff(_tb) != 0).astype(np.int32)])
     t["_bin"] = (t.ts_ms // BAR_MS) * BAR_MS
     g = t.groupby("_bin")
     b = pd.DataFrame({
@@ -88,6 +99,13 @@ def one(sym: str) -> tuple[str, int]:
         "qmax_buy": g.apply(                       # 최대 체결이 테이커 매수였나
             lambda x: float(x._tb.iloc[int(np.argmax(x._nv.to_numpy()))])
             if len(x) else np.nan, include_groups=False),
+        # ⚠ H5(테이커 연속) — **연속 동일방향 체결**의 구조.
+        #   `flip` 은 **가격** 방향 반전이고 이건 **테이커** 방향 연속이다.
+        #   가격이 안 움직여도 같은 방향 체결이 이어질 수 있다 — 다른 것이다.
+        "nrun": g._sw.sum() + 1,                   # 연속 구간 개수
+        "run_max": g.apply(                        # 최장 연속 길이
+            lambda x: float(_maxrun(x._tb.to_numpy())) if len(x) else np.nan,
+            include_groups=False),
     }).reset_index().rename(columns={"_bin": "ts_ms"})
     OUT.mkdir(parents=True, exist_ok=True)
     b.to_parquet(OUT / f"{sym}.parquet", index=False)

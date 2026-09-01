@@ -89,7 +89,14 @@ def funding_crossings(a: datetime, b: datetime) -> int:
             if a < t <= b:
                 n += 1
     return n
-MIN_LIVE_TR, FEE_PCT = 5.0, 0.036
+# ⚠ 수수료는 **왕복**이다 — 진입 한 번, 청산 한 번. 메이커 0.036%/다리.
+#   2026-08-31 까지 편도 0.036% 만 빼고 있었다. 연구 하네스는 전부
+#   `fee_rt = 0.072`(왕복)를 쓰는데 페이퍼만 절반이라 성적이 부풀었다 —
+#   롱숏10 이 280거래에서 +12.10% 로 기록됐지만 실제는 +2.02% 였다.
+#   같은 이름의 상수가 한쪽에선 편도, 한쪽에선 왕복으로 쓰인 사고다.
+SESS_END = 8          # 아시아 세션 끝 (UTC 시)
+MIN_LIVE_TR, FEE_ONE_WAY = 5.0, 0.036
+FEE_PCT = 2 * FEE_ONE_WAY          # 왕복 0.072%
 
 _stop = False
 
@@ -130,6 +137,16 @@ def save_state(p: Path, s: State) -> None:
     tmp.replace(p)                  # 원자적 교체 — 쓰다 죽어도 원장이 안 깨진다
 
 
+def _maxrun(v) -> int:
+    """가장 긴 동일값 연속 길이 — 테이커 방향이 얼마나 이어졌나."""
+    a = np.asarray(v)
+    if a.size == 0:
+        return 0
+    b = np.flatnonzero(np.diff(a) != 0)
+    e = np.concatenate([[-1], b, [a.size-1]])
+    return int(np.diff(e).max())
+
+
 def bars(sym: str, since_ms: int) -> pd.DataFrame | None:
     """최근 구간의 1분봉. 필요한 만큼만 읽는다."""
     d = TICKS / sym
@@ -137,7 +154,10 @@ def bars(sym: str, since_ms: int) -> pd.DataFrame | None:
     if not fs:
         return None
     try:
-        t = pd.concat([pd.read_parquet(f, columns=["ts_ms", "price", "qty"])
+        # ⚠ `is_buyer_maker` 를 안 읽으면 테이커 방향을 못 만든다(H5 rmz).
+        #   열 목록을 늘릴 땐 signal_now 가 쓰는 것과 맞춰야 한다.
+        t = pd.concat([pd.read_parquet(
+            f, columns=["ts_ms", "price", "qty", "is_buyer_maker"])
                        for f in fs], ignore_index=True)
     except Exception:                                          # noqa: BLE001
         return None
@@ -153,21 +173,37 @@ def bars(sym: str, since_ms: int) -> pd.DataFrame | None:
     fl = (sg != 0) & (np.roll(prv, 1) != 0) & (sg != np.roll(prv, 1))
     dt_ = np.diff(t.ts_ms.to_numpy(), prepend=int(t.ts_ms.iloc[0])).astype(float)
     t = t.assign(_fl=fl.astype(float), _dt=dt_)
+    t = t.assign(_qv=t.price*t.qty)      # 분당 거래대금 — 충격 계수에 쓴다
+    # 테이커 방향 연속 — H5. `flip`(가격 방향 반전)과 다른 것을 잰다.
+    t = t.assign(_tb=(~t.is_buyer_maker).astype(np.int8))
     g = t.groupby(t.ts_ms // 60_000)
     b = pd.DataFrame({"cl": g.price.last(), "ntr": g.price.size(),
                       "flip": g._fl.sum(), "dtm": g._dt.mean(),
-                      "dts": g._dt.std()})
+                      "dts": g._dt.std(), "qv": g._qv.sum(),
+                      # 체결 크기 분포 — H1(고래 각인)의 qskew 에 쓴다
+                      "q90": g._qv.quantile(0.9), "qmed": g._qv.median(),
+                      "rmax": g._tb.apply(_maxrun)})
     b.index = pd.to_datetime(b.index * 60_000, unit="ms", utc=True)
     b = b.reindex(pd.date_range(b.index.min(), b.index.max(), freq="1min",
                                 tz="UTC"))
     b["cl"] = b.cl.ffill(); b["ntr"] = b.ntr.fillna(0.0)
     b["flip"] = b.flip.fillna(0.0)
+    b["qv"] = b.qv.fillna(0.0) if "qv" in b else 0.0
     return b
 
 
-def signal_now(b: pd.DataFrame) -> dict | None:
-    """지금 시점의 z_vel · z_acc · 생존 · 현재가. **후행만** 쓴다."""
-    need = WIN_H + WINDOW + 2 * DELTA + 10
+def signal_now(b: pd.DataFrame, sig: str = "kine") -> dict | None:
+    """지금 시점의 z_vel · z_acc · 생존 · 현재가. **후행만** 쓴다.
+
+    ⚠ 되돌아보기 요구량은 **신호마다 다르다**. z_vel 은 790분이 필요하지만
+      세션 이월(`sess`)은 아시아 세션 480분 + 여유면 된다. 하나로 묶어두면
+      신규 편입 종목이 z_vel 문턱 때문에 5시간을 더 기다린다(2026-09-01 실측:
+      신규 162종목이 609분 쌓였는데 790분 문턱에 걸려 신호 0건).
+    """
+    need = (SESS_END * 60 + 30 if sig == "sess"
+            else 1500 if sig in ("imp", "rmz")  # 하루 후행 중앙값 + 60분 창
+            else 150 if sig in ("skew", "ac1")  # 60분 창 + 여유
+            else WIN_H + WINDOW + 2 * DELTA + 10)
     if len(b) < need:
         return None
     cl = b.cl
@@ -186,7 +222,12 @@ def signal_now(b: pd.DataFrame) -> dict | None:
     zv = (vel / (se * np.sqrt(2))).iloc[-1]
     za = (acc / (se * 2.0)).iloc[-1]
     live = b.ntr.rolling(60).median().shift(1).iloc[-1]
-    if not (np.isfinite(zv) and np.isfinite(za) and np.isfinite(live)):
+    # ⚠ sess 는 z_vel 을 안 쓴다. 봉이 790분 미만이면 zv·za 가 NaN 인데
+    #   그걸로 걸러내면 세션 갈래가 신규 종목을 영영 못 본다.
+    if sig in ("sess", "imp", "skew", "ac1", "rmz"):
+        if not np.isfinite(live):
+            return None
+    elif not (np.isfinite(zv) and np.isfinite(za) and np.isfinite(live)):
         return None
     # 잡음 지배 점수의 두 재료 (최근 60분) — 순위는 앵커에서 매긴다
     fl60, n60 = b.flip.tail(60).sum(), b.ntr.tail(60).sum()
@@ -203,13 +244,64 @@ def signal_now(b: pd.DataFrame) -> dict | None:
     #   에 시작하니 **다섯 시간 묵은 신호**인데, 더 신선한 유럽(08-13)보다
     #   잘 맞았다 — 단순 모멘텀이 아니라 시차 이월이라는 근거.
     idx0 = b.index[-1].normalize()
-    m_ = (b.index >= idx0) & (b.index < idx0 + pd.Timedelta(hours=8))
+    m_ = (b.index >= idx0) & (b.index < idx0 + pd.Timedelta(hours=SESS_END))
     a_ = b.cl[m_].dropna()
     sess = (float((a_.iloc[-1] / a_.iloc[0] - 1.0) * 100.0)
             if len(a_) >= 240 else np.nan)          # 480분 중 절반은 있어야
+    # 가격 충격 계수(아미후드) — |1분 수익| / 1분 거래대금.
+    #   **자기 대비**로 본다: 최근 60분 평균 / 하루 후행 중앙값.
+    #   수준만 쓰면 시가총액 순위를 다시 그린다.
+    #   ⚠ 4.5일 틱 실측에서 최고 칸(보유 480분·상위숏3)이 +7.98% 였는데
+    #     같은 구간 무작위 숏도 +2.06% 였다. 방향 ±1 이 둘 다 통과해
+    #     **하락장 효과로 판정**했다 — 페이퍼는 그걸 실전에서 가리려는 것이다.
+    imp = np.nan
+    if "qv" in b and len(b) >= 120:
+        ar = np.abs(np.diff(np.log(np.maximum(c, 1e-12)), prepend=np.nan))*100.0
+        qv = b.qv.to_numpy(float)
+        ai = pd.Series(ar/np.maximum(qv, 1e-9)).rolling(60).mean()
+        med = ai.rolling(1440, min_periods=360).median().shift(1).iloc[-1]
+        cur = ai.iloc[-1]
+        if np.isfinite(cur) and np.isfinite(med) and med > 0:
+            imp = float(cur/med)
+    # 체결 크기 쏠림 — 90분위 / 중앙값의 최근 60분 평균.
+    #   ⚠ 틱 4.6일 실측 최고 칸(보유 480분 · 상위숏3 · 방향+1)이 누적 +4.07%
+    #     였는데 같은 다리 무작위도 +2.86% 였다. 초과는 +1.19%p 이고
+    #     최대통계량 **p 0.545** 로 통과 못 했다. 방향 ±1 이 둘 다 상위에 있어
+    #     하락장 의심이 있다 — 페이퍼는 그걸 가리려는 것이다.
+    qskew = np.nan
+    if "q90" in b and "qmed" in b and len(b) >= 70:
+        r_ = (b.q90/b.qmed.replace(0, np.nan)).rolling(60).mean().iloc[-1]
+        if np.isfinite(r_):
+            qskew = float(r_)
+    # 체결 자기여기 — 분당 체결 수의 **1차 자기상관**(최근 60분).
+    #   양수면 체결이 체결을 부른다(정보 거래). 잡거래는 포아송이라 0 근처다.
+    #   ⚠ 이미 닫힌 `irr` 은 **봉 안** 간격의 변동계수라 다른 것을 잰다.
+    #   ⚠ 틱 4.6일 실측: ac1 방향+1 상위숏3 보유480분 → 위약대비 +0.2586.
+    #     최대통계량 **p 0.130** 으로 통과는 못 했다. 다만 방향 비대칭이 있는
+    #     유일한 가설이었다(+1 이 -1 의 3배).
+    ac1 = np.nan
+    if len(b) >= 70:
+        x = b.ntr.tail(60).to_numpy(float)
+        if len(x) == 60 and np.std(x[1:]) > 0 and np.std(x[:-1]) > 0:
+            ac1 = float(np.corrcoef(x[1:], x[:-1])[0, 1])
+    # 테이커 최장 연속 — 최근 60분 최대 / 하루 후행 중앙(자기 대비).
+    #   ⚠ 틱 4.6일 실측 최고 칸(보유 480분·상위숏3·방향+1) 위약대비 +0.5551 ·
+    #     최대통계량 **p 0.030**(다섯 가설 중 유일한 통과) · 날짜t>2 인 칸 7개.
+    #   ⚠ 다만 내가 "핵심"이라 선언한 정규화 판본(run_excess, 매수 비율에서
+    #     오는 몫을 뺀 것)은 3등이었다 — 이 신호가 잡는 건 "우연을 넘는
+    #     지속성"이 아니라 **그냥 연속이 길다는 사실**이다.
+    #   ⚠ 방향 ±1 이 둘 다 상위에 있어 하락장 의심이 남는다(교훈#118).
+    rmz = np.nan
+    if "rmax" in b and len(b) >= 200:
+        rm = b.rmax.astype(float)
+        cur = rm.tail(60).max()
+        med = rm.rolling(1440, min_periods=360).median().shift(1).iloc[-1]
+        if np.isfinite(cur) and np.isfinite(med) and med > 0:
+            rmz = float(cur/med)
     return {"z_vel": float(zv), "z_acc": float(za), "live": float(live),
             "px": float(c[-1]), "ts": b.index[-1],
-            "bump": bump, "irr": irr, "rev": rev, "sess": sess}
+            "bump": bump, "irr": irr, "rev": rev, "sess": sess, "imp": imp,
+            "qskew": qskew, "ac1": ac1, "rmz": rmz}
 
 
 def cycle(syms: list[str], st: State, ledger: Path, now: datetime,
@@ -219,6 +311,10 @@ def cycle(syms: list[str], st: State, ledger: Path, now: datetime,
     sig_kind = sig
     since = int((now - timedelta(minutes=WIN_H + WINDOW + 2 * DELTA + 60))
                 .timestamp() * 1000)
+    if sig_kind in ("imp", "rmz"):
+        # ⚠ 충격 계수·최장 연속은 **하루 후행 중앙값**이 필요하다. 기본 840분으로는
+        #   못 만들고 신호가 전부 결측이 된다.
+        since = int((now - timedelta(minutes=1560)).timestamp() * 1000)
     if sig_kind == "sess":
         # ⚠ 기본 되돌아보기(약 3.6시간)로는 아시아 세션(00:00-08:00 UTC)을
         #   못 덮는다. 그날 자정까지 늘린다 — 안 늘리면 신호가 전부 결측이 되고
@@ -231,11 +327,47 @@ def cycle(syms: list[str], st: State, ledger: Path, now: datetime,
         b = bars(s, since)
         if b is None:
             continue
-        sig = signal_now(b)
+        sig = signal_now(b, sig_kind)
         if sig is None:
             continue
         px_cache[s] = sig["px"]
         if sig["live"] < MIN_LIVE_TR:
+            continue
+        if sig_kind == "rmz":
+            # ⚠⚠ 부호 — 실측 최고 칸은 **rmz 가 가장 높은 3종목을 숏**이다.
+            #   엔진은 z_vel 이 높은 쪽을 숏 하므로 **그대로** 넣는다.
+            if not np.isfinite(sig.get("rmz", np.nan)):
+                continue
+            cands.append({"symbol": s, "side_short": None,
+                          **{**sig, "z_vel": sig["rmz"]}})
+            continue
+        if sig_kind == "ac1":
+            # ⚠⚠ 부호 — 실측 최고 칸은 **ac1 이 가장 높은 3종목을 숏**이다.
+            #   엔진은 z_vel 이 높은 쪽을 숏 하므로 **그대로** 넣는다.
+            if not np.isfinite(sig.get("ac1", np.nan)):
+                continue
+            cands.append({"symbol": s, "side_short": None,
+                          **{**sig, "z_vel": sig["ac1"]}})
+            continue
+        if sig_kind == "skew":
+            # ⚠⚠ 부호 — 실측 최고 칸은 **qskew 가 가장 높은 3종목을 숏**이다
+            #   (체결 크기 분포가 가장 쏠린 종목). 엔진은 z_vel 이 높은 쪽을
+            #   숏 하므로 **그대로** 넣는다(뒤집지 않는다).
+            #   스프레드에서는 낮은 qskew 가 롱이 된다.
+            if not np.isfinite(sig.get("qskew", np.nan)):
+                continue
+            cands.append({"symbol": s, "side_short": None,
+                          **{**sig, "z_vel": sig["qskew"]}})
+            continue
+        if sig_kind == "imp":
+            # ⚠⚠ 부호 — 실측 최고 칸은 **amihud_z 가 가장 낮은 3종목을 숏**이다
+            #   (거래는 많은데 가격이 안 움직인 종목). 엔진은 z_vel 이 높은
+            #   쪽을 숏 하므로 **부호를 뒤집어** 넣는다.
+            #   스프레드 갈래에서는 낮은 z_vel(= 높은 amihud_z)이 롱이 된다.
+            if not np.isfinite(sig.get("imp", np.nan)):
+                continue
+            cands.append({"symbol": s, "side_short": None,
+                          **{**sig, "z_vel": -sig["imp"]}})
             continue
         if sig_kind == "sess":
             # ⚠⚠ 부호 — 아래 선별은 **z_vel 낮은 순으로 롱**을 고른다.
@@ -318,7 +450,7 @@ def cycle(syms: list[str], st: State, ledger: Path, now: datetime,
             keep.append(p)
     st.positions = keep
 
-    if sig_kind in ("rev", "sess") and cands:
+    if sig_kind in ("rev", "sess", "imp", "skew", "ac1", "rmz") and cands:
         # z_vel 이 낮은 쪽(= 많이 떨어진 쪽)이 롱, 높은 쪽이 숏
         order = sorted(cands, key=lambda x: x["z_vel"])
         h = len(order) // 2
@@ -440,7 +572,7 @@ def main() -> int:
     p.add_argument("--pick", default="zvel", choices=["zvel", "noise"],
                    help="선별 기준. noise = 체결 방향 반전율 + 도착 간격 "
                         "불규칙성의 순위합(잡음 지배). **틱에만 있다**")
-    p.add_argument("--signal", default="kine", choices=["kine", "rev", "sess"],
+    p.add_argument("--signal", default="kine", choices=["kine", "rev", "sess", "imp", "skew", "ac1", "rmz"],
                    help="kine = 위약 승률 속도(밴드 있음) · "
                         "rev = 1시간 되돌림(밴드 없음, 횡단면 순위만)")
     p.add_argument("--entry-hour", type=int, default=-1,

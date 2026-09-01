@@ -2301,6 +2301,14 @@ def main() -> int:
                 continue
             for tf in sorted(closed, key=lambda t: TF_MS[t]):
                 spec = pp.spec[tf]
+                # ⚠ 스냅샷 **전에** 시계로 봉을 마감한다.
+                #   피드는 다음 봉의 첫 체결이 와야 봉을 닫는데, 한산한
+                #   종목은 그게 중앙값 46.6초 뒤다(2026-08-31 실측). 안 닫고
+                #   찍으면 그 종목은 한 칸 뒤처진 채로 나와 관문에 걸린다.
+                #   바이낸스도 거래 없는 봉을 평평하게 내므로 정본과 같다.
+                n_seal = feed.seal(edge_ms, tf)
+                if n_seal:
+                    log.info("봉 마감(시계) — %s %d봉", tf, n_seal)
                 bars_by_tf[tf] = feed.snapshot(tf, spec.warmup_bars)
             bars = bars_by_tf.get(cfg.base_tf, {})
             log.info("피드 스냅샷 — %s · %s", 

@@ -106,8 +106,109 @@ def build_h1(F, C, L=12, med=288):
             "whale_dir": np.array(whale*dirn, np.float32)}
 
 
+def build_h2(F, C, med=288):
+    """H2 — 테이커 불균형의 **변화**. 수준이 아니라 전환.
+
+    ⚠ 수준(tkb)은 2026-09-01 오전에 전 유니버스 p 0.550 으로 닫혔다.
+      **변화**는 안 재봤다. 이 트랙은 이미 그 구분으로 한 번 성공했다 —
+      z_vel 자체가 "승률의 수준"이 아니라 "승률의 속도"다.
+
+    기제: 수준은 종목마다 늘 다르다(시장조성 구조·상장 방식). **바뀌는
+    순간**이 사건이다. 매도 우위에서 매수 우위로 뒤집히면 무언가 시작된 것이다.
+    """
+    TQ = F["tkq"]                       # 수량가중 테이커 매수 비율
+    TB = F["tkb"]                       # 건수 기준
+    # 최근 15분 대 직전 45분
+    q3 = TQ.rolling(3).mean()
+    q12 = TQ.rolling(12).mean()
+    chg_q = (q3 - (q12*12 - q3*3)/9).to_numpy(np.float32)
+    b3 = TB.rolling(3).mean()
+    b12 = TB.rolling(12).mean()
+    chg_b = (b3 - (b12*12 - b3*3)/9).to_numpy(np.float32)
+    # 자기 대비 수준 — 그 종목의 평소 불균형에서 얼마나 벗어났나
+    tmed = TQ.rolling(med, min_periods=med//4).median().shift(1)
+    tz = (q12 - tmed).to_numpy(np.float32)
+    # 변화의 변화 (2차)
+    acc = (chg_q - np.roll(chg_q, 3, axis=0)).astype(np.float32)
+    acc[:3] = np.nan
+    return {"tk_chg": np.array(chg_q, np.float32),
+            "tk_chg_b": np.array(chg_b, np.float32),
+            "tk_z": np.array(tz, np.float32),
+            "tk_acc": np.array(acc, np.float32)}
+
+
+def build_h4(F, C, L=12):
+    """H4 — 체결 자기여기. **어떻게** 뭉치는가.
+
+    ⚠ `irr`(봉 안 체결 간격의 변동계수)은 2026-09-01 오전 전 유니버스
+      p 0.575 로 닫혔다. irr 은 "고르지 않다"만 잰다 — 한 번에 몰렸는지
+      산발적인지는 못 가른다. 여기서는 **봉 사이의 뭉침 구조**를 본다.
+
+    기제: 정보 거래는 뭉쳐서 온다(자기여기). 균등하게 흩어진 체결은 잡거래다.
+
+        burst   최근 L봉 중 가장 바쁜 봉의 체결 수 / 그 구간 평균
+        vburst  같은 것을 거래대금으로
+        hhi     체결 수의 허핀달 집중도 (1/L = 완전 균등, 1 = 한 봉에 몰림)
+        ac1     체결 수의 1차 자기상관 — 양수면 자기여기
+    """
+    NT = F["ntr"].fillna(0.0)
+    QS = F["qsum"].fillna(0.0)
+    nmax = NT.rolling(L).max()
+    nmean = NT.rolling(L).mean()
+    burst = (nmax/np.maximum(nmean, 1e-9)).to_numpy(np.float32)
+    vmax = QS.rolling(L).max()
+    vmean = QS.rolling(L).mean()
+    vburst = (vmax/np.maximum(vmean, 1e-9)).to_numpy(np.float32)
+    s2 = (NT**2).rolling(L).sum()
+    s1 = NT.rolling(L).sum()
+    hhi = (s2/np.maximum(s1**2, 1e-9)).to_numpy(np.float32)
+    # ⚠ 자기상관은 열마다 계산해야 한다. rolling.corr 는 두 DataFrame 을
+    #   열 이름으로 맞추므로 **같은 이름**이어야 한다(합집합 사고 방지).
+    ac1 = NT.rolling(L).corr(NT.shift(1)).to_numpy(np.float32)
+    return {"burst": np.array(burst, np.float32),
+            "vburst": np.array(vburst, np.float32),
+            "hhi": np.array(hhi, np.float32),
+            "ac1": np.array(np.nan_to_num(ac1, nan=np.nan), np.float32)}
+
+
+def build_h5(F, C, L=12, med=288):
+    """H5 — 테이커 연속 길이. 한 참여자가 밀고 있는가.
+
+    ⚠ `flip` 은 **가격** 방향 반전을, 이건 **테이커** 방향 연속을 잰다.
+      가격이 안 움직여도 같은 방향 체결이 이어질 수 있다 — 다른 것이다.
+      flip 은 2026-09-01 오전 전 유니버스 p 0.575 로 닫혔다.
+
+    ⚠⚠ **핵심은 정규화다.** 평균 연속 길이는 매수 비율 p 에 그냥 딸려 온다 —
+      무작위 시퀀스도 p 가 치우치면 길어진다(기대값 1/(2p(1-p))).
+      정규화 없이 쓰면 **테이커 불균형(tkb)을 다시 재는 것**이고, 그건 이미
+      p 0.550 으로 닫혔다. 기대값으로 나눠 **우연을 넘는 몫**만 남긴다.
+
+    기제: 같은 방향 체결이 우연보다 길게 이어지면 한 주체가 주문을 쪼개
+    집행 중이다. 그 집행이 끝나면 되돌아온다.
+    """
+    NT = F["ntr"].fillna(0.0)
+    NR = F["nrun"].replace(0, np.nan)
+    RM = F["run_max"]
+    TB = F["tkb"]
+    rmean = (NT.rolling(L).sum()/np.maximum(NR.rolling(L).sum(), 1e-9))
+    pb = TB.rolling(L).mean().clip(0.02, 0.98)
+    exp_ = 1.0/(2*pb*(1-pb))            # 무작위 시퀀스의 기대 연속 길이
+    excess = (rmean/exp_).to_numpy(np.float32)
+    rmax = RM.rolling(L).max()
+    rmax_z = (rmax/np.maximum(
+        RM.rolling(med, min_periods=med//4).median().shift(1), 1e-9)
+    ).to_numpy(np.float32)
+    return {"run_excess": np.array(excess, np.float32),
+            "run_mean": np.array(rmean.to_numpy(np.float32), np.float32),
+            "run_max_z": np.array(rmax_z, np.float32),
+            "run_max": np.array(rmax.to_numpy(np.float32), np.float32)}
+
+
 FAMILIES = {"h3": ("가격 충격 계수", build_h3),
-            "h1": ("고래 각인", build_h1)}
+            "h1": ("고래 각인", build_h1),
+            "h2": ("테이커 불균형의 변화", build_h2),
+            "h4": ("체결 자기여기", build_h4),
+            "h5": ("테이커 연속 길이", build_h5)}
 
 
 def main() -> int:
