@@ -80,7 +80,34 @@ def build_h3(F, C, L=12, med=288):
             "amihud_z": np.array(ami/np.maximum(amed, 1e-12), np.float32)}
 
 
-FAMILIES = {"h3": ("가격 충격 계수", build_h3)}
+def build_h1(F, C, L=12, med=288):
+    """H1 — 고래 각인. 단일 대량 체결이 남긴 자국.
+
+    ⚠ `qsum`(합계)만으로는 고래 한 건과 잔거래 천 건이 구분이 안 된다.
+      `qty` 의 **분포**를 쓴다 — 2026-09-01 에 tick_features 에 추가했다.
+    """
+    QX = F["qmax"].fillna(0.0)          # 5분 칸의 단일 체결 최대 거래대금
+    QM = F["qmed"].replace(0, np.nan)
+    Q9 = F["q90"].replace(0, np.nan)
+    QS = F["qsum"].fillna(0.0)
+    # 최근 L봉의 최대 단일 체결 / 그 종목의 하루 후행 중앙 체결
+    wmax = QX.rolling(L).max()
+    wmed = QM.rolling(med, min_periods=med//4).median().shift(1)
+    whale = (wmax/np.maximum(wmed, 1e-9)).to_numpy(np.float32)
+    # 대량 체결 비중 — 최대 체결이 그 구간 거래대금에서 차지하는 몫
+    lshare = (wmax/np.maximum(QS.rolling(L).sum(), 1e-9)).to_numpy(np.float32)
+    # 체결 크기 분포의 쏠림
+    qskew = (Q9/np.maximum(QM, 1e-9)).rolling(L).mean().to_numpy(np.float32)
+    # 방향 있는 고래 — 최대 체결이 테이커 매수였나(가중)
+    dirn = (F["qmax_buy"].rolling(L).mean()*2 - 1).to_numpy(np.float32)
+    return {"whale": np.array(whale, np.float32),
+            "lshare": np.array(lshare, np.float32),
+            "qskew": np.array(qskew, np.float32),
+            "whale_dir": np.array(whale*dirn, np.float32)}
+
+
+FAMILIES = {"h3": ("가격 충격 계수", build_h3),
+            "h1": ("고래 각인", build_h1)}
 
 
 def main() -> int:
@@ -151,11 +178,16 @@ def main() -> int:
             return v - cfg.fee_rt
 
         cells = []
+        # ⚠ 다리별 무작위 기준선(교훈#118). H3 에서 상위숏 칸이 최대통계량을
+        #   통과했는데 **무작위 숏도 +0.122** 였다 — 하락장 효과였다.
+        #   회전 위약은 시장 방향을 못 걷어내므로 다리마다 따로 재야 한다.
         rr = rng.random(AL.shape).astype(np.float32)
         o = np.argsort(-np.where(AL, rr, -np.inf), axis=1)
         for Np in picks:
-            cells.append(("무작위", 0, "추세스프레드", Np,
-                          o[:, :Np].astype(np.int32), o[:, -Np:].astype(np.int32)))
+            for leg in LEGS:
+                cells.append((f"무작위", 0, leg, Np,
+                              o[:, :Np].astype(np.int32),
+                              o[:, -Np:].astype(np.int32)))
         for name, v0 in SIG.items():
             v_ = v0[base]
             for dr in (1, -1):
@@ -210,12 +242,16 @@ def main() -> int:
                          (time.time()-t0)/60)
         del R, Ra
     T = pd.DataFrame(rows)
-    rb = T[T.신호 == "무작위"].set_index("보유분").일평균.to_dict()
-    T["위약대비"] = T.일평균 - T.보유분.map(rb)
+    # ⚠ 위약 기준선은 **다리별**이다. 하나로 빼면 하락장에서 상위숏이
+    #   전부 통과한다(교훈#118).
+    rb = (T[T.신호 == "무작위"].groupby(["보유분", "다리", "N"]).일평균.mean())
+    T["위약대비"] = T.일평균 - [
+        rb.get((h, l, n_), np.nan)
+        for h, l, n_ in zip(T.보유분, T.다리, T.N)]
     print(f"\n■ {lab} — 틱 {m}종목 · **밴드 없음** · 칸 {len(T)} · "
           f"왕복 {cfg.fee_rt}%")
-    print("  무작위 기준선  " + " · ".join(
-        f"{k}분 {v:+.4f}" for k, v in sorted(rb.items())))
+    print("  다리별 무작위 기준선 (보유·다리·N)")
+    print("    " + rb.round(4).to_string().replace("\n", "\n    "))
     print("\n  상위 15 (일평균)")
     print(T[T.신호 != "무작위"].nlargest(15, "일평균")[
         ["보유분", "신호", "방향", "다리", "N", "날짜", "거래당", "일평균",

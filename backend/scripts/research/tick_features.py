@@ -67,6 +67,7 @@ def one(sym: str) -> tuple[str, int]:
     t["_fl"] = ((sg != 0) & (prev_ != 0) & (sg != prev_)).astype(np.int32)
     t["_dt"] = np.diff(t.ts_ms.to_numpy(), prepend=int(t.ts_ms.iloc[0])).astype(float)
     t["_tb"] = (~t.is_buyer_maker).astype(np.float32)     # 테이커 매수 = 1
+    t["_nv"] = t.price*t.qty          # 체결별 거래대금
     t["_bin"] = (t.ts_ms // BAR_MS) * BAR_MS
     g = t.groupby("_bin")
     b = pd.DataFrame({
@@ -79,6 +80,14 @@ def one(sym: str) -> tuple[str, int]:
         "tkb": g._tb.mean(),
         "tkq": g.apply(lambda x: float((x.qty*x._tb).sum()/max(x.qty.sum(), 1e-9)),
                        include_groups=False),
+        # ⚠ qty 의 **분포** — 합계(qsum)만으로는 고래 한 건과 잔거래 천 건이
+        #   구분이 안 된다. H1(고래 각인)에 필요하다(2026-09-01).
+        "qmax": g._nv.max(),          # 단일 체결 최대 거래대금
+        "q90": g._nv.quantile(0.9),
+        "qmed": g._nv.median(),
+        "qmax_buy": g.apply(                       # 최대 체결이 테이커 매수였나
+            lambda x: float(x._tb.iloc[int(np.argmax(x._nv.to_numpy()))])
+            if len(x) else np.nan, include_groups=False),
     }).reset_index().rename(columns={"_bin": "ts_ms"})
     OUT.mkdir(parents=True, exist_ok=True)
     b.to_parquet(OUT / f"{sym}.parquet", index=False)
