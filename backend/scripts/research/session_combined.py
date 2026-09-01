@@ -99,10 +99,15 @@ def sess_returns(caches, sess, cfg: Cfg):
                 {s: v[v.sess == nm].set_index("date").ret for s, v in per.items()}))
     RET = {}
     for nm in sess:
-        x = pd.concat(frames[nm], axis=0)
-        # ⚠ 두 캐시가 겹치는 날짜가 있으면 **뒤엣것 우선**(더 최신 적재)
-        x = x[~x.index.duplicated(keep="last")].sort_index()
-        RET[nm] = x
+        # ⚠ 캐시를 **열 단위로** 합친다. 예전엔 concat 뒤
+        #   `drop_duplicates(keep="last")` 로 날짜 중복을 지웠는데, 그건
+        #   **날짜 행 전체를 버린다**. 두 캐시의 날짜가 안 겹칠 땐 무해했지만
+        #   확장 캐시(2020~)가 들어오자 2022년 행이 통째로 덮여 유효 종목이
+        #   61 → 43 으로 **줄었다**(2026-09-01 실측). 상위집합인데 줄어들 수 없다.
+        x = frames[nm][0]
+        for y in frames[nm][1:]:
+            x = y.combine_first(x)          # 뒤엣것 우선, 없는 칸만 앞엣것으로
+        RET[nm] = x.sort_index()
     syms = sorted(set().union(*[set(v.columns) for v in RET.values()]))
     dates = sorted(set().union(*[set(v.index) for v in RET.values()]))
     return {k: v.reindex(index=dates, columns=syms) for k, v in RET.items()}, \

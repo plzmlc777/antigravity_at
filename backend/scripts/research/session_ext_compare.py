@@ -48,11 +48,45 @@ OUT = ROOT / "runs" / "research_track" / "session_2026_08_31"
 log = logging.getLogger("sessext")
 
 
-def run(caches, label, cfg, picks, pcts):
+def run(caches, label, cfg, picks, pcts, window=None):
+    """window=(a,b) 로 **날짜 창을 같게** 맞춘다.
+
+    ⚠ 확장 캐시는 상장일부터라 2020년까지 거슬러 올라간다. 창을 안 맞추면
+      기질 비교가 아니라 **기간 비교**가 된다(2026-09-01: 1489일 대 2429일).
+    """
     RET, dates, syms = sess_returns(caches, SESS_B, cfg)
     di = pd.DatetimeIndex(dates)
+    if window is not None:
+        m = (di >= pd.Timestamp(window[0], tz="UTC")) & \
+            (di <= pd.Timestamp(window[1], tz="UTC"))
+        di = di[m]
+        RET = {k: v.loc[m] for k, v in RET.items()}
+    # ⚠ 펀딩을 반드시 뺀다. 안 빼면 어제 판정(+0.1161)과 수준이 안 맞고,
+    #   **신규 상장은 펀딩이 극단적**이라 확장 기질에 다르게 작용한다.
+    from sqlalchemy import text
+    from app.db.session import engine
+    FUND = pd.DataFrame(0.0, index=di, columns=syms)
+    with engine.connect() as c_:
+        c_.execute(text("SET statement_timeout='300s'"))
+        rr = c_.execute(text(
+            "SELECT symbol, funding_time, funding_rate FROM binance_funding_rate "
+            "WHERE funding_time>=:a AND funding_time<:b"),
+            {"a": di.min().tz_convert(None), "b": di.max().tz_convert(None)}).all()
+    cs, nf = set(syms), 0
+    a_, b_ = SESS_B["미주"]
+    for sym, t_, v in rr:
+        if sym not in cs:
+            continue
+        ts = pd.Timestamp(t_, tz="UTC")
+        if not (a_ <= ts.hour < b_):
+            continue
+        d0 = ts.normalize()
+        if d0 in FUND.index:
+            FUND.at[d0, sym] += float(v)*100.0
+            nf += 1
+    log.info("[%s] 펀딩 %s건 반영", label, f"{nf:,}")
     A = RET["아시아"].to_numpy(np.float32)
-    U = RET["미주"].to_numpy(np.float32)
+    U = (RET["미주"] - FUND).to_numpy(np.float32)
     alive = np.isfinite(A) & np.isfinite(U)
     yr = pd.Series(alive.sum(1), index=di).groupby(di.year).median()
     log.info("[%s] 날짜 %d · 종목 %d · 연도별 유효종목 중앙 %s", label,
@@ -90,11 +124,12 @@ def main() -> int:
     picks = [int(x) for x in a.picks.split(",")]
     t0 = time.time()
     rows = []
+    W = ("2022-08-01", "2026-08-28")      # 기본 캐시가 덮는 구간
     r1, y1 = run(["runs/bars5m_oos", "runs/bars5m"], "기본 240", cfg,
-                 picks, (False, True))
+                 picks, (False, True), W)
     rows += r1
     r2, y2 = run(["runs/bars5m_oos", "runs/bars5m_ext"], "확장 521", cfg,
-                 picks, (False, True))
+                 picks, (False, True), W)
     rows += r2
     T = pd.DataFrame(rows)
     print("\n■ 세션 이월 — 기질 확장 전후 (아시아→미주 · 추세스프레드 · "
