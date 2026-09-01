@@ -70,6 +70,9 @@ def one(sym: str) -> tuple[str, int]:
     t["_bin"] = (t.ts_ms // BAR_MS) * BAR_MS
     g = t.groupby("_bin")
     b = pd.DataFrame({
+        # ⚠ OHLC 를 넣는다 — RSI·볼린저·ADX·스토캐스틱이 고가·저가를 쓴다.
+        #   2026-09-01 까지 종가만 있어 지표를 못 만들었다.
+        "op": g.price.first(), "hi": g.price.max(), "lo": g.price.min(),
         "cl": g.price.last(), "ntr": g.price.size(),
         "qsum": g.qty.sum(), "flip": g._fl.sum(),
         "dtm": g._dt.mean(), "dts": g._dt.std(),
