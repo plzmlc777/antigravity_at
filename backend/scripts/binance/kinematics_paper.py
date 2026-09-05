@@ -46,6 +46,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from scripts.binance import tickbars
+
 ROOT = Path(__file__).resolve().parents[2]
 TICKS = ROOT / "runs" / "ticks"
 OUT = ROOT / "runs" / "kinematics_paper"
@@ -96,6 +98,9 @@ def funding_crossings(a: datetime, b: datetime) -> int:
 #   같은 이름의 상수가 한쪽에선 편도, 한쪽에선 왕복으로 쓰인 사고다.
 SESS_END = 8          # 아시아 세션 끝 (UTC 시)
 MIN_LIVE_TR, FEE_ONE_WAY = 5.0, 0.036
+# ⚠ 최대 손절(%). 0 이면 끈다. 14개월 8구성 실측에서 5% 가 최적이고
+#   문턱을 올릴수록 단조 악화했다(2026-09-03).
+STOP_PCT = 5.0
 FEE_PCT = 2 * FEE_ONE_WAY          # 왕복 0.072%
 
 _stop = False
@@ -148,48 +153,71 @@ def _maxrun(v) -> int:
 
 
 def bars(sym: str, since_ms: int) -> pd.DataFrame | None:
-    """최근 구간의 1분봉. 필요한 만큼만 읽는다."""
-    d = TICKS / sym
-    fs = sorted(d.glob("*.parquet"))[-2:]
-    if not fs:
-        return None
+    """최근 구간의 1분봉. **틱은 읽지 않는다 — 접힌 봉을 읽는다.**
+
+    ## 왜 (2026-09-01 · 민트 정지 사고)
+
+    갈래 24개가 각자 521종목의 틱을 5분마다 통째로 풀어 메모리 20 GB 를
+    요구했고 **서버가 통째로 멈췄다**. 실계좌가 54분 무방비였다.
+
+    세 단계로 고쳤고, 앞의 둘은 **실측으로 기각된 길**이니 다시 파지 마라.
+
+      ① `read_parquet(filters=)`  — 최고점 그대로(708 → 569 MB). 행묶음이
+         1~6개뿐이라 통째로 풀린 뒤 걸러진다.
+      ② `assign` 사슬 제거        — **차이 없다**(1,119 → 1,132 MB).
+         최고점은 압축 해제 단계에서 이미 찍힌다.
+      ③ 흘려읽기(배치 5만행)      — 1,129 → **258 MB**. 창을 두 배로 늘려도
+         253 MB 로 안 늘었다. 메모리가 틱 양과 끊겼다.
+
+    그래도 **같은 일을 14번 하는 구조**는 남았다(부하 12~17). 그래서 봉을
+    한 번만 만들어 두고(`tickbars` · 수집기 flush 경로) 여기서는 읽기만
+    한다. 봉이 없거나 낡았으면 틱에서 접는 ③으로 되돌아간다.
+
+    ⚠ 되돌아가기는 **조용하면 안 된다**. 봉이 안 만들어지고 있는데 갈래가
+      혼자 버티면 부하만 오르고 아무도 모른다 — 경고를 남긴다.
+    """
+    b = None
     try:
-        # ⚠ `is_buyer_maker` 를 안 읽으면 테이커 방향을 못 만든다(H5 rmz).
-        #   열 목록을 늘릴 땐 signal_now 가 쓰는 것과 맞춰야 한다.
-        t = pd.concat([pd.read_parquet(
-            f, columns=["ts_ms", "price", "qty", "is_buyer_maker"])
-                       for f in fs], ignore_index=True)
+        b = tickbars.read_bars(sym, since_ms)
+        if b is not None and not _bars_fresh(sym):
+            b = None
     except Exception:                                          # noqa: BLE001
+        b = None
+    if b is None:
+        fs = sorted((TICKS / sym).glob("*.parquet"))[-2:]
+        if not fs:
+            return None
+        _warn_fallback(sym)
+        try:
+            b = tickbars.fold_ticks(fs, since_ms)
+        except Exception:                                      # noqa: BLE001
+            return None
+    if b is None or float(b.ntr.sum()) < 500:
         return None
-    t = t[(t.ts_ms >= since_ms) & (t.price > 0) & (t.qty > 0)]
-    if len(t) < 500:
-        return None
-    t = t.sort_values("ts_ms")
-    # ⚠ 잡음 지표 — 연속 체결의 **방향 반전**과 **도착 간격 불규칙성**.
-    #   틱에만 있다. 5분봉으로는 못 만든다.
-    pr_ = t.price.to_numpy(float)
-    sg = np.sign(np.diff(pr_, prepend=pr_[0]))
-    prv = pd.Series(np.where(sg == 0, np.nan, sg)).ffill().to_numpy()
-    fl = (sg != 0) & (np.roll(prv, 1) != 0) & (sg != np.roll(prv, 1))
-    dt_ = np.diff(t.ts_ms.to_numpy(), prepend=int(t.ts_ms.iloc[0])).astype(float)
-    t = t.assign(_fl=fl.astype(float), _dt=dt_)
-    t = t.assign(_qv=t.price*t.qty)      # 분당 거래대금 — 충격 계수에 쓴다
-    # 테이커 방향 연속 — H5. `flip`(가격 방향 반전)과 다른 것을 잰다.
-    t = t.assign(_tb=(~t.is_buyer_maker).astype(np.int8))
-    g = t.groupby(t.ts_ms // 60_000)
-    b = pd.DataFrame({"cl": g.price.last(), "ntr": g.price.size(),
-                      "flip": g._fl.sum(), "dtm": g._dt.mean(),
-                      "dts": g._dt.std(), "qv": g._qv.sum(),
-                      # 체결 크기 분포 — H1(고래 각인)의 qskew 에 쓴다
-                      "q90": g._qv.quantile(0.9), "qmed": g._qv.median(),
-                      "rmax": g._tb.apply(_maxrun)})
-    b.index = pd.to_datetime(b.index * 60_000, unit="ms", utc=True)
-    b = b.reindex(pd.date_range(b.index.min(), b.index.max(), freq="1min",
-                                tz="UTC"))
-    b["cl"] = b.cl.ffill(); b["ntr"] = b.ntr.fillna(0.0)
-    b["flip"] = b.flip.fillna(0.0)
-    b["qv"] = b.qv.fillna(0.0) if "qv" in b else 0.0
-    return b
+    return tickbars.finalize(b)
+
+
+_FB_SEEN: set[str] = set()
+
+
+def _warn_fallback(sym: str) -> None:
+    """되돌아가기는 종목당 한 번만 알린다 — 매 주기 521줄을 찍으면 안 읽는다."""
+    if sym not in _FB_SEEN:
+        _FB_SEEN.add(sym)
+        log.warning("%s — 1분봉이 없거나 낡아 틱에서 접는다(메모리·CPU 를 "
+                    "더 쓴다). 수집기의 봉 생성을 확인하라. 누적 %d종목",
+                    sym, len(_FB_SEEN))
+
+
+def _bars_fresh(sym: str, slack_s: float = 600.0) -> bool:
+    """봉이 틱보다 뒤처지지 않았나. **분 단위로 비교하면 안 된다** —
+    거래가 없는 종목은 봉이 정상적으로 오래 비어 있다. 파일 시각을 본다."""
+    try:
+        bt = max(f.stat().st_mtime for f in (tickbars.BARS / sym).glob("*.parquet"))
+        tt = max(f.stat().st_mtime for f in (TICKS / sym).glob("*.parquet"))
+    except ValueError:
+        return False
+    return bt >= tt - slack_s
 
 
 def signal_now(b: pd.DataFrame, sig: str = "kine") -> dict | None:
@@ -298,16 +326,36 @@ def signal_now(b: pd.DataFrame, sig: str = "kine") -> dict | None:
         med = rm.rolling(1440, min_periods=360).median().shift(1).iloc[-1]
         if np.isfinite(cur) and np.isfinite(med) and med > 0:
             rmz = float(cur/med)
+    # ⚠ 손절 판정용 — **경로**를 봐야 한다. 주기(5분) 종가만 보면 그 사이
+    #   스친 손절을 놓친다. 최근 10분 1분봉의 최저·최고를 같이 넘긴다
+    #   (주기가 5분이라 10분이면 빈틈 없이 덮는다).
+    lo10 = float(np.nanmin(c[-10:])) if n >= 10 else float(c[-1])
+    hi10 = float(np.nanmax(c[-10:])) if n >= 10 else float(c[-1])
     return {"z_vel": float(zv), "z_acc": float(za), "live": float(live),
-            "px": float(c[-1]), "ts": b.index[-1],
+            "px": float(c[-1]), "lo10": lo10, "hi10": hi10, "ts": b.index[-1],
             "bump": bump, "irr": irr, "rev": rev, "sess": sess, "imp": imp,
             "qskew": qskew, "ac1": ac1, "rmz": rmz}
+
+
+def _tell(broker, text: str) -> None:
+    """실거래 알림. 발송 실패가 **거래를 멈추면 안 된다.**"""
+    if broker is None or not callable(getattr(broker, "notify", None)):
+        return
+    try:
+        broker.notify(text)
+    except Exception as exc:                                  # noqa: BLE001
+        log.error("알림 발송 실패(거래는 계속한다): %s", exc)
 
 
 def cycle(syms: list[str], st: State, ledger: Path, now: datetime,
           slots: int, short: bool, fr: dict, both: bool = False,
           delay: int = 0, hold: int = HOLD, pick: str = "zvel",
-          sig: str = "kine", entry_hour: int = -1) -> dict:
+          sig: str = "kine", entry_hour: int = -1, broker=None) -> dict:
+    """`broker` 가 None 이면 **순수 페이퍼**다 — 기존 동작 그대로.
+
+    None 이 아니면 진입·청산이 실제 주문으로 나가고, 체결가·수수료를
+    거래소에서 받아 원장에 쓴다. 신호·밴드·선별·보유 규칙은 **한 줄도
+    달라지지 않는다** — 달라지면 전진 검정과 비교가 깨진다."""
     sig_kind = sig
     since = int((now - timedelta(minutes=WIN_H + WINDOW + 2 * DELTA + 60))
                 .timestamp() * 1000)
@@ -322,6 +370,8 @@ def cycle(syms: list[str], st: State, ledger: Path, now: datetime,
         d0 = now.replace(hour=0, minute=0, second=0, microsecond=0)
         since = min(since, int(d0.timestamp() * 1000))
     px_cache: dict[str, float] = {}
+    lo_cache: dict[str, float] = {}
+    hi_cache: dict[str, float] = {}
     cands = []
     for s in syms:
         b = bars(s, since)
@@ -331,6 +381,8 @@ def cycle(syms: list[str], st: State, ledger: Path, now: datetime,
         if sig is None:
             continue
         px_cache[s] = sig["px"]
+        lo_cache[s] = sig.get("lo10", sig["px"])
+        hi_cache[s] = sig.get("hi10", sig["px"])
         if sig["live"] < MIN_LIVE_TR:
             continue
         if sig_kind == "rmz":
@@ -406,33 +458,131 @@ def cycle(syms: list[str], st: State, ledger: Path, now: datetime,
         elif (ok_s if short else ok_l):
             cands.append({"symbol": s, "side_short": short, **sig})
 
-    # ── 만기 청산
+    # ── 손절 · 만기 청산
+    #
+    # ⚠ **손절은 만기보다 먼저** 본다. 14개월 패널 실측(2026-09-03):
+    #     8구성 전부에서 손절 5% 가 거래당을 개선했고 문턱을 올릴수록
+    #     단조 악화했다. 최악 거래가 **-160.58%**(숏인데 종목이 2.6배 급등)
+    #     였고 3슬롯이면 자본의 -53% 다.
+    #       imp short3   -0.0654% → **+0.0879%**  복리 -89.4% → **+114.1%**
+    #       ac1 short3   -0.0259% → +0.0223%
+    #       낙폭         91.8% → 47.6%
+    #     10% 는 발동률 7.7% 로 꼬리를 덜 막는다. 5% 는 18.8% 를 거른다.
+    # ⚠ 손절은 **엣지가 아니라 생존 장치**다. 6/8 은 여전히 적자다.
+    # ⚠ 체결은 손절가 정확히로 본다(지정가). 갭이 나면 실제는 더 나쁘다 —
+    #   백테스트가 못 재는 영역이라 낙관 쪽으로 치우쳐 있다.
     closed = []
     keep = []
+    # ── 실거래: 거래소 포지션을 **한 번만** 읽는다
+    #
+    # ⚠ 실거래에서 손절은 봉이 아니라 **거래소가** 판정한다. 우리가 걸어둔
+    #   STOP_MARKET 이 트리거되면 포지션이 사라져 있다. 그걸 "청산됐다"로
+    #   읽어야 원장이 맞는다.
+    # ⚠ 조회 실패는 **빈 결과가 아니다**(교훈#106). None 이면 이번 사이클의
+    #   청산을 통째로 미룬다 — 모르는 상태에서 장부를 닫으면 거래소에 남은
+    #   포지션이 보호 없는 고아가 된다.
+    live_pos = None
+    if broker is not None:
+        live_pos = broker.positions(strict=True)
+        if live_pos is None:
+            log.error("거래소 포지션 조회 실패 — **이번 사이클 청산을 미룬다**")
     for p in st.positions:
-        if pd.Timestamp(p["exit_ts"]) <= pd.Timestamp(now):
+        sym = p["symbol"]
+        if broker is not None and live_pos is None:
+            keep.append(p)                     # 모르면 손대지 않는다
+            continue
+        stop_hit = False
+        exch_gone = False
+        if broker is not None:
+            # 거래소에서 사라졌다 = 손절이 트리거됐거나 누가 수동 청산했다
+            exch_gone = sym not in live_pos
+        elif STOP_PCT > 0 and sym in lo_cache:
+            if p.get("short"):
+                stop_hit = hi_cache[sym] >= p["entry_px"] * (1 + STOP_PCT/100.0)
+            else:
+                stop_hit = lo_cache[sym] <= p["entry_px"] * (1 - STOP_PCT/100.0)
+        expired = pd.Timestamp(p["exit_ts"]) <= pd.Timestamp(now)
+        if stop_hit or expired or exch_gone:
             px = px_cache.get(p["symbol"])
-            if px is None:
+            if px is None and not exch_gone:
                 keep.append(p)                 # 시세 없으면 다음 사이클로 미룬다
                 continue
-            ret = 100.0 * (px / p["entry_px"] - 1.0)
-            if p.get("short"):
-                ret = -ret
+            if broker is not None:
+                short_leg = bool(p.get("short"))
+                if exch_gone:
+                    # ⚠ 체결가를 **추측하지 않는다.** 거래소 체결 내역에서 받는다.
+                    fpx, _ = broker.closing_fill(sym, short_leg)
+                    if fpx <= 0:
+                        log.error("%s 거래소에서 사라졌는데 청산 체결가를 못 "
+                                  "찾았다 — 다음 사이클로 미룬다", sym)
+                        keep.append(p)
+                        continue
+                    px = fpx
+                    stop_hit = True            # 만기 전이면 손절로 본다
+                    if expired:
+                        stop_hit = False       # 만기와 겹치면 만기로 본다
+                    log.warning("%s 거래소 청산 감지 — 체결가 %.8g (%s)", sym, px,
+                                "손절" if stop_hit else "만기")
+                else:
+                    apx = broker.close(sym, short_leg)
+                    if apx is None:
+                        log.error("%s 청산 실패 — 다음 사이클로 미룬다", sym)
+                        keep.append(p)
+                        continue
+                    px = apx
+                ret = 100.0 * (px / p["entry_px"] - 1.0)
+                if short_leg:
+                    ret = -ret
+            elif stop_hit:
+                # 손절가에 나갔다고 본다 — 방향과 무관하게 -STOP_PCT
+                ret = -STOP_PCT
+                px = p["entry_px"] * ((1 + STOP_PCT/100.0) if p.get("short")
+                                      else (1 - STOP_PCT/100.0))
+            else:
+                ret = 100.0 * (px / p["entry_px"] - 1.0)
+                if p.get("short"):
+                    ret = -ret
             # 펀딩 — 양수 펀딩률이면 롱이 내고 숏이 받는다
             fnd = (100.0 * p.get("fr", 0.0)
                    * funding_crossings(pd.Timestamp(p["entry_ts"]).to_pydatetime(),
                                        now)
                    * (1.0 if p.get("short") else -1.0))
-            net = ret - FEE_PCT + fnd
+            # ⚠ 실거래는 **거래소가 실제로 뗀 수수료**를 쓴다. 상수 0.072% 는
+            #   실측(왕복 0.100%)보다 낮아, 쓰면 오차가 원장에 영구히 숨는다.
+            fee = FEE_PCT
+            if broker is not None:
+                real = broker.roundtrip_fee_pct(
+                    sym, float(p.get("notional_usd", 0.0)))
+                if real is not None:
+                    fee = real
+                else:
+                    log.warning("%s 실수수료를 못 재 상수 %.3f%% 로 후퇴한다",
+                                sym, FEE_PCT)
+            net = ret - fee + fnd
             st.equity += p["stake"] * net / 100.0
             st.n_trades += 1
             row = {**p, "exit_px": px, "ret_pct": ret, "funding_pct": fnd,
                    "net_pct": net, "closed_ts": str(now),
-                   "equity_after": st.equity}
+                   "stopped": bool(stop_hit), "equity_after": st.equity}
+            if broker is not None:
+                # ⚠ 실거래에만 넣는다. 페이퍼 원장에 칸을 늘리면 가동 중인
+                #   전진 검정의 파일이 합집합 스키마로 통째로 다시 써진다 —
+                #   대조군을 건드리지 않는다는 원칙(체크리스트 8)에 어긋난다.
+                row["fee_pct"] = fee
             closed.append(row)
             # ⚠ 덧붙이기 원장에 **필드를 늘리면 깨진다**. 펀딩 컬럼을 추가하며
             #   12칸 파일에 13칸 행을 붙여 통째로 못 읽게 됐다(2026-08-29).
             #   헤더가 다르면 전체를 읽어 합집합 스키마로 다시 쓴다.
+            if broker is not None:
+                _tell(broker,
+                      f"{'✅' if net > 0 else '❌'} <b>롱숏1 청산</b> "
+                      f"{'숏' if p.get('short') else '롱'}"
+                      f"{' · 손절' if stop_hit else ''}\n"
+                      f"{sym} {p['entry_px']:.8g} → {px:.8g}\n"
+                      f"순손익 <b>{net:+.3f}%</b> "
+                      f"(수익 {ret:+.3f}% · 수수료 {fee:.3f}%)\n"
+                      f"자본 {st.equity:.4f} ({(st.equity - 1) * 100:+.2f}%) "
+                      f"· 누적 {st.n_trades}건")
             nr = pd.DataFrame([row])
             if ledger.exists():
                 try:
@@ -533,6 +683,17 @@ def cycle(syms: list[str], st: State, ledger: Path, now: datetime,
             c = sorted(avail,
                        key=lambda x: -x["z_vel"] if short else x["z_vel"])[:free]
         stake = st.equity / slots
+        # ⚠ 실거래 사이징 — 지갑을 **사이클당 한 번만** 읽는다. 종목마다
+        #   두드리면 레이트리밋을 먹고 같은 사이클의 진입 크기가 서로 달라진다.
+        #   문서 §4.2 — 원금의 1/slots 씩 · 복리(지갑이 곧 자본).
+        live_notional = 0.0
+        if broker is not None:
+            w = broker.wallet_balance()
+            if w is None:
+                log.error("지갑을 못 읽었다 — **이번 사이클 진입을 건너뛴다**")
+                c = []
+            else:
+                live_notional = w / max(1, int(slots))
         for x in c:
             if delay > 0:
                 st.pending.append({
@@ -542,11 +703,39 @@ def cycle(syms: list[str], st: State, ledger: Path, now: datetime,
                     "short": bool(x.get("side_short", short))})
                 opened.append(x)
                 continue
+            short_leg = bool(x.get("side_short", short))
+            entry_px, notional_usd, qty = x["px"], 0.0, 0.0
+            if broker is not None:
+                r = broker.open(x["symbol"], short_leg, x["px"], live_notional)
+                if r is None:
+                    # 거절·최소명목 미달 — **장부에 넣지 않는다.** 넣으면
+                    # 있지도 않은 포지션을 120분 뒤 청산하려 든다.
+                    continue
+                entry_px = float(r["price"])
+                qty = float(r["quantity"])
+                notional_usd = qty * entry_px
+                # ⚠ 손절은 진입 **직후**에만 걸 수 있다(-4509). 실패해도
+                #   포지션은 이미 열렸으므로 장부에는 넣는다 — 브로커가
+                #   "보호 없음"을 크게 알린다.
+                armed = broker.arm_stop(x["symbol"], short_leg, entry_px,
+                                        STOP_PCT)
+                _tell(broker,
+                      f"{'🔻' if short_leg else '🔺'} <b>롱숏1 진입</b> "
+                      f"{'숏' if short_leg else '롱'}\n"
+                      f"{x['symbol']} {qty:.8g} @ {entry_px:.8g}\n"
+                      f"명목 ${notional_usd:.2f} · z_vel {x['z_vel']:+.2f}\n"
+                      f"손절 {STOP_PCT:.1f}% {'등록' if armed else '⚠ 미등록'}")
             p = {"symbol": x["symbol"], "entry_ts": str(now),
-                 "entry_px": x["px"], "z_vel": x["z_vel"], "z_acc": x["z_acc"],
+                 "entry_px": entry_px, "z_vel": x["z_vel"], "z_acc": x["z_acc"],
                  "exit_ts": str(now + timedelta(minutes=hold)), "stake": stake,
-                 "short": bool(x.get("side_short", short)),
+                 "short": short_leg,
                  "fr": float(fr.get(x["symbol"], 0.0))}
+            if broker is not None:
+                # 실제로 나간 명목·수량을 남긴다. stepSize 내림 때문에
+                # 의도한 명목과 다르다 — 그 차이를 재려면 둘 다 있어야 한다.
+                p["notional_usd"] = notional_usd
+                p["qty"] = qty
+                p["want_notional"] = live_notional
             st.positions.append(p)
             opened.append(p)
     return {"cands": len(cands), "opened": len(opened), "closed": len(closed),
@@ -569,6 +758,8 @@ def main() -> int:
                         "44시간 실측에서 첫 30분은 세 구간 전부 음수였다")
     p.add_argument("--hold-min", type=int, default=HOLD,
                    help="보유 분. 기본 120")
+    p.add_argument("--stop-pct", type=float, default=5.0,
+                   help="최대 손절(%%). 0 이면 끈다. 14개월 실측 최적 5")
     p.add_argument("--pick", default="zvel", choices=["zvel", "noise"],
                    help="선별 기준. noise = 체결 방향 반전율 + 도착 간격 "
                         "불규칙성의 순위합(잡음 지배). **틱에만 있다**")
@@ -578,10 +769,25 @@ def main() -> int:
     p.add_argument("--entry-hour", type=int, default=-1,
                    help="이 UTC 시각 정각에만 새로 연다(-1 이면 항상). "
                         "하루 한 번 여는 갈래용")
+    p.add_argument("--live", action="store_true",
+                   help="**실거래**. 진입·청산이 실제 주문으로 나간다. "
+                        "--account 가 반드시 함께 있어야 한다")
+    p.add_argument("--account", type=int, default=0,
+                   help="exchange_accounts.id. --live 에만 쓴다")
+    p.add_argument("--leverage", type=int, default=1,
+                   help="거래소 레버리지. 기본 1 — 올리면 -5%% 손절이 "
+                        "자본의 -5%% 가 아니게 된다(문서 §4.2)")
+    p.add_argument("--dry-run", action="store_true",
+                   help="--live 배선을 타되 주문은 내지 않는다")
     p.add_argument("--tag", default="", help="경로 꼬리표")
     p.add_argument("--dir", default="",
                    help="상태·원장 디렉터리. 비우면 runs/kinematics_paper/s{슬롯}")
     a = p.parse_args()
+    # ⚠ 인자를 전역에 **반영**한다. 안 하면 --stop-pct 를 받고도 코드가
+    #   기본값을 쓴다 — 교훈#88(클래스만 고치고 경로를 안 봐서 재진입
+    #   차단이 한 번도 동작 안 했다)과 같은 형태다.
+    global STOP_PCT
+    STOP_PCT = float(a.stop_pct)
     logging.basicConfig(level=logging.INFO,
                         format="%(asctime)s [%(levelname)s] %(message)s")
     signal.signal(signal.SIGTERM, _sig)
@@ -597,6 +803,7 @@ def main() -> int:
     state_p, ledger = d / "state.json", d / "trades.csv"
     st = load_state(state_p)
     side = "롱숏동시" if a.both else ("숏" if a.short else "롱")
+    log.info("손절 상한 **%.2f%%** (0 이면 끔) — 인자 도달 확인", STOP_PCT)
     log.info("운동학 페이퍼 — %d종목 · %s · 슬롯 %d(%s) · 보유 %d분 · 경로 %s",
              len(syms), side, a.slots,
              f"롱{a.slots//2}+숏{a.slots//2}" if a.both else side, a.hold_min, d)
@@ -611,6 +818,54 @@ def main() -> int:
     log.info("상태 — 자본 %.4f · 보유 %d · 대기 %d · 누적거래 %d",
              st.equity, len(st.positions), len(st.pending), st.n_trades)
 
+    # ── 실거래 배선 ─────────────────────────────────────────
+    broker = None
+    if a.live:
+        if a.account <= 0:
+            raise SystemExit("--live 에는 --account 가 필요하다")
+        if a.delay_min:
+            # 대기열 승격 경로는 실거래로 배선하지 않았다. 반쯤 배선된 채
+            # 돌면 신호는 예약되는데 주문이 안 나가 **조용히 다른 전략**이 된다.
+            raise SystemExit("--live 는 --delay-min 0 만 지원한다 "
+                             "(대기열 승격 경로 미배선)")
+        # ⚠ 맨이름 import 는 PM2 본실행(`PYTHONPATH=.`)에서 죽는다.
+        try:
+            from scripts.binance.kine_live_broker import KineLiveBroker
+        except ImportError:                           # 직접 실행·대화형용
+            from kine_live_broker import KineLiveBroker
+        broker = KineLiveBroker(account_id=a.account, leverage=a.leverage,
+                                dry_run=a.dry_run)
+        # ⚠ 알림은 **없어져도 조용하다**(교훈#102). RSI·신상저격수가 쓰는
+        #   **같은 발송기**를 그대로 쓴다 — 두 벌 만들면 한쪽만 고쳐지는
+        #   날이 온다. 계좌에 봇 토큰이 없으면 조용히 건너뛰므로,
+        #   기동 때 배선 여부를 로그로 남긴다.
+        try:
+            from scripts.binance.lifecycle_live_signal_driver import (
+                _telegram_notify)
+            broker.notify = lambda t, _a=int(a.account): _telegram_notify(_a, t)
+            log.info("텔레그램 알림 — 계좌 %s 로 발송", a.account)
+        except Exception as exc:                              # noqa: BLE001
+            log.error("텔레그램 배선 실패 — 알림 없이 계속한다: %s", exc)
+        broker.connect()
+        # ⚠ 재시작 대조 — 거래소가 진실이다. 우리 장부에 없는 포지션은
+        #   손대지 않고 **드러내기만** 한다(수동 개입일 수 있다).
+        onx = broker.reconcile({p["symbol"] for p in st.positions})
+        kept = []
+        for p in st.positions:
+            if p["symbol"] in onx:
+                kept.append(p)
+            else:
+                log.warning("장부엔 %s 가 있는데 거래소엔 없다 — 장부에서 뺀다",
+                            p["symbol"])
+        st.positions = kept
+        w = broker.wallet_balance()
+        log.warning("*** 실거래 모드 *** 계좌 %s · 레버리지 %dx · 슬롯 %d "
+                    "· 지갑 %s USDT · 다리당 명목 %s%s",
+                    a.account, a.leverage, a.slots,
+                    f"{w:.4f}" if w else "조회실패",
+                    f"${w / max(1, a.slots):.2f}" if w else "?",
+                    " · DRY-RUN" if a.dry_run else "")
+
     while not _stop:
         now = datetime.now(timezone.utc).replace(second=0, microsecond=0)
         now -= timedelta(minutes=now.minute % STEP)
@@ -619,7 +874,7 @@ def main() -> int:
             fr = funding_rates() if a.short or True else {}
             r = cycle(syms, st, ledger, now, a.slots, a.short, fr,
                       a.both, a.delay_min, a.hold_min, a.pick, a.signal,
-                      a.entry_hour)
+                      a.entry_hour, broker)
             save_state(state_p, st)
             log.info("%s · 후보 %d · 예약 %d · 승격 %d · 대기 %d · 청산 %d "
                      "· 보유 %d/%d · 자본 %.4f(%+.2f%%) · 누적 %d · %.0f초",
