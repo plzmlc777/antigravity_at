@@ -736,6 +736,14 @@ def cycle(syms: list[str], st: State, ledger: Path, now: datetime,
                 p["notional_usd"] = notional_usd
                 p["qty"] = qty
                 p["want_notional"] = live_notional
+                # ⚠ 문서 §6 ① — 슬리피지는 **신호가와 체결가를 둘 다** 남겨야
+                #   잰다. 체결가만 남기면 페이퍼와 왜 갈리는지 영영 모른다.
+                #   ② 진입 지연도 같다 — entry_ts 는 격자 시각이지 체결 시각이
+                #   아니다(사이클이 10~30초 걸린다).
+                p["sig_px"] = float(x["px"])
+                p["slip_bp"] = (10000.0 * (entry_px - x["px"]) / x["px"]
+                                * (-1.0 if short_leg else 1.0))
+                p["fill_ts"] = datetime.now(timezone.utc).isoformat()
             st.positions.append(p)
             opened.append(p)
     return {"cands": len(cands), "opened": len(opened), "closed": len(closed),

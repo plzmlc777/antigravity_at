@@ -61,3 +61,20 @@ def render(header, rows, wraps=None, wrap_center=None):
                 for i in range(n)) + " │")
     out.append(line("└", "┴", "┘"))
     return "\n".join(out)
+
+
+def render_md(header, rows):
+    """GFM 마크다운 표. 데스크톱 앱처럼 **마크다운을 렌더링하는** 환경용.
+
+    박스 문자 표는 한글을 정확히 2칸으로 그리는 고정폭 터미널을 전제한다.
+    그 전제가 깨지는 곳(데스크톱 앱 · 텔레그램 HTML)에서는 세로선이 어긋난다.
+    열·순서·값은 render() 와 **완전히 같다** — 그리는 방법만 다르다.
+    비고처럼 긴 칸은 렌더러가 알아서 접으므로 wrap 하지 않는다.
+    """
+    def esc(c):
+        return str(c).replace("|", "\\|")
+    out = ["| " + " | ".join(esc(h) for h in header) + " |",
+           "|" + "|".join("---" for _ in header) + "|"]
+    for r in rows:
+        out.append("| " + " | ".join(esc(c) for c in r) + " |")
+    return "\n".join(out)
