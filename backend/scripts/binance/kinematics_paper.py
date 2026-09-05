@@ -575,7 +575,7 @@ def cycle(syms: list[str], st: State, ledger: Path, now: datetime,
             #   헤더가 다르면 전체를 읽어 합집합 스키마로 다시 쓴다.
             if broker is not None:
                 _tell(broker,
-                      f"{'✅' if net > 0 else '❌'} <b>롱숏1 청산</b> "
+                      f"{'✅' if net > 0 else '❌'} <b>속도저울 청산</b> "
                       f"{'숏' if p.get('short') else '롱'}"
                       f"{' · 손절' if stop_hit else ''}\n"
                       f"{sym} {p['entry_px']:.8g} → {px:.8g}\n"
@@ -720,7 +720,7 @@ def cycle(syms: list[str], st: State, ledger: Path, now: datetime,
                 armed = broker.arm_stop(x["symbol"], short_leg, entry_px,
                                         STOP_PCT)
                 _tell(broker,
-                      f"{'🔻' if short_leg else '🔺'} <b>롱숏1 진입</b> "
+                      f"{'🔻' if short_leg else '🔺'} <b>속도저울 진입</b> "
                       f"{'숏' if short_leg else '롱'}\n"
                       f"{x['symbol']} {qty:.8g} @ {entry_px:.8g}\n"
                       f"명목 ${notional_usd:.2f} · z_vel {x['z_vel']:+.2f}\n"

@@ -45,6 +45,72 @@ from app.models.account import ExchangeAccount  # noqa: E402
 PER_ACCOUNT_TIMEOUT_SEC = 30
 KEEPALIVE_EXCHANGES = ("Kiwoom", "Binance", "BinanceFutures")
 
+# ── 앱키 나이 추적 ──
+#
+# 2026-09-04, 키움이 계좌 1·13·4 의 앱키를 "3개월 미사용"으로 해지했다.
+# keepalive 는 정상 동작했고 해지 당일 새벽까지 ok=True 였다 — 즉 **막히기
+# 전에는 아무 신호도 없다.** 사후에 알면 늦으므로 키가 몇 살인지 세어
+# 미리 알린다.
+#
+# 키 자체는 저장하지 않는다. **지문(해시)만** 남기고, 지문이 바뀌면 그날을
+# 새 등록일로 본다. 따로 기록할 필요 없이 교체가 자동 감지된다.
+KEY_AGE_FILE = BACKEND_DIR / "runs" / "api_key_ages.json"
+KEY_AGE_WARN_DAYS = 60      # 3개월 기준이면 한 달 전에 알린다
+KEY_AGE_URGENT_DAYS = 80
+# 미사용 해지 정책이 확인된 곳만 경보한다. 바이낸스는 그런 사례가 없고,
+# 오탐이 섞이면 경보 자체가 무시된다. 기록은 모든 계좌에 대해 남긴다.
+KEY_AGE_ALERT_EXCHANGES = ("Kiwoom", "KiwoomUS")
+
+
+def _key_fingerprint(account) -> str:
+    """앱키의 지문. 평문은 남기지 않는다."""
+    import hashlib
+
+    from app.core import security as _sec
+    raw = _sec.decrypt_key(account.encrypted_access_key or "") or ""
+    return hashlib.sha256(raw.encode()).hexdigest()[:16] if raw else ""
+
+
+def _track_key_ages(accounts) -> list:
+    """계좌별 앱키 나이를 갱신하고, 오래된 것만 돌려준다."""
+    today = datetime.now().strftime("%Y-%m-%d")
+    try:
+        store = json.loads(KEY_AGE_FILE.read_text()) if KEY_AGE_FILE.exists() else {}
+    except Exception:
+        store = {}
+
+    aged = []
+    for acc in accounts:
+        fp = _key_fingerprint(acc)
+        if not fp:
+            continue
+        key = str(acc.id)
+        rec = store.get(key)
+        if not rec or rec.get("fingerprint") != fp:
+            # 처음 보거나 키가 바뀌었다 → 오늘을 기준일로.
+            # ⚠ 이건 **최초 관측일**이지 발급일이 아니다. 추적을 시작하기 전에
+            #   이미 쓰던 키는 실제보다 어리게 잡힌다 — 나이가 과소평가되는
+            #   방향이라 경보가 늦을 수는 있어도 오탐은 안 난다.
+            store[key] = {"fingerprint": fp, "first_seen": today,
+                          "name": acc.account_name, "exchange": acc.exchange_name}
+            continue
+        try:
+            first = datetime.strptime(rec["first_seen"], "%Y-%m-%d")
+        except Exception:
+            continue
+        age = (datetime.now() - first).days
+        if age >= KEY_AGE_WARN_DAYS and acc.exchange_name in KEY_AGE_ALERT_EXCHANGES:
+            aged.append({"id": acc.id, "name": acc.account_name,
+                         "exchange": acc.exchange_name, "age_days": age,
+                         "since": rec["first_seen"],
+                         "urgent": age >= KEY_AGE_URGENT_DAYS})
+    try:
+        KEY_AGE_FILE.parent.mkdir(parents=True, exist_ok=True)
+        KEY_AGE_FILE.write_text(json.dumps(store, ensure_ascii=False, indent=2))
+    except Exception:
+        pass
+    return aged
+
 
 def _build_adapter(account: ExchangeAccount):
     """Construct exchange adapter for a single account row."""
@@ -242,7 +308,9 @@ async def main() -> int:
         fail_n = len(results) - success_n
         repeat_offenders = [r for r in results if r.get("consecutive_failures", 0) >= 2]
 
-        if fail_n or repeat_offenders:
+        aged_keys = _track_key_ages(accounts)
+
+        if fail_n or repeat_offenders or aged_keys:
             lines = ["<b>[Keepalive] daily ping report</b>"]
             lines.append(f"성공 {success_n} / 실패 {fail_n} (총 {len(results)}계좌)")
             for r in results:
@@ -254,6 +322,16 @@ async def main() -> int:
                     f"❌ <code>{r['exchange']}</code> {r['name']}{tag}\n"
                     f"   {r['error']}"
                 )
+            if aged_keys:
+                lines.append("")
+                lines.append("<b>🔑 앱키가 오래됐다 — 갱신 검토</b>")
+                for a in aged_keys:
+                    mark = "🚨" if a["urgent"] else "⚠️"
+                    lines.append(
+                        f"{mark} <code>{a['exchange']}</code> {a['name']} "
+                        f"— {a['age_days']}일 (최초 관측 {a['since']})")
+                lines.append("<i>키움은 미사용 기간이 길면 앱키를 해지한다"
+                             " (2026-09-04 계좌 1·13·4 실제 해지)</i>")
             await _send_telegram_alert(db, "\n".join(lines))
 
         summary = {
@@ -261,6 +339,7 @@ async def main() -> int:
             "total": len(results),
             "success": success_n,
             "failure": fail_n,
+            "aged_keys": aged_keys,
             "results": results,
         }
         print(json.dumps(summary, ensure_ascii=False, indent=2))

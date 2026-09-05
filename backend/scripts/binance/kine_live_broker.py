@@ -1,9 +1,9 @@
-"""롱숏1(s2both) 의 **실거래 체결 계층**. 페이퍼 시뮬레이터는 건드리지 않는다.
+"""속도저울(s2both) 의 **실거래 체결 계층**. 페이퍼 시뮬레이터는 건드리지 않는다.
 
 왜 새 모듈인가 (2026-09-05)
     `rsi_live_broker.LiveBroker` 는 **롱 전용**이다. `positions()` 가
     `q > 0` 만 담고, 손절은 `side="SELL"` 하드코딩이며, 청산 체결 복원은
-    "꼬리에서 연속된 SELL" 만 모은다. 롱숏1은 숏이 다리의 절반이다.
+    "꼬리에서 연속된 SELL" 만 모은다. 속도저울은 숏이 다리의 절반이다.
 
     그 파일을 방향 파라미터화하는 편이 코드량은 적지만, **그것은 지금
     실자금을 굴리는 계좌 8 의 브로커다.** 회귀가 나면 두 트랙이 동시에
@@ -112,7 +112,7 @@ class KineLiveBroker:
             decrypt_key(r[0]), decrypt_key(r[1]),
             r[2] or "https://fapi.binance.com")
         _run(self._adapter._ensure_exchange_info())
-        log.info("롱숏1 실거래 브로커 연결 — 계좌 %s(%s) · 레버리지 %dx%s",
+        log.info("속도저울 실거래 브로커 연결 — 계좌 %s(%s) · 레버리지 %dx%s",
                  self.account_id, r[3], self.leverage,
                  " · DRY-RUN" if self.dry_run else "")
 
@@ -492,7 +492,7 @@ class KineLiveBroker:
             return
         try:
             self.notify(
-                f"🚨 <b>고아 방지 즉시청산</b> — 롱숏1 1군\n"
+                f"🚨 <b>고아 방지 즉시청산</b> — 속도저울 1군\n"
                 f"{symbol} 수량 {qty:.8g}\n"
                 f"체결가를 못 찾아 보호 없는 포지션을 남기지 않으려 되팔았습니다.")
         except Exception as exc:                          # noqa: BLE001
@@ -506,7 +506,7 @@ class KineLiveBroker:
             return
         try:
             self.notify(
-                f"🚨 <b>손절 미등록</b> — 롱숏1 1군\n"
+                f"🚨 <b>손절 미등록</b> — 속도저울 1군\n"
                 f"{symbol}\n사유: {why}\n"
                 f"이 포지션은 **보호 장치가 없습니다.** 확인이 필요합니다.")
         except Exception as exc:                          # noqa: BLE001

@@ -160,7 +160,8 @@ async def main_async(a):
     if not account_id and not a.account_name:
         if a.live:
             raise SystemExit("실주문(--live)은 --account-id 를 반드시 명시해야 한다")
-        account_id = PAPER_DEFAULT_ACCOUNT_ID
+        from scripts.live.kr_slice_exec import paper_account_order
+        account_id = (paper_account_order() or [PAPER_DEFAULT_ACCOUNT_ID])[0]
     acc = _load_account(account_id, a.account_name)
     adapter = _build_adapter(acc)
 

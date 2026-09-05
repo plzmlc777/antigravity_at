@@ -1,4 +1,4 @@
-"""롱숏1(s2both) 한 화면 점검 — 정기 보고의 자료원.
+"""속도저울(s2both) 한 화면 점검 — 정기 보고의 자료원.
 
 RSI 의 `rsi_watch.sh` 와 같은 자리다. 페이퍼(대조군)와 실거래를 나란히
 놓고, **거래소 원본**으로 장부를 대조한다.
@@ -75,7 +75,7 @@ def _ledger(d: Path):
 
 
 def main() -> int:
-    print("=== 롱숏1(s2both) · 페이퍼 대 실거래 ===")
+    print("=== 속도저울(s2both) · 페이퍼 대 실거래 ===")
     rows = []
     for lab, d in (("페이퍼", PAPER), ("실거래", LIVE)):
         st = _state(d)

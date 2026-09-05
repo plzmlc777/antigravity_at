@@ -51,7 +51,7 @@ log = logging.getLogger("tpsl")
 BRANCHES = [("s1", "롱1"), ("s10", "롱10"), ("s20", "롱20"),
             ("s10short", "숏10"), ("s10both", "롱숏10"),
             ("s10both_d30", "롱숏d30"), ("s6both_d5_noise", "잡음6"),
-            ("s6both", "롱숏3"), ("s2both", "롱숏1")]
+            ("s6both", "롱숏3"), ("s2both", "속도저울")]
 SLS = [None, 1.0, 2.0, 3.0, 5.0]
 TPS = [None, 2.0, 3.0, 5.0, 8.0]
 FEE = 0.072

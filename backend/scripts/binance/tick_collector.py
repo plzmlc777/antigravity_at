@@ -125,7 +125,13 @@ class Buffer:
             d["price"] = d.price.astype("float64")
             d["qty"] = d.qty.astype("float32")
             # ⚠ 정렬해야 델타 인코딩이 먹는다 — 실측 4.7 → 4.5 B/행
-            d = d.sort_values("ts_ms")
+            # ⚠⚠ **안정 정렬이어야 한다.** pandas 기본 quicksort 는 같은 ms
+            #   안의 체결 순서를 흩뜨린다(실측 BTRUSDT 중복 78.8%). 하루치를
+            #   flush 마다 다시 정렬하므로 **저장된 순서가 매번 뒤바뀌었고**,
+            #   순서에 의존하는 값이 재현되지 않았다 — 같은 구간을 다시 접으면
+            #   flip 이 최대 16.9% · rmax 가 26.9% 달랐다(2026-09-01 실측).
+            #   잡음 계열과 H5 연속이 그 위에 서 있다.
+            d = d.sort_values("ts_ms", kind="stable")
             p = OUT / sym / f"{day}.parquet"
             p.parent.mkdir(parents=True, exist_ok=True)
             if p.exists():
@@ -133,10 +139,30 @@ class Buffer:
                 # 하루 파일이라 크기가 제한적이고, flush 주기가 길어 드물다.
                 try:
                     d = pd.concat([pd.read_parquet(p), d], ignore_index=True)
-                    d = d.drop_duplicates().sort_values("ts_ms")
+                    # ⚠⚠ **`drop_duplicates()` 를 다시 넣지 마라.**
+                    #   같은 (시각·가격·수량·방향) 은 흔한 정상 상황이다 — 한
+                    #   주문이 같은 값의 대기주문 여럿을 같은 수량으로 체결시키면
+                    #   거래 id 만 다른 행이 여러 개 나온다. 그걸 지우고 있었다.
+                    #
+                    #   2026-08-31 아카이브 대조 실측 (삭제 비율):
+                    #       ETHUSDT 28.04% · ZECUSDT 14.35% · BNTUSDT 12.99%
+                    #       COMPUSDT 11.65% · ONGUSDT 4.97% · ARBUSDT 3.17%
+                    #   종목마다 **열 배 차이**라 균일한 축소가 아니라 종목별
+                    #   왜곡이었다. 활동량 횡단면 선별이 이 위에 서 있었다.
+                    #   float32 반올림 탓도 아니다(원본 정밀도와 겹침 수 동일).
+                    #
+                    #   막던 것도 없다. 버퍼는 flush 직후 비워지고, 중간에
+                    #   죽으면 버퍼째 사라진다 — 같은 행이 두 번 들어올 경로가
+                    #   없다.
+                    d = d.sort_values("ts_ms", kind="stable")
                 except Exception as e:                     # noqa: BLE001
                     log.warning("%s %s 재적재 실패(새로 쓴다): %s", sym, day, e)
-            d.to_parquet(p, compression="zstd", index=False)
+            # ⚠ **원자적으로** 쓴다. 그냥 쓰면 읽는 쪽이 반쯤 쓴 파일을 만나
+            #   `Parquet magic bytes not found` 로 실패하고, 그 종목이 그
+            #   주기에서 **조용히 사라진다**(로그엔 후보 수만 하나 준다).
+            tmp = p.with_suffix(".parquet.tmp")
+            d.to_parquet(tmp, compression="zstd", index=False)
+            tmp.replace(p)
             wrote += len(rows)
         self.rows.clear()
         self.n = 0

@@ -66,10 +66,21 @@ from app.services.kr_slice_executor import (  # noqa: E402
     SCHED_ASAP, SCHED_TWAP, SliceConfig,
 )
 
-# 페이퍼 기본 계좌 — 「키움 로컬 테스트」(실서버, 54071040).
-# 잔고가 비어 있어 실수로 주문이 나가도 사전점검에서 걸리는 계좌다. 페이퍼는
-# 시세·호가 조회에만 이 계좌를 쓰고, 주문 경로는 ReadOnlyAdapter 가 막는다.
-PAPER_DEFAULT_ACCOUNT_ID = 5
+# 페이퍼 조회 계좌 — **날짜별로 돌려 쓴다.**
+#
+# 한 계좌에만 조회를 몰면 나머지 계좌가 놀다가 "미사용"으로 앱키가 해지된다.
+# 2026-09-04 에 실제로 계좌 1·13·4 가 그렇게 막혔고, 매일 수백 회 조회를
+# 받던 계좌 5 만 살아남았다. 조회 전용이며 주문은 이 경로로 나가지 않는다
+# (페이퍼는 ReadOnlyAdapter 가 막고, --live 는 계좌 명시를 요구한다).
+def paper_account_order():
+    try:
+        from app.services.kr_quote_accounts import quote_account_order
+        return quote_account_order()
+    except Exception:
+        return [5]
+
+
+PAPER_DEFAULT_ACCOUNT_ID = 5   # 폴백용 (로테이션 실패 시)
 
 
 def _load_account(account_id=None, account_name=None):
@@ -162,7 +173,8 @@ async def main_async(a):
                 "실주문(--live)은 계좌를 반드시 명시해야 한다. "
                 "--account-id 를 지정하라 (--list-accounts 로 확인)"
             )
-        account_id, account_src = PAPER_DEFAULT_ACCOUNT_ID, "페이퍼 기본"
+        order = paper_account_order() or [PAPER_DEFAULT_ACCOUNT_ID]
+        account_id, account_src = order[0], f"조회 로테이션 {order}"
 
     acc = _load_account(account_id, a.account_name)
     adapter = _build_adapter(acc)

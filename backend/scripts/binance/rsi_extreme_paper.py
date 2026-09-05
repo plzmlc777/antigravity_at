@@ -2309,7 +2309,23 @@ def main() -> int:
                 n_seal = feed.seal(edge_ms, tf)
                 if n_seal:
                     log.info("봉 마감(시계) — %s %d봉", tf, n_seal)
-                bars_by_tf[tf] = feed.snapshot(tf, spec.warmup_bars)
+                snap = feed.snapshot(tf, spec.warmup_bars)
+                # ⚠ 두 봉 이상 뒤처진 종목은 **갇힌 것**이다.
+                #   접속 순간의 부분 봉을 지어내지 않으므로, 체결이 아예 없는
+                #   종목은 그 한 봉을 영원히 못 넘는다(2026-09-01 실측: 5분봉
+                #   16종목이 41봉 뒤처진 채 3.4시간). 지어내지 말고 REST 로
+                #   다시 받는다 — 정본과 같은 자료다.
+                span_ms = TF_MS[tf]
+                stuck = [sym for sym, d in snap.items()
+                         if edge_ms - (int(d.index[-1].timestamp() * 1000)
+                                       + span_ms) >= 2 * span_ms]
+                if stuck:
+                    # 가중치를 묶어 둔다 — 한 사이클에 60종목까지만
+                    got = feed.reseed(stuck[:60], fetch_klines, tf)
+                    log.warning("갇힌 종목 %d개 — REST 로 %d개 되살렸다 (%s)",
+                                len(stuck), got, ", ".join(stuck[:6]))
+                    snap = feed.snapshot(tf, spec.warmup_bars)
+                bars_by_tf[tf] = snap
             bars = bars_by_tf.get(cfg.base_tf, {})
             log.info("피드 스냅샷 — %s · %s", 
                      {k: len(v) for k, v in bars_by_tf.items()}, h)

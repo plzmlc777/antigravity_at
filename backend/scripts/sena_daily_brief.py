@@ -42,8 +42,15 @@ except Exception:
 
 SYMBOL = "061090"
 SYMBOL_NAME = "세나테크놀로지"
-# 통합 거래량 조회에 쓸 키움 계좌 (조회 전용, 주문 안 함).
-KIWOOM_QUOTE_ACCOUNT_ID = 5
+# 통합 거래량 조회에 쓸 키움 계좌 — **날짜별로 돌려 쓴다.**
+# 한 계좌에만 조회를 몰면 나머지가 놀다가 "미사용"으로 앱키가 해지된다
+# (2026-09-04 실제 발생). 조회 전용이며 주문은 내지 않는다.
+def _quote_account_order():
+    try:
+        from app.services.kr_quote_accounts import quote_account_order
+        return quote_account_order()
+    except Exception:
+        return [5]
 
 # 토론방 집계 방식 버전. **바꿀 때마다 올린다.**
 #   1 = 오늘(00:00~) 작성글 + 임계값 2 분류기
@@ -384,27 +391,39 @@ def fetch_consolidated_volumes() -> dict:
 
         db = SessionLocal()
         try:
-            acc = db.query(ExchangeAccount).filter(
-                ExchangeAccount.id == KIWOOM_QUOTE_ACCOUNT_ID).first()
-            if not acc:
-                return {}
-            adapter = KiwoomRealAdapter(
-                app_key=security.decrypt_key(acc.encrypted_access_key or ""),
-                secret_key=security.decrypt_key(acc.encrypted_secret_key or ""),
-                account_no=acc.account_number or "",
-                account_name=acc.account_name or "",
-                api_url=acc.api_url or "",
-                is_virtual=bool(getattr(acc, "is_virtual", False)),
-            )
+            cands = []
+            for aid in _quote_account_order():
+                acc = db.query(ExchangeAccount).filter(
+                    ExchangeAccount.id == aid).first()
+                if acc and acc.encrypted_access_key:
+                    cands.append((aid, KiwoomRealAdapter(
+                        app_key=security.decrypt_key(acc.encrypted_access_key or ""),
+                        secret_key=security.decrypt_key(acc.encrypted_secret_key or ""),
+                        account_no=acc.account_number or "",
+                        account_name=acc.account_name or "",
+                        api_url=acc.api_url or "",
+                        is_virtual=bool(getattr(acc, "is_virtual", False)),
+                    )))
         finally:
             db.close()
+        if not cands:
+            return {}
 
-        async def _fetch():
+        async def _fetch(adapter):
             krx = await adapter.get_daily_candles(SYMBOL) or []
             allm = await adapter.get_daily_candles(SYMBOL, market="SOR") or []
             return krx, allm
 
-        krx_rows, all_rows = asyncio.run(_fetch())
+        # 그날 계좌가 죽어 있어도 브리프가 통째로 KRX 기준으로 떨어지지
+        # 않도록, 다음 계좌로 넘어간다.
+        krx_rows, all_rows = [], []
+        for aid, adapter in cands:
+            try:
+                krx_rows, all_rows = asyncio.run(_fetch(adapter))
+                if krx_rows and all_rows:
+                    break
+            except Exception:
+                continue
 
         def _key(c):
             return str(c.get("timestamp", ""))[:10].replace("-", "")

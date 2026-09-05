@@ -166,6 +166,52 @@ class TradeFeed:
             return 0
         return ((self.started_ms // span) + 1) * span
 
+    def reseed(self, symbols, fetch, tf: str, limit: int = 300) -> int:
+        """막힌 종목을 **REST 로 다시 받아** 되살린다.
+
+        ⚠ 왜 필요한가 (2026-09-01 실측)
+            `seal` 은 접속 순간 진행 중이던 봉을 지어내지 않는다(옳다). 그런데
+            **체결이 아예 없는 종목은 그 한 봉을 영원히 못 넘는다** — 봉은
+            거래가 있어야 닫히면서 구멍을 건너뛰는데, 거래가 없으니 갇힌다.
+            5분봉 세션에서 16종목이 41봉 뒤처진 채 3.4시간 얼어 있었다
+            (SYSUSDT 마지막 체결 105일 전 · TONUSDT 70일 전 — 거래 정지 종목).
+
+        ⚠ 지어내지 않고 **물어본다.** REST 클라인은 마감 봉만 주므로 정본과
+          같다. 되받은 뒤 `first_full` 을 다음 봉 경계로 다시 잡아, 지금
+          진행 중인 부분 봉은 여전히 거르게 한다.
+
+        반환: 실제로 되살린 종목 수.
+        """
+        span = TF_MS[tf]
+        n = 0
+        for s in symbols:
+            df = fetch(s, limit, tf)
+            if df is None or df.empty:
+                continue
+            rows = [(int(ts.timestamp() * 1000), float(r.open), float(r.high),
+                     float(r.low), float(r.close),
+                     float(getattr(r, "quote_vol", 0.0)))
+                    for ts, r in df.iterrows()]
+            key = (s, tf)
+            with self.lock:
+                self.closed[key] = deque(rows, maxlen=self.maxlen)
+                now_ot = (int(time.time() * 1000) // span) * span
+                had_cur = self.cur.pop(key, None) is not None
+                # ⚠ 진행 중인 봉을 어디까지 믿을지가 갈린다.
+                #   · 체결이 하나라도 있었다면(had_cur) 그 앞부분을 못 봤을 수
+                #     있다 — 다음 봉부터 온전하다고 본다.
+                #   · 체결이 **하나도 없었고** 그 봉이 시작되기 전부터 듣고
+                #     있었다면, 그 봉은 처음부터 비어 있다. 이때 다음 봉으로
+                #     미루면 죽은 종목이 두 사이클마다 다시 갇힌다
+                #     (2026-09-01 실측: 0 → 16 → 0 → 16 반복).
+                heard_whole = (not had_cur and self.started_ms
+                               and self.started_ms <= now_ot)
+                self.first_full[key] = now_ot if heard_whole else now_ot + span
+            n += 1
+        if n:
+            log.info("REST 재보충 — %s %d종목", tf, n)
+        return n
+
     def seal(self, edge_ms: int, tf: str, grace_ms: int = 2_000) -> int:
         """경계가 지난 봉을 **체결을 기다리지 않고** 시계로 마감한다.
 
