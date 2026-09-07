@@ -414,6 +414,63 @@ def wilder_rsi(close: pd.Series, period: int) -> pd.Series:
     return _r(close, period)
 
 
+def post_entry_range(symbol: str, entry_ts, bar_open_ms: int,
+                     tf: str, entry_price: float) -> tuple[float, float] | None:
+    """진입 **이후** 구간의 (고가, 저가). 못 구하면 None.
+
+    왜 필요한가 (2026-09-06 WOOUSDT)
+        강제 청산(`_forced_exit`)은 봉의 고·저로 판정한다. 그런데 진입은
+        봉 마감 **뒤** 수십 초에 일어나므로(실측 `lag_s` 49.5초), 진입 후
+        첫 평가 봉의 고·저에는 **진입 전 구간**이 섞여 있다.
+
+        이 전략에서는 그게 치명적이다 — 진입 조건이 RSI≤12(급락 직후)라
+        진입 전 저가가 거의 항상 진입가 아래이고, 손절이 0.5% 로 봉 내
+        변동폭보다 작다. **구조적으로 거의 매번 가짜 손절이 난다.**
+
+        WOOUSDT 실측: 진입 0.00855 · 손절선 0.00850725. 진입 이후 체결
+        33,927건 중 손절선에 **한 번도 닿지 않았고**(진입 후 최저 0.00958)
+        가격은 0.015 까지 갔다. 그런데 원장에는 −0.599% 손절로 기록됐다.
+        저가 0.00844 는 진입 **전** 49초 구간의 것이었다.
+
+    ⚠ 진입이 분 중간이면 그 분봉에도 진입 전이 섞이므로 **다음 분부터** 쓴다.
+      최대 60초의 진짜 구간을 놓치지만, 실거래는 그 구간을 거래소 스톱이
+      지킨다. 봉 전체를 쓰는 지금의 오차보다 훨씬 작다.
+    """
+    try:
+        ems = int(pd.Timestamp(entry_ts).timestamp() * 1000)
+    except Exception:                                         # noqa: BLE001
+        return None
+    # 진입 분의 **다음** 분부터. 단 진입이 정각이면 그 분이 이미 온전히
+    # 진입 이후이므로 버리지 않는다 — 올림 나눗셈이 그 둘을 함께 처리한다.
+    start = -(-ems // 60_000) * 60_000
+    begin = int(bar_open_ms)
+    end = begin + TF_MS[tf]                   # 이 봉의 끝
+    if not (begin <= ems < end):
+        # 진입 시각이 판정 대상 봉 **바깥**이다. 정상 운영에서는 생기지
+        # 않는다(진입은 늘 그 봉 안에서 난다). 어긋났다면 둘 중 하나를
+        # 잘못 넘긴 것이므로 **모른다**고 답한다 — 여기서 진입가를 돌리면
+        # 어긋난 짝을 근거로 강제 청산을 조용히 꺼버린다.
+        return None
+    if start >= end:
+        # 진입이 봉 끝에 붙어 **판정할 구간 자체가 없다.** 봉 전체로 후퇴하면
+        # 거의 전부가 진입 전이라 결함이 그대로 되살아난다. 움직임을 관측하지
+        # 못했으므로 진입가를 돌려 이 봉의 강제 청산을 성립시키지 않는다 —
+        # 다음 봉부터는 오염이 없고, 실거래는 그 사이를 거래소 스톱이 지킨다.
+        return float(entry_price), float(entry_price)
+    # ⚠ `fetch_klines` 는 startTime 을 못 받고 **최근 N개**만 준다. 사이클이
+    #   크게 밀리면 필요한 구간이 범위 밖으로 나간다 — 60분치를 받아 30분봉
+    #   하나에 30분의 여유를 둔다(2026-09-04 실측 최악 지연 426초).
+    df = fetch_klines(symbol, limit=60, tf="1m")
+    if df is None or df.empty or "ot" not in df:
+        return None
+    sub = df[(df.ot >= start) & (df.ot < end)]
+    if sub.empty:
+        # 구간은 있는데 자료가 안 왔다 — **모르는 것**이지 움직임이 없는 게
+        # 아니다. None 을 돌려 호출부가 봉 전체로 후퇴하고 경고를 남기게 한다.
+        return None
+    return float(sub["high"].max()), float(sub["low"].min())
+
+
 def fetch_klines(symbol: str, limit: int = 300,
                  tf: str = "1h") -> pd.DataFrame | None:
     """마감된 봉만. 진행 중인 마지막 봉은 **버린다**."""
@@ -789,7 +846,27 @@ class RsiPaper:
             st = p.to_kernel()
             # ⚠ 손절 우선 판정은 **커널의 _forced_exit** 이 한다. 여기서 다시
             #   쓰면 백테스트와 갈린다 — 실제로 그래 왔다.
-            hit = _forced_exit(st, float(last.high), float(last.low))
+            #
+            # ⚠ 다만 **넘기는 값**은 고친다(2026-09-07). 진입 후 첫 평가 봉
+            #   (`bars_held == 1`)의 고·저에는 진입 전 구간이 섞여 있어 가짜
+            #   손절이 난다 — WOOUSDT 사례는 `post_entry_range` 주석 참조.
+            #   커널은 그대로 두고 인자만 진입 이후로 좁힌다. 백테스트는 봉
+            #   단위라 진입 지연이 없어 이 보정이 무의미하므로 정본과 갈리지 않는다.
+            hi, lo = float(last.high), float(last.low)
+            if p.bars_held == 1:
+                rng = post_entry_range(
+                    sym, p.entry_ts, int(last.name.timestamp() * 1000), src,
+                    p.entry_price)
+                if rng is not None:
+                    if (rng[0], rng[1]) != (hi, lo):
+                        log.info("%s 진입봉 보정 — 고저 %.8g/%.8g → %.8g/%.8g "
+                                 "(진입 전 구간 제외)", sym, hi, lo, rng[0], rng[1])
+                    hi, lo = rng
+                else:
+                    # 모르면 바꾸지 않는다. 다만 조용하면 안 된다.
+                    log.warning("%s 진입 이후 고저를 못 구했다 — 봉 전체로 "
+                                "판정한다(가짜 손절 위험)", sym)
+            hit = _forced_exit(st, hi, lo)
             reason, ref = (hit[1], hit[0]) if hit else (None, None)
             # ⚠ RSI 재진입 청산 (2026-08-24 30분봉 사양)
             #   보유 중 RSI 가 문턱 아래로 **다시** 떨어지면 나간다. 지정가
@@ -1755,6 +1832,65 @@ def selftest() -> None:
     if not ex or ex[0]["reason"] != "sl":
         raise SystemExit(f"같은 봉에서 손절·익절이 겹쳤는데 손절이 안 났다: {ex}")
     log.info("✔ 청산 규약 확인 — 한 봉에 손절·익절 동시면 **손절** (보수적)")
+
+    # ── 진입봉 보정 (2026-09-06 WOOUSDT 가짜 손절)
+    #    이 경로는 실거래에서 손절 여부를 뒤집는다. 스텁으로 통과시키지 않고
+    #    **실제 함수**를 여섯 갈래로 다 밟는다(교훈#104).
+    _b0 = 1_788_000_000_000                       # 30분봉 시작(정각)
+    _tf_ms = TF_MS["30m"]
+    _saved_fetch = globals()["fetch_klines"]
+
+    def _mk1m(rows):                              # ot, high, low 만 쓴다
+        return pd.DataFrame([{"ot": ot, "high": h, "low": lo}
+                             for ot, h, lo in rows])
+
+    try:
+        # (1) 진입이 그 봉 **바깥**이면 모른다고 답한다 — 여기서 진입가를
+        #     돌리면 어긋난 짝을 근거로 강제 청산이 조용히 꺼진다.
+        globals()["fetch_klines"] = lambda *a, **k: _mk1m(
+            [(_b0 + i * 60_000, 2.0, 0.5) for i in range(30)])
+        if post_entry_range("A", pd.Timestamp(_b0 - 60_000, unit="ms", tz="UTC"),
+                            _b0, "30m", 1.0) is not None:
+            raise SystemExit("봉 바깥 진입인데 보정을 믿었다")
+
+        # (2) 진입 분의 **다음** 분부터 — 진입 전 구간(첫 분)은 안 섞인다
+        globals()["fetch_klines"] = lambda *a, **k: _mk1m(
+            [(_b0, 9.0, 0.1)]                                  # 진입 전 — 제외
+            + [(_b0 + i * 60_000, 2.0, 0.5) for i in range(1, 30)])
+        r = post_entry_range("A", pd.Timestamp(_b0 + 49_481, unit="ms", tz="UTC"),
+                             _b0, "30m", 1.0)
+        if r != (2.0, 0.5):
+            raise SystemExit(f"진입 전 구간이 안 빠졌다 — {r}")
+
+        # (3) 진입이 정각이면 그 분은 **온전히 진입 이후**다. 버리면 안 된다.
+        r = post_entry_range("A", pd.Timestamp(_b0, unit="ms", tz="UTC"),
+                             _b0, "30m", 1.0)
+        if r != (9.0, 0.1):
+            raise SystemExit(f"정각 진입인데 그 분을 버렸다 — {r}")
+
+        # (4) 봉 끝에 붙은 진입 — 관측 구간이 없으니 강제 청산을 성립시키지
+        #     않는다(진입가). 봉 전체로 후퇴하면 결함이 그대로 되살아난다.
+        r = post_entry_range("A", pd.Timestamp(_b0 + _tf_ms - 3_000,
+                                               unit="ms", tz="UTC"),
+                             _b0, "30m", 7.5)
+        if r != (7.5, 7.5):
+            raise SystemExit(f"판정 구간이 없는데 봉 전체로 갔다 — {r}")
+
+        # (5) 시세를 못 받았다 / (6) 구간에 자료가 없다 → **모른다**(None).
+        #     0 이나 진입가로 뭉개면 호출부가 경고 없이 잘못 판정한다.
+        globals()["fetch_klines"] = lambda *a, **k: None
+        if post_entry_range("A", pd.Timestamp(_b0 + 49_481, unit="ms", tz="UTC"),
+                            _b0, "30m", 1.0) is not None:
+            raise SystemExit("시세 실패인데 값을 지어냈다")
+        globals()["fetch_klines"] = lambda *a, **k: _mk1m(
+            [(_b0 - 600_000 + i * 60_000, 2.0, 0.5) for i in range(5)])
+        if post_entry_range("A", pd.Timestamp(_b0 + 49_481, unit="ms", tz="UTC"),
+                            _b0, "30m", 1.0) is not None:
+            raise SystemExit("구간 자료가 없는데 값을 지어냈다")
+    finally:
+        globals()["fetch_klines"] = _saved_fetch
+    log.info("✔ 진입봉 보정 확인 — 진입 **이후** 1분봉으로만 강제 청산 판정 "
+             "(모르면 None → 호출부가 경고하고 봉 전체로 후퇴)")
 
     # 손절은 **현재가**로 나가고 정본(손절가) 대비 차이를 남겨야 한다.
     # 이걸 안 재면 손절 비중 80% 설정의 실전 성적을 영영 모른다.
