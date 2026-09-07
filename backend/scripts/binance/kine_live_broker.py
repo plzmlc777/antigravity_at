@@ -424,7 +424,8 @@ class KineLiveBroker:
             tail.append(t)
         return self._vwap(tail)
 
-    def roundtrip_fee_pct(self, symbol: str, notional: float) -> Optional[float]:
+    def roundtrip_fee_pct(self, symbol: str, notional: float,
+                          short: bool | None = None) -> Optional[float]:
         """이 거래의 **실제** 왕복 수수료를 명목 대비 %로 돌려준다.
 
         ⚠ 상수를 쓰지 않는 이유 (2026-09-05 실측) — 명세는 편도 0.036% ·
@@ -435,18 +436,45 @@ class KineLiveBroker:
 
         진입 시각 이후의 모든 체결 수수료를 더한다(진입 + 청산 + 부분체결).
         못 재면 None — 호출부가 상수로 후퇴하고 **그 사실을 로그에 남긴다**.
+
+        ⚠ **경합** (2026-09-05 실측) — 청산 직후에 물으면 그 체결이 아직
+          `userTrades` 에 안 올라와 **편도(0.05%)만 합산**된다. 원장 5·6행이
+          그렇게 기록됐고 1~4행은 우연히 반영이 빨라 통과했다. 매번 다르니
+          "이번엔 맞았다"로 넘길 수 없다.
+          그래서 **양쪽 방향이 다 잡혔는지 확인**하고, 한쪽뿐이면 잠깐 뒤
+          한 번만 다시 묻는다. 그래도 없으면 **반쪽 값을 쓰지 않고** None 이다
+          — 낙관적인 절반 값이 원장에 남는 것이 최악이다.
+
+        `short` 를 주지 않으면 방향 검사를 못 하므로 예전처럼 단순 합산한다.
         """
         if self.dry_run or notional <= 0:
             return None
-        rows = self._trades(symbol, self.entry_ms.get(symbol, 0))
-        if not rows:
-            return None
-        fee = 0.0
-        for t in rows:
-            try:
-                fee += float(t.get("commission") or 0.0)
-            except (TypeError, ValueError):
-                continue
+        entry_side = "SELL" if short else "BUY"
+        exit_side = "BUY" if short else "SELL"
+
+        def _sum(rows) -> tuple[float, set]:
+            fee, sides = 0.0, set()
+            for t in rows:
+                try:
+                    fee += float(t.get("commission") or 0.0)
+                except (TypeError, ValueError):
+                    continue
+                sides.add(str(t.get("side")))
+            return fee, sides
+
+        since = self.entry_ms.get(symbol, 0)
+        fee, sides = _sum(self._trades(symbol, since))
+        if short is not None and not {entry_side, exit_side} <= sides:
+            time.sleep(1.5)
+            fee, sides = _sum(self._trades(symbol, since))
+            missing = [lab for side, lab in ((entry_side, "진입"),
+                                             (exit_side, "청산"))
+                       if side not in sides]
+            if missing:
+                log.warning("%s 왕복 수수료를 못 잰다 — 체결 내역에 %s 체결이 "
+                            "아직 없다(경합). 반쪽 값을 쓰지 않고 상수로 "
+                            "후퇴한다", symbol, "·".join(missing))
+                return None
         if fee <= 0:
             return None
         return 100.0 * fee / notional
