@@ -118,7 +118,8 @@ def seed(live: pd.DataFrame, start, state_p: Path):
     eq = float(past.equity_after.iloc[-1]) if len(past) else 1.0
     # 보유 = 원장에서 START 를 걸치는 거래 + 아직 안 닫혀 원장에 없는 것
     book = []
-    for _, r in live[(live.entry_ts <= start) & (live.exit_ts > start)].iterrows():
+    _end = live.closed_ts.fillna(live.exit_ts)      # 실제 청산이 우선
+    for _, r in live[(live.entry_ts <= start) & (_end > start)].iterrows():
         book.append({"symbol": r.symbol, "entry_ts": r.entry_ts,
                      "entry_px": float(r.entry_px), "short": bool(r.short),
                      "exit_ts": r.exit_ts, "fr": float(r.fr),
@@ -240,7 +241,14 @@ def verify(cycles: list[dict], live: pd.DataFrame, slots: int,
         """
         out = []
         for _, r in live.iterrows():
-            if pd.Timestamp(r.entry_ts) < ts < pd.Timestamp(r.exit_ts):
+            # ⚠ `exit_ts` 는 **예정** 시각이다. 손절로 일찍 닫힌 포지션은
+            #   실제로는 없는데 예정 시각까지 보유로 잡힌다 — 2026-09-07
+            #   AKEUSDT 가 06:45 진입 · 06:50 손절인데 exit_ts 는 08:45 라
+            #   같은 사이클의 재진입이 '설명 안 되는 불일치'로 찍혔다.
+            #   실제 청산은 `closed_ts` 다.
+            end = pd.Timestamp(r.closed_ts) if pd.notna(r.closed_ts) \
+                else pd.Timestamp(r.exit_ts)
+            if pd.Timestamp(r.entry_ts) < ts < end:
                 out.append((r.symbol, bool(r.short)))
         try:
             st = json.loads(state_p.read_text())
