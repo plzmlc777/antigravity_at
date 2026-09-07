@@ -141,15 +141,30 @@ def seed(live: pd.DataFrame, start, state_p: Path):
     return eq, book, len(past)
 
 
+def _pick(avail: list, mode: str, slots: int, nl: int, ns: int) -> list:
+    """빈 슬롯을 채울 종목. **실거래 `cycle()` 과 같은 순서여야 한다.**
+
+    ⚠ 갈래마다 다르다 — 뭉뚱그리면 그림자가 조용히 다른 전략이 된다.
+      `both` 는 롱·숏 슬롯을 따로 채운다. `short` 는 z_vel 높은 순으로 전량
+      숏이다 — imp 는 `z_vel = -imp` 라 높은 쪽이 imp 최저다(명세 §2.4).
+    """
+    if mode == "short":
+        return sorted(avail, key=lambda x: -x["zv"])[:max(slots - (nl + ns), 0)]
+    half = slots // 2
+    pl = sorted((x for x in avail if not x["sh"]), key=lambda x: x["zv"])
+    ps = sorted((x for x in avail if x["sh"]), key=lambda x: -x["zv"])
+    return pl[:max(half - nl, 0)] + ps[:max(half - ns, 0)]
+
+
 def simulate(cycles: list[dict], eq: float, book: list, slots: int,
-             hold: int, fee_pct: float) -> tuple[float, list]:
+             hold: int, fee_pct: float,
+             mode: str = "both") -> tuple[float, list]:
     """실거래 `cycle()` 의 청산·선별 규칙을 그대로 옮긴다.
 
     ⚠ 옮겨 적은 코드다. 원본이 바뀌면 여기도 바뀌어야 한다 — 자기검사
       `--verify` 가 '막히지 않은 사이클에서 실거래와 같은 종목을 골랐나'를
       확인하는 이유다.
     """
-    half = slots // 2
     trades = []
     for row in cycles:
         now = pd.Timestamp(row["cycle"])
@@ -196,19 +211,18 @@ def simulate(cycles: list[dict], eq: float, book: list, slots: int,
         nl = sum(1 for p in book if not p["short"])
         ns = len(book) - nl
         avail = [x for x in row.get("pool") or [] if x["s"] not in held]
-        pl = sorted((x for x in avail if not x["sh"]), key=lambda x: x["zv"])
-        ps = sorted((x for x in avail if x["sh"]), key=lambda x: -x["zv"])
         stake = eq / slots
-        for x in pl[:max(half - nl, 0)] + ps[:max(half - ns, 0)]:
+        for x in _pick(avail, mode, slots, nl, ns):
             book.append({"symbol": x["s"], "entry_ts": now,
-                         "entry_px": float(x["px"]), "short": bool(x["sh"]),
+                         "entry_px": float(x["px"]),
+                         "short": True if mode == "short" else bool(x["sh"]),
                          "exit_ts": now + timedelta(minutes=hold),
                          "fr": 0.0, "stake": stake})
     return eq, trades
 
 
 def verify(cycles: list[dict], live: pd.DataFrame, slots: int,
-           state_p: Path) -> None:
+           state_p: Path, mode: str = "both") -> None:
     """옮겨 적은 **선별 규칙**이 실거래와 같은 종목을 고르는지 본다.
 
     책(보유)이 갈리면 고르는 것도 정당하게 갈린다. 그래서 여기서는
@@ -218,7 +232,6 @@ def verify(cycles: list[dict], live: pd.DataFrame, slots: int,
     ⚠ 지갑 실패·주문 거절로 실거래가 못 연 사이클은 **불일치가 정상**이다.
       그게 바로 재려는 값이라서, 그런 사이클은 따로 센다.
     """
-    half = slots // 2
     opens = {}
     for _, r in live.iterrows():
         opens.setdefault(pd.Timestamp(r.entry_ts), []).append(
@@ -273,10 +286,8 @@ def verify(cycles: list[dict], live: pd.DataFrame, slots: int,
         nl = sum(1 for x in bk if not x[1])
         ns = len(bk) - nl
         av = [x for x in pool if x["s"] not in hs]
-        pl = sorted((x for x in av if not x["sh"]), key=lambda x: x["zv"])
-        ps = sorted((x for x in av if x["sh"]), key=lambda x: -x["zv"])
-        pred = {(x["s"], bool(x["sh"]))
-                for x in pl[:max(half - nl, 0)] + ps[:max(half - ns, 0)]}
+        pred = {(x["s"], True if mode == "short" else bool(x["sh"]))
+                for x in _pick(av, mode, slots, nl, ns)}
         if not pred:
             continue
         n += 1
@@ -301,6 +312,8 @@ def main() -> int:
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--dir", default="runs/kinematics_live/s2both")
     p.add_argument("--slots", type=int, default=2)
+    p.add_argument("--mode", default="both", choices=["both", "short"],
+                   help="실거래 갈래의 모드. **틀리면 그림자가 다른 전략이 된다**")
     p.add_argument("--hold-min", type=int, default=HOLD)
     p.add_argument("--fee-pct", type=float, default=-1.0,
                    help="왕복 수수료(%%). 기본 -1 이면 실거래 원장의 **실측 중앙값**을 "
@@ -322,7 +335,8 @@ def main() -> int:
         fee = float(live.fee_pct.median()) if "fee_pct" in live else FEE_PCT
 
     eq0, book0, n_past = seed(live, start, d / "state.json")
-    eq, tr = simulate(cycles, eq0, list(book0), a.slots, a.hold_min, fee)
+    eq, tr = simulate(cycles, eq0, list(book0), a.slots, a.hold_min, fee,
+                      mode=a.mode)
 
     lv = live[live.closed_ts > start]
     print("=== 속도저울 그림자 (오프라인 반사실) ===")
@@ -348,7 +362,7 @@ def main() -> int:
     if len(tr) < 30:
         print("  ⚠ 표본 30건 미만이다. **어떤 차이도 잡음이다.**")
     if a.verify:
-        verify(cycles, live, a.slots, d / "state.json")
+        verify(cycles, live, a.slots, d / "state.json", a.mode)
     return 0
 
 

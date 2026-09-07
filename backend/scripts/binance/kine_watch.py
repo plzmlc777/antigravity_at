@@ -16,6 +16,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+import os
 import sys
 import time
 import urllib.parse
@@ -23,9 +24,14 @@ import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-PAPER = ROOT / "runs" / "kinematics_paper" / "s2both"
-LIVE = ROOT / "runs" / "kinematics_live" / "s2both"
-ACCOUNT = 15
+# ⚠ 갈래를 바꾸면 **여기도 바꿔야 한다.** 안 바꾸면 옛 경로를 읽어
+#   "거래 0"으로 조용히 보고한다(교훈#102 — 보고는 없어져도 조용하다).
+#   환경변수로 덮을 수 있게 두어 교체 때 코드 수정 없이 넘어간다.
+TRACK = os.environ.get("KINE_TRACK", "s2both")
+PAPER_TRACK = os.environ.get("KINE_PAPER_TRACK", TRACK)
+PAPER = ROOT / "runs" / "kinematics_paper" / PAPER_TRACK
+LIVE = ROOT / "runs" / "kinematics_live" / TRACK
+ACCOUNT = int(os.environ.get("KINE_ACCOUNT", "15"))
 FAPI = "https://fapi.binance.com"
 
 
