@@ -231,14 +231,21 @@ def verify(cycles: list[dict], live: pd.DataFrame, slots: int,
         pass
 
     def held_at(ts):
+        """이 사이클이 **열기 전**의 보유. 경계가 둘 다 열려 있어야 한다.
+
+        ⚠ `entry_ts <= ts` 로 쓰면 **이 사이클이 방금 연 포지션**이 보유로
+          잡혀 슬롯이 꽉 찬 것처럼 보인다. 그러면 검사가 조용히 "판정할
+          사이클이 없다"만 찍는다 — 한 번도 안 도는 검사는 통과가 아니다
+          (2026-09-07 실측, 청산·재진입이 있었는데도 0건이었다).
+        """
         out = []
         for _, r in live.iterrows():
-            if pd.Timestamp(r.entry_ts) <= ts < pd.Timestamp(r.exit_ts):
+            if pd.Timestamp(r.entry_ts) < ts < pd.Timestamp(r.exit_ts):
                 out.append((r.symbol, bool(r.short)))
         try:
             st = json.loads(state_p.read_text())
             for q in st.get("positions") or []:
-                if (pd.Timestamp(q["entry_ts"]) <= ts
+                if (pd.Timestamp(q["entry_ts"]) < ts
                         < pd.Timestamp(q["exit_ts"])):
                     e = (q["symbol"], bool(q.get("short")))
                     if e not in out:
