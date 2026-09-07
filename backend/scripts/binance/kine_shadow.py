@@ -99,10 +99,21 @@ def read_cycles(d: Path) -> list[dict]:
     return rows
 
 
+LIVE_COLS = ["symbol", "entry_ts", "exit_ts", "closed_ts", "short",
+             "entry_px", "exit_px", "net_pct", "stopped", "equity_after",
+             "stake", "fr", "fee_pct"]
+
+
 def read_live(d: Path) -> pd.DataFrame:
+    """실거래 원장. **아직 청산이 없으면 빈 표**를 준다.
+
+    ⚠ 갈래를 새로 올린 직후엔 `trades.csv` 가 없다(첫 청산까지 최대 480분).
+      여기서 죽으면 그림자가 그 구간 내내 못 돈다 — 없는 것과 못 읽는 것은
+      다르다. 파일이 아예 없으면 '거래 0' 이고, 있는데 못 읽으면 오류다.
+    """
     f = d / "trades.csv"
     if not f.exists():
-        raise SystemExit(f"실거래 원장이 없다 — {f}")
+        return pd.DataFrame({c: pd.Series(dtype="object") for c in LIVE_COLS})
     t = pd.read_csv(f, parse_dates=["entry_ts", "exit_ts", "closed_ts"])
     return t.sort_values("closed_ts").reset_index(drop=True)
 
