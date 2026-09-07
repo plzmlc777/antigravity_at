@@ -17,6 +17,20 @@ import asyncio
 
 logger = logging.getLogger(__name__)
 
+# ⚠ 서명 시각을 찍은 뒤 요청이 서버에 닿기까지의 허용 지연.
+#   5초로는 부족했다 — 2026-09-05 18:45 UTC 속도저울 사이클이 호스트 부하로
+#   **304초** 걸리면서 `-1021` 이 연달아 터졌고, 만기 청산 하나가 다음
+#   사이클로 밀려 롱·숏 다리가 5분 어긋난 채 굳었다. 다음날 10:30 에는
+#   같은 `-1021` 이 RSI 지갑 조회를 깨뜨려 후퇴 명목이 쓰였고 `-2019`
+#   로 진입이 거절돼 +8% 를 놓쳤다. 이틀에 두 번, 다른 트랙에서 같은 뿌리다.
+#   바이낸스 상한은 60000 이다. 재생 공격 창이 넓어지는 대가라 무작정
+#   올리지 않고, 실측 지연을 덮는 최소치로 둔다.
+RECV_WINDOW_MS = 10_000
+
+# 서버가 **실행하기 전에** 거절하는 시각 오류. 재시도해도 중복 주문이
+# 되지 않는 유일한 부류라서 여기만 자동 재시도한다.
+_TIMESTAMP_ERRORS = (-1021,)
+
 
 class BinanceRateLimiter:
     """Sliding window rate limiter for Binance API.
@@ -92,7 +106,7 @@ class BinanceBaseAdapter:
         """Add timestamp and signature to params."""
         p = dict(params or {})
         p["timestamp"] = self._get_timestamp()
-        p["recvWindow"] = 5000
+        p["recvWindow"] = RECV_WINDOW_MS
         p["signature"] = self._sign(p)
         return p
 
@@ -117,38 +131,59 @@ class BinanceBaseAdapter:
         """
         from ..core.http_client import HttpClientManager
 
-        await self._rate_limiter.acquire()
-
         url = f"{self.api_url}{path}"
-
-        if signed:
-            request_params = self._signed_params(params)
-            headers = self._headers()
-        else:
-            request_params = params or {}
-            headers = self._public_headers()
-
         client = HttpClientManager.get_instance().get_client()
 
-        if method == "GET":
-            response = await client.get(url, params=request_params, headers=headers, timeout=30)
-        elif method == "POST":
-            response = await client.post(url, data=urlencode(request_params), headers=headers, timeout=30)
-        elif method == "PUT":
-            response = await client.put(url, data=urlencode(request_params), headers=headers, timeout=30)
-        elif method == "DELETE":
-            response = await client.delete(url, params=request_params, headers=headers, timeout=30)
-        else:
-            raise ValueError(f"Unsupported method: {method}")
+        # ⚠ `-1021` 은 서버가 **주문을 실행하기 전에** 거절한 것이다. 그래서
+        #   재시도해도 중복 체결이 되지 않는다 — 다른 오류를 여기서 재시도하면
+        #   같은 주문을 두 번 낼 수 있으니 부류를 넓히지 마라.
+        # ⚠ 재시도는 시각을 **다시 찍는다.** 같은 서명을 되보내면 또 거절된다.
+        for attempt in range(2):
+            await self._rate_limiter.acquire()
 
-        if response.status_code >= 400:
+            if signed:
+                request_params = self._signed_params(params)
+                headers = self._headers()
+            else:
+                request_params = params or {}
+                headers = self._public_headers()
+
+            if method == "GET":
+                response = await client.get(url, params=request_params, headers=headers, timeout=30)
+            elif method == "POST":
+                response = await client.post(url, data=urlencode(request_params), headers=headers, timeout=30)
+            elif method == "PUT":
+                response = await client.put(url, data=urlencode(request_params), headers=headers, timeout=30)
+            elif method == "DELETE":
+                response = await client.delete(url, params=request_params, headers=headers, timeout=30)
+            else:
+                raise ValueError(f"Unsupported method: {method}")
+
+            if response.status_code < 400:
+                return response.json() if response.content else {}
+
             error_data = response.json() if response.content else {}
             error_msg = error_data.get("msg", response.text)
             error_code = error_data.get("code", response.status_code)
+
+            retriable = False
+            try:
+                retriable = int(error_code) in _TIMESTAMP_ERRORS
+            except (TypeError, ValueError):
+                retriable = False
+
+            if retriable and signed and attempt == 0:
+                logger.warning(
+                    f"Binance {error_code} timestamp drift [{method} {path}] "
+                    f"— resyncing server time and retrying once")
+                await self.sync_server_time()
+                continue
+
             logger.error(f"Binance API error: {error_code} {error_msg} [{method} {path}]")
             raise BinanceAPIError(error_code, error_msg)
 
-        return response.json() if response.content else {}
+        # 재시도까지 실패하면 위에서 raise 된다. 여기 도달은 논리 오류다.
+        raise BinanceAPIError(-1021, "timestamp retry exhausted")
 
     async def _public_get(self, path: str, params: Dict = None) -> Any:
         """Public GET (no auth)."""
