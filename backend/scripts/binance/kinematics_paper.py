@@ -54,6 +54,10 @@ OUT = ROOT / "runs" / "kinematics_paper"
 
 # 그림자용 후보 풀에 남길 방향별 상위 개수. 슬롯 2 에는 넘치게 충분하다.
 POOL_KEEP = 25
+
+# 손절당한 종목의 재진입 냉각(분). 0 이면 끔 — **기본은 꺼짐**이라
+# 기존 갈래의 동작이 바뀌지 않는다. 영구 금지가 아니라 시간 제한이다.
+STOP_COOLDOWN_MIN = 0
 log = logging.getLogger("kine_paper")
 
 # ── 동결 파라미터 — 이 블록을 고치면 전진 검정이 아니다
@@ -83,6 +87,20 @@ def funding_rates() -> dict:
     except Exception as e:                                      # noqa: BLE001
         log.warning("펀딩률 조회 실패(0 으로 둔다): %s", str(e)[:80])
         return {}
+
+
+def cooling(st, now) -> set:
+    """지금 재진입이 막힌 종목. **만료분은 지우고** 돌려준다.
+
+    ⚠ 안 지우면 상태 파일이 무한히 자란다.
+    ⚠ 경계는 `>` 다 — 해제 시각이 되면 그 사이클부터 다시 잡을 수 있다.
+    """
+    if not st.cooldown:
+        return set()
+    t = pd.Timestamp(now)
+    st.cooldown = {k: v for k, v in st.cooldown.items()
+                   if pd.Timestamp(v) > t}
+    return set(st.cooldown)
 
 
 def funding_crossings(a: datetime, b: datetime) -> int:
@@ -121,12 +139,18 @@ class State:
     positions: list = None          # [{symbol, entry_ts, entry_px, exit_ts, stake}]
     n_trades: int = 0
     pending: list = None            # 지연 진입 대기열 [{symbol, sig_ts, enter_at}]
+    # 손절당한 종목의 냉각 — {종목: 이 시각까지 재진입 금지(ISO)}
+    #
+    # ⚠ **상태에 남겨야 한다.** 메모리에만 두면 재기동 한 번에 풀린다.
+    cooldown: dict = None
 
     def __post_init__(self):
         if self.positions is None:
             self.positions = []
         if self.pending is None:
             self.pending = []
+        if self.cooldown is None:
+            self.cooldown = {}
 
 
 def load_state(p: Path) -> State:
@@ -135,7 +159,8 @@ def load_state(p: Path) -> State:
     d = json.loads(p.read_text())
     # ⚠ 옛 상태 파일에는 pending 이 없다 — 없으면 빈 목록이다
     return State(equity=d["equity"], positions=d["positions"],
-                 n_trades=d.get("n_trades", 0), pending=d.get("pending", []))
+                 n_trades=d.get("n_trades", 0), pending=d.get("pending", []),
+                 cooldown=d.get("cooldown", {}))
 
 
 def save_state(p: Path, s: State) -> None:
@@ -566,6 +591,21 @@ def cycle(syms: list[str], st: State, ledger: Path, now: datetime,
             net = ret - fee + fnd
             st.equity += p["stake"] * net / 100.0
             st.n_trades += 1
+            # ── 손절당한 종목은 한동안 다시 잡지 않는다
+            #
+            # 2026-09-07 AKEUSDT: 06:45 숏 진입 → 06:50 손절 -5.147% →
+            # **같은 사이클에 같은 방향으로 재진입** → 07:35 손절 -4.313%.
+            # 합 -9.46%. 중복 배제가 `현재 보유`만 봐서 방금 닫힌 종목이
+            # 곧바로 다시 후보가 됐다. 손절은 "이 종목이 우리 반대로 세게
+            # 가는 중"이라는 신호인데, 그 신호를 받은 자리로 되돌아갔다.
+            #
+            # ⚠ **영구 금지가 아니다.** 만료 시각을 적어 두고 지나면 푼다.
+            # ⚠ 상태에 남긴다 — 메모리에만 두면 재기동 한 번에 풀린다.
+            if stop_hit and STOP_COOLDOWN_MIN > 0:
+                until = now + timedelta(minutes=STOP_COOLDOWN_MIN)
+                st.cooldown[sym] = str(until)
+                log.warning("%s 손절 — **%d분간 재진입 금지** (해제 %s)",
+                            sym, STOP_COOLDOWN_MIN, until.strftime("%m-%d %H:%M"))
             row = {**p, "exit_px": px, "ret_pct": ret, "funding_pct": fnd,
                    "net_pct": net, "closed_ts": str(now),
                    "stopped": bool(stop_hit), "equity_after": st.equity}
@@ -679,7 +719,8 @@ def cycle(syms: list[str], st: State, ledger: Path, now: datetime,
     # ── 빈 슬롯 채움 — z_vel 낮은 순, 중복 금지
     # ⚠ 대기열도 슬롯을 **차지한다**. 안 세면 지연 동안 과다 편입된다.
     held = ({p["symbol"] for p in st.positions}
-            | {q["symbol"] for q in st.pending})
+            | {q["symbol"] for q in st.pending}
+            | cooling(st, now))          # 냉각 중인 종목도 못 잡는다
     free = slots - len(st.positions) - len(st.pending)
     opened = []
     blocked = None
@@ -847,6 +888,10 @@ def main() -> int:
     p.add_argument("--tag", default="", help="경로 꼬리표")
     p.add_argument("--dir", default="",
                    help="상태·원장 디렉터리. 비우면 runs/kinematics_paper/s{슬롯}")
+    p.add_argument("--stop-cooldown-min", type=int, default=0,
+                   help="손절당한 종목을 이 분 동안 다시 잡지 않는다. 0 이면 끔. "
+                        "영구 금지가 아니라 시간 제한이다. 권고값은 보유 기간과 "
+                        "같은 120")
     p.add_argument("--emit-pool", action="store_true",
                    help="사이클마다 후보 풀을 <dir>/<날짜>/cycles.jsonl 에 "
                         "남긴다. 그림자가 '실거래가 열 수 있었던 것'을 "
@@ -856,8 +901,9 @@ def main() -> int:
     # ⚠ 인자를 전역에 **반영**한다. 안 하면 --stop-pct 를 받고도 코드가
     #   기본값을 쓴다 — 교훈#88(클래스만 고치고 경로를 안 봐서 재진입
     #   차단이 한 번도 동작 안 했다)과 같은 형태다.
-    global STOP_PCT
+    global STOP_PCT, STOP_COOLDOWN_MIN
     STOP_PCT = float(a.stop_pct)
+    STOP_COOLDOWN_MIN = int(a.stop_cooldown_min)
     # ⚠ 풀을 자르는 순서는 **선별 순서와 같아야** 한다. `--pick noise` 는
     #   잡음 순위로 고르므로 z_vel 상위 25개를 남기면 실제로 뽑혔을 종목이
     #   잘려 나간다 — 그림자가 조용히 틀린다.
@@ -879,6 +925,12 @@ def main() -> int:
     st = load_state(state_p)
     side = "롱숏동시" if a.both else ("숏" if a.short else "롱")
     log.info("손절 상한 **%.2f%%** (0 이면 끔) — 인자 도달 확인", STOP_PCT)
+    log.info("손절 후 재진입 금지 **%d분** (0 이면 끔) — 인자 도달 확인",
+             STOP_COOLDOWN_MIN)
+    if st.cooldown:
+        log.info("복원된 냉각 %d종목: %s", len(st.cooldown),
+                 ", ".join(f"{k}→{v[:16]}" for k, v in
+                           sorted(st.cooldown.items())[:5]))
     log.info("운동학 페이퍼 — %d종목 · %s · 슬롯 %d(%s) · 보유 %d분 · 경로 %s",
              len(syms), side, a.slots,
              f"롱{a.slots//2}+숏{a.slots//2}" if a.both else side, a.hold_min, d)
