@@ -15,6 +15,10 @@ export PYTHONPATH=.
 echo "=== RSI 트랙 점검 · $(TZ=Asia/Seoul date '+%Y-%m-%d %H:%M:%S KST') ==="
 echo
 
+# 계좌 잔고 — "얼마 넣어서 얼마가 됐나". 전략 원장의 지수와 다르다.
+venv/bin/python3 -m scripts.binance.account_ledger 8 2>&1
+echo
+
 venv/bin/python3 -m scripts.binance.rsi_three_way 2>&1
 
 echo

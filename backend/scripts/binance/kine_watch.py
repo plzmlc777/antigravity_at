@@ -75,6 +75,12 @@ def _ledger(d: Path):
 
 
 def main() -> int:
+    # 계좌 잔고 — 전략 원장의 자본 지수와 다르다. 대표님이 보는 것은
+    # "얼마 넣어서 얼마가 됐나"다.
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from account_ledger import render as _acct
+    _acct(ACCOUNT)
+    print()
     print("=== 속도저울(s2both) · 페이퍼 대 실거래 ===")
     rows = []
     for lab, d in (("페이퍼", PAPER), ("실거래", LIVE)):
