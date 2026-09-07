@@ -51,6 +51,9 @@ from scripts.binance import tickbars
 ROOT = Path(__file__).resolve().parents[2]
 TICKS = ROOT / "runs" / "ticks"
 OUT = ROOT / "runs" / "kinematics_paper"
+
+# 그림자용 후보 풀에 남길 방향별 상위 개수. 슬롯 2 에는 넘치게 충분하다.
+POOL_KEEP = 25
 log = logging.getLogger("kine_paper")
 
 # ── 동결 파라미터 — 이 블록을 고치면 전진 검정이 아니다
@@ -350,7 +353,8 @@ def _tell(broker, text: str) -> None:
 def cycle(syms: list[str], st: State, ledger: Path, now: datetime,
           slots: int, short: bool, fr: dict, both: bool = False,
           delay: int = 0, hold: int = HOLD, pick: str = "zvel",
-          sig: str = "kine", entry_hour: int = -1, broker=None) -> dict:
+          sig: str = "kine", entry_hour: int = -1, broker=None,
+          emit_pool: bool = False) -> dict:
     """`broker` 가 None 이면 **순수 페이퍼**다 — 기존 동작 그대로.
 
     None 이 아니면 진입·청산이 실제 주문으로 나가고, 체결가·수수료를
@@ -552,7 +556,8 @@ def cycle(syms: list[str], st: State, ledger: Path, now: datetime,
             fee = FEE_PCT
             if broker is not None:
                 real = broker.roundtrip_fee_pct(
-                    sym, float(p.get("notional_usd", 0.0)))
+                    sym, float(p.get("notional_usd", 0.0)),
+                    short=bool(p.get("short")))
                 if real is not None:
                     fee = real
                 else:
@@ -607,6 +612,26 @@ def cycle(syms: list[str], st: State, ledger: Path, now: datetime,
         for k, x in enumerate(order):
             x["side_short"] = (k >= len(order) - h)
 
+    # ── 후보 풀 채집 (그림자용) — **슬롯 여유와 무관하게** 남긴다
+    #
+    # 실거래가 무엇을 열 수 있었는지를 나중에 재려면, 열지 **못한** 사이클의
+    # 후보도 있어야 한다. 슬롯이 막혀 있었던 것도 체결 계층의 비용이다 —
+    # 2026-09-05 18:45 처럼 `-1021` 로 청산이 밀리면 다음 사이클 슬롯이
+    # 없어서 진입이 통째로 사라지는데, 그 손실이 어디에도 안 남는다.
+    #
+    # ⚠ 전량을 남기면 하루 10MB 다(후보 342 × 288 사이클). 슬롯이 2 라
+    #   양쪽 상위 25개면 충분하고 남는다. 자른 사실을 감추지 않으려고
+    #   원래 개수(`n_cands`)를 함께 적는다.
+    pool = None
+    if emit_pool:
+        _pl = sorted((x for x in cands if not x.get("side_short")),
+                     key=lambda x: x["z_vel"])[:POOL_KEEP]
+        _ps = sorted((x for x in cands if x.get("side_short")),
+                     key=lambda x: -x["z_vel"])[:POOL_KEEP]
+        pool = [{"s": x["symbol"], "sh": int(bool(x.get("side_short", short))),
+                 "px": float(x["px"]), "zv": float(x["z_vel"]),
+                 "za": float(x["z_acc"])} for x in (_pl + _ps)]
+
     # ── 대기열 승격 — 신호 시각 + 지연이 지난 것만 **그때 가격으로** 진입
     #
     # 44시간 실측: 진입 후 첫 30분은 먹힌 구간·중립·잃은 구간이 **전부 음수**
@@ -628,14 +653,23 @@ def cycle(syms: list[str], st: State, ledger: Path, now: datetime,
                 #   조용히 오염된다(교훈#107).
                 log.info("  대기 %s 시세 없음 — 취소", q["symbol"])
                 continue
+            # ⚠ `hold` 다. 상수 HOLD 를 쓰면 **`--hold-min` 이 이 경로에서만
+            #   조용히 버려진다**. 2026-09-05 실측: UTC01 이 `--hold-min 1440`
+            #   으로 넉 달 돌았는데 원장 보유는 전부 **120분**이었다. 인자는
+            #   파싱됐고 기동 로그도 "보유 1440분"이라 정상으로 보였다 —
+            #   지연(delay>0)이 붙은 갈래만 대기열을 거치기 때문이다(교훈#88).
             st.positions.append({
                 "symbol": q["symbol"], "sig_ts": q["sig_ts"],
                 "entry_ts": str(now), "entry_px": px,
                 "z_vel": q["z_vel"], "z_acc": q["z_acc"],
-                "exit_ts": str(now + timedelta(minutes=HOLD)),
+                "exit_ts": str(now + timedelta(minutes=hold)),
                 "stake": st.equity / slots, "short": bool(q["short"]),
                 "fr": float(fr.get(q["symbol"], 0.0))})
             promoted.append(q["symbol"])
+        if promoted:
+            # 인자 도달 증명 — 원장을 열기 전에 로그로 먼저 확인한다
+            log.info("  승격 %d건 · 보유 **%d분** 적용(인자 도달 확인)",
+                     len(promoted), hold)
         st.pending = still
 
     # ⚠ 진입 시각 제한 — 하루 한 번만 여는 갈래용. 청산·승격은 항상 돈다.
@@ -648,6 +682,7 @@ def cycle(syms: list[str], st: State, ledger: Path, now: datetime,
             | {q["symbol"] for q in st.pending})
     free = slots - len(st.positions) - len(st.pending)
     opened = []
+    blocked = None
     if free > 0 and cands:
         avail = [x for x in cands if x["symbol"] not in held]
         if both:
@@ -692,6 +727,7 @@ def cycle(syms: list[str], st: State, ledger: Path, now: datetime,
             if w is None:
                 log.error("지갑을 못 읽었다 — **이번 사이클 진입을 건너뛴다**")
                 c = []
+                blocked = "wallet"        # 규칙이 아니라 체결 사고다
             else:
                 live_notional = w / max(1, int(slots))
         for x in c:
@@ -748,7 +784,28 @@ def cycle(syms: list[str], st: State, ledger: Path, now: datetime,
             opened.append(p)
     return {"cands": len(cands), "opened": len(opened), "closed": len(closed),
             "held": len(st.positions), "pending": len(st.pending),
-            "promoted": len(promoted)}
+            "promoted": len(promoted), "pool": pool, "blocked": blocked,
+            "n_cands": len(cands)}
+
+
+def _emit_pool(d: Path, now: datetime, r: dict) -> None:
+    """사이클 한 줄을 `<dir>/<날짜>/cycles.jsonl` 에 덧붙인다.
+
+    ⚠ **실패해도 사이클을 죽이지 않는다.** 이건 계측이지 거래가 아니다.
+      실자금 경로에 새 예외를 들이면 안 된다.
+    ⚠ 날짜는 UTC 로 가른다 — 사이클 격자가 UTC 라 그래야 경계가 맞는다.
+    """
+    try:
+        day = d / now.strftime("%Y-%m-%d")
+        day.mkdir(parents=True, exist_ok=True)
+        row = {"cycle": now.isoformat(), "n_cands": r.get("n_cands", 0),
+               "held": r.get("held", 0), "opened": r.get("opened", 0),
+               "closed": r.get("closed", 0), "blocked": r.get("blocked"),
+               "pool": r.get("pool") or []}
+        with (day / "cycles.jsonl").open("a", encoding="utf-8") as f:
+            f.write(json.dumps(row, separators=(",", ":")) + "\n")
+    except Exception as exc:                                  # noqa: BLE001
+        log.warning("후보 풀 기록 실패(거래는 계속한다): %s", exc)
 
 
 def main() -> int:
@@ -790,12 +847,22 @@ def main() -> int:
     p.add_argument("--tag", default="", help="경로 꼬리표")
     p.add_argument("--dir", default="",
                    help="상태·원장 디렉터리. 비우면 runs/kinematics_paper/s{슬롯}")
+    p.add_argument("--emit-pool", action="store_true",
+                   help="사이클마다 후보 풀을 <dir>/<날짜>/cycles.jsonl 에 "
+                        "남긴다. 그림자가 '실거래가 열 수 있었던 것'을 "
+                        "재구성하는 자료원이다. 기본 꺼짐 — 다른 갈래의 "
+                        "동작을 바꾸지 않는다")
     a = p.parse_args()
     # ⚠ 인자를 전역에 **반영**한다. 안 하면 --stop-pct 를 받고도 코드가
     #   기본값을 쓴다 — 교훈#88(클래스만 고치고 경로를 안 봐서 재진입
     #   차단이 한 번도 동작 안 했다)과 같은 형태다.
     global STOP_PCT
     STOP_PCT = float(a.stop_pct)
+    # ⚠ 풀을 자르는 순서는 **선별 순서와 같아야** 한다. `--pick noise` 는
+    #   잡음 순위로 고르므로 z_vel 상위 25개를 남기면 실제로 뽑혔을 종목이
+    #   잘려 나간다 — 그림자가 조용히 틀린다.
+    if a.emit_pool and a.pick != "zvel":
+        raise SystemExit(f"--emit-pool 은 --pick zvel 에서만 옳다 (지금 {a.pick})")
     logging.basicConfig(level=logging.INFO,
                         format="%(asctime)s [%(levelname)s] %(message)s")
     signal.signal(signal.SIGTERM, _sig)
@@ -882,8 +949,10 @@ def main() -> int:
             fr = funding_rates() if a.short or True else {}
             r = cycle(syms, st, ledger, now, a.slots, a.short, fr,
                       a.both, a.delay_min, a.hold_min, a.pick, a.signal,
-                      a.entry_hour, broker)
+                      a.entry_hour, broker, emit_pool=a.emit_pool)
             save_state(state_p, st)
+            if a.emit_pool:
+                _emit_pool(d, now, r)
             log.info("%s · 후보 %d · 예약 %d · 승격 %d · 대기 %d · 청산 %d "
                      "· 보유 %d/%d · 자본 %.4f(%+.2f%%) · 누적 %d · %.0f초",
                      now.strftime("%m-%d %H:%M"), r["cands"], r["opened"],
