@@ -47,15 +47,24 @@ else
     echo "[$TS] Restart FAILED rc=$RC" >> "$LOG_FILE"
 fi
 
-# Verify backend responds within 30s
-for i in $(seq 1 15); do
+# Verify backend responds.
+#
+# ⚠ 예전엔 30초(15x2s)만 기다렸다. at-backend 는 기동에 그보다 오래 걸려
+#   (메모리 400MB 급) **매일 종료코드 1** 로 끝났고, 그래서 진짜 실패와
+#   구분이 안 됐다 — 언젠가 정말 안 올라와도 로그가 똑같아 보인다.
+#   2026-09-08 대표님 지시로 120초로 늘렸다.
+# ⚠ $TS 는 스크립트 시작 때 한 번 잡은 값이라 경과가 안 보인다. 여기서는
+#   현재 시각과 실제 대기 초를 함께 남긴다.
+HEALTH_WAIT_S=${HEALTH_WAIT_S:-120}
+T0=$(date +%s)
+for i in $(seq 1 $((HEALTH_WAIT_S / 2))); do
     HTTP=$(curl -s -o /dev/null -w '%{http_code}' --max-time 3 http://localhost:8001/api/v1/system/version 2>/dev/null || echo 000)
     if [ "$HTTP" = "200" ]; then
-        echo "[$TS] Health OK after ${i}x2s" >> "$LOG_FILE"
+        echo "[$(date '+%Y-%m-%d %H:%M:%S %Z')] Health OK after $(($(date +%s) - T0))s" >> "$LOG_FILE"
         exit 0
     fi
     sleep 2
 done
 
-echo "[$TS] WARNING: backend not responding 200 within 30s" >> "$LOG_FILE"
+echo "[$(date '+%Y-%m-%d %H:%M:%S %Z')] WARNING: backend not responding 200 within ${HEALTH_WAIT_S}s (last HTTP=$HTTP)" >> "$LOG_FILE"
 exit 1
