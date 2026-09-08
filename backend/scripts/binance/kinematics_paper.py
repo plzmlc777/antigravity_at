@@ -37,6 +37,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import os
 import signal
 import time
 from dataclasses import asdict, dataclass
@@ -61,6 +62,10 @@ STOP_COOLDOWN_MIN = 0
 log = logging.getLogger("kine_paper")
 
 # ── 동결 파라미터 — 이 블록을 고치면 전진 검정이 아니다
+# 알림 부제에 찍히는 갈래명. 승격으로 갈래가 바뀌어도 여기가 옛 이름으로
+# 남으면 **알림만 조용히 틀린다**(교훈#102). 환경변수로 따라가게 한다.
+TRACK_NAME = os.environ.get("KINE_NAME", "운동학")
+
 WIN_H, WINDOW, DELTA = 60, 360, 180
 Z_LO, Z_HI, ACC_MAX = -1.25, -0.25, 0.5
 SLOTS_DEFAULT, HOLD, STEP = 10, 120, 5
@@ -379,7 +384,7 @@ def cycle(syms: list[str], st: State, ledger: Path, now: datetime,
           slots: int, short: bool, fr: dict, both: bool = False,
           delay: int = 0, hold: int = HOLD, pick: str = "zvel",
           sig: str = "kine", entry_hour: int = -1, broker=None,
-          emit_pool: bool = False) -> dict:
+          emit_pool: bool = False, margin_buffer: float = 0.95) -> dict:
     """`broker` 가 None 이면 **순수 페이퍼**다 — 기존 동작 그대로.
 
     None 이 아니면 진입·청산이 실제 주문으로 나가고, 체결가·수수료를
@@ -620,7 +625,7 @@ def cycle(syms: list[str], st: State, ledger: Path, now: datetime,
             #   헤더가 다르면 전체를 읽어 합집합 스키마로 다시 쓴다.
             if broker is not None:
                 _tell(broker,
-                      f"{'✅' if net > 0 else '❌'} <b>속도저울 청산</b> "
+                      f"{'✅' if net > 0 else '❌'} <b>{TRACK_NAME} 청산</b> "
                       f"{'숏' if p.get('short') else '롱'}"
                       f"{' · 손절' if stop_hit else ''}\n"
                       f"{sym} {p['entry_px']:.8g} → {px:.8g}\n"
@@ -770,7 +775,12 @@ def cycle(syms: list[str], st: State, ledger: Path, now: datetime,
                 c = []
                 blocked = "wallet"        # 규칙이 아니라 체결 사고다
             else:
-                live_notional = w / max(1, int(slots))
+                # ⚠ 지갑을 **딱 나누면 마지막 자리가 못 들어간다.** 1배에서는
+                #   명목=증거금이라 6×(w/6)=w 로 여유가 0이고, 앞 다리들이 낸
+                #   테이커 수수료·미실현 손실만큼 모자라 `-2019` 로 거절된다.
+                #   2026-09-08 균형저울 첫 진입에서 6번째(KASUSDT)가 그렇게
+                #   빠져 장부가 롱3+숏2 로 **중립이 깨졌다.** 완충을 둔다.
+                live_notional = w * margin_buffer / max(1, int(slots))
         for x in c:
             if delay > 0:
                 st.pending.append({
@@ -797,7 +807,7 @@ def cycle(syms: list[str], st: State, ledger: Path, now: datetime,
                 armed = broker.arm_stop(x["symbol"], short_leg, entry_px,
                                         STOP_PCT)
                 _tell(broker,
-                      f"{'🔻' if short_leg else '🔺'} <b>속도저울 진입</b> "
+                      f"{'🔻' if short_leg else '🔺'} <b>{TRACK_NAME} 진입</b> "
                       f"{'숏' if short_leg else '롱'}\n"
                       f"{x['symbol']} {qty:.8g} @ {entry_px:.8g}\n"
                       f"명목 ${notional_usd:.2f} · z_vel {x['z_vel']:+.2f}\n"
@@ -892,6 +902,12 @@ def main() -> int:
                    help="손절당한 종목을 이 분 동안 다시 잡지 않는다. 0 이면 끔. "
                         "영구 금지가 아니라 시간 제한이다. 권고값은 보유 기간과 "
                         "같은 120")
+    p.add_argument("--margin-buffer", type=float, default=0.95,
+                   help="실거래 다리당 명목 = 지갑 x 이 값 / 슬롯. 1.0 이면 "
+                        "지갑을 딱 나눠 마지막 자리가 -2019 로 거절된다. "
+                        "0.95 근거: 바이낸스 증거금은 **표시가** 기준이라 "
+                        "명목보다 최대 0.6% 크고(실측 69.41/69.03), 진입 "
+                        "테이커 수수료가 지갑에서 먼저 빠진다.")
     p.add_argument("--emit-pool", action="store_true",
                    help="사이클마다 후보 풀을 <dir>/<날짜>/cycles.jsonl 에 "
                         "남긴다. 그림자가 '실거래가 열 수 있었던 것'을 "
@@ -993,10 +1009,11 @@ def main() -> int:
             st.positions = kept
         w = broker.wallet_balance()
         log.warning("*** 실거래 모드 *** 계좌 %s · 레버리지 %dx · 슬롯 %d "
-                    "· 지갑 %s USDT · 다리당 명목 %s%s",
+                    "· 지갑 %s USDT · 다리당 명목 %s · 증거금 완충 %.2f%s",
                     a.account, a.leverage, a.slots,
                     f"{w:.4f}" if w else "조회실패",
-                    f"${w / max(1, a.slots):.2f}" if w else "?",
+                    f"${w * a.margin_buffer / max(1, a.slots):.2f}" if w else "?",
+                    a.margin_buffer,
                     " · DRY-RUN" if a.dry_run else "")
 
     while not _stop:
@@ -1007,7 +1024,8 @@ def main() -> int:
             fr = funding_rates() if a.short or True else {}
             r = cycle(syms, st, ledger, now, a.slots, a.short, fr,
                       a.both, a.delay_min, a.hold_min, a.pick, a.signal,
-                      a.entry_hour, broker, emit_pool=a.emit_pool)
+                      a.entry_hour, broker, emit_pool=a.emit_pool,
+                      margin_buffer=a.margin_buffer)
             save_state(state_p, st)
             if a.emit_pool:
                 _emit_pool(d, now, r)

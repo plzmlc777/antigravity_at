@@ -1,4 +1,4 @@
-"""속도저울(s2both) 한 화면 점검 — 정기 보고의 자료원.
+"""운동학 1군 한 화면 점검 — 정기 보고의 자료원.
 
 RSI 의 `rsi_watch.sh` 와 같은 자리다. 페이퍼(대조군)와 실거래를 나란히
 놓고, **거래소 원본**으로 장부를 대조한다.
@@ -27,11 +27,14 @@ ROOT = Path(__file__).resolve().parents[2]
 # ⚠ 갈래를 바꾸면 **여기도 바꿔야 한다.** 안 바꾸면 옛 경로를 읽어
 #   "거래 0"으로 조용히 보고한다(교훈#102 — 보고는 없어져도 조용하다).
 #   환경변수로 덮을 수 있게 두어 교체 때 코드 수정 없이 넘어간다.
-TRACK = os.environ.get("KINE_TRACK", "s2both")
+TRACK = os.environ.get("KINE_TRACK", "bal6")
 # 사람이 읽는 이름. 갈래를 바꾸면 여기도 바뀌어야 보고가 안 헷갈린다.
-NAMES = {"s2both": "속도저울", "imp3s": "탄성저울"}
+NAMES = {"s2both": "속도저울", "imp3s": "탄성저울", "bal6": "균형저울"}
+# 실거래 경로명과 페이퍼 경로명이 **다르다.** 균형저울의 대조군 페이퍼는
+# `s6both_h240` 이다 — 여기를 안 채우면 페이퍼 칸이 조용히 빈다(교훈#102).
+PAPER_OF = {"bal6": "s6both_h240"}
 NAME = os.environ.get("KINE_NAME") or NAMES.get(TRACK, TRACK)
-PAPER_TRACK = os.environ.get("KINE_PAPER_TRACK", TRACK)
+PAPER_TRACK = os.environ.get("KINE_PAPER_TRACK", PAPER_OF.get(TRACK, TRACK))
 PAPER = ROOT / "runs" / "kinematics_paper" / PAPER_TRACK
 LIVE = ROOT / "runs" / "kinematics_live" / TRACK
 ACCOUNT = int(os.environ.get("KINE_ACCOUNT", "15"))

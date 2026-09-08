@@ -35,5 +35,13 @@ EXTRA=""
 #   `--slots 10 10` 처럼 넘어가 argparse 가 죽는다. 인자 1~2개짜리
 #   갈래 다섯이 재시작 801회를 돌고 있었다(2026-08-31 발견).
 if [ "$#" -ge 3 ]; then shift 3; else shift "$#"; fi
-exec env PYTHONPATH=. nice -n 15 ionice -c3 \
+# ⚠ 우선순위. 페이퍼·연구는 15(양보), **실거래는 0** 이어야 한다 —
+#   실거래가 연구 8갈래와 같은 nice 로 돌면 봉 마감 직후 신호 계산이 밀린다.
+#   PM2 앱에 KINE_NICE=0 을 주고 띄운다(교훈#102 체크리스트 9).
+KINE_NICE="${KINE_NICE:-15}"
+if [ "${KINE_NICE}" = "0" ]; then
+  exec env PYTHONPATH=. \
+    python3 -m scripts.binance.kinematics_paper --slots "${SLOTS}" ${EXTRA} "$@"
+fi
+exec env PYTHONPATH=. nice -n "${KINE_NICE}" ionice -c3 \
   python3 -m scripts.binance.kinematics_paper --slots "${SLOTS}" ${EXTRA} "$@"
