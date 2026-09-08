@@ -305,8 +305,13 @@ def verify(cycles: list[dict], live: pd.DataFrame, slots: int,
         act = set(opens.get(ts, []))
         if pred == act:
             agree += 1
-        elif row.get("blocked") or not act:
-            miss += 1                     # 실거래가 못 연 사이클 — 정상 불일치
+        elif row.get("blocked") or act < pred:
+            # ⚠ 실거래가 **예측의 부분집합**만 열었다 = 체결 계층이 못 연 것이다.
+            #   주문 거절·지갑 실패뿐 아니라, 체결가를 확정 못해 고아 방지로
+            #   즉시 되닫은 경우도 여기다(2026-09-08 GUSDT: FILLED 인데
+            #   avgPrice=0 · 재조회 -2013 → 즉시 청산). **이건 규칙 전사
+            #   오류가 아니라 재려던 값 자체**다.
+            miss += 1
     print()
     print("=== 자체검사 — 선별 규칙 전사 ===")
     if n == 0:
