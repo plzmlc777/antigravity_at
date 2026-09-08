@@ -210,7 +210,7 @@ class BinanceBaseAdapter:
             else:
                 raise ValueError(f"Unsupported method: {method}")
 
-            _note_weight(response.headers, path)
+            _note_weight(getattr(response, "headers", {}) or {}, path)
             if response.status_code < 400:
                 return response.json() if response.content else {}
 
