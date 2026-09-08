@@ -160,13 +160,18 @@ class KineLiveBroker:
                 out[p["symbol"]] = q
         return out
 
-    def open_algo_orders(self) -> dict:
-        """미체결 조건부 주문 {종목: [algoId]}."""
+    def open_algo_orders(self, strict: bool = False) -> dict | None:
+        """미체결 조건부 주문 {종목: [algoId]}. **strict 면 실패에 None.**
+
+        ⚠ `positions()` 와 같은 함정이다(2026-09-08 실측). 조회 실패를 `{}`
+          로 돌려주면 호출부가 "손절이 없다"로 읽는다. 그날 IP 차단(-1003)
+          중에 이 함수가 `{}` 를 돌려줘, 보호 없는 포지션인지 못 읽은 것인지
+          가릴 수 없었다. 모르는 것과 없는 것은 다르다(교훈#106)."""
         try:
             rows = _run(self._adapter.get_open_algo_orders())
         except Exception as e:                            # noqa: BLE001
             log.error("조건부 주문 조회 실패: %s", e)
-            return {}
+            return None if strict else {}
         out: dict = {}
         for o in rows or []:
             out.setdefault(o.get("symbol"), []).append(str(o.get("algoId")))
@@ -508,7 +513,12 @@ class KineLiveBroker:
             log.critical("거래소 포지션을 못 읽었다 — **대조하지 않는다.** "
                          "장부를 지우지도, 조건부 주문을 걷지도 않는다")
             return None
-        algo = self.open_algo_orders()
+        algo = self.open_algo_orders(strict=True)
+        if algo is None:
+            log.critical("조건부 주문을 못 읽었다 — **고아 청소를 건너뛴다.** "
+                         "못 읽은 것을 '없다'로 읽으면 살아 있는 포지션의 "
+                         "손절을 걷어낸다")
+            return pos
         log.info("거래소 대조 — 포지션 %d종목 · 조건부 주문 %d종목",
                  len(pos or {}), len(algo))
         for sym in list(algo):
