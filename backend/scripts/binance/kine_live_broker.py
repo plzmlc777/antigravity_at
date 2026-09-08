@@ -491,12 +491,23 @@ class KineLiveBroker:
         return (num / den, den) if den > 0 else (0.0, 0.0)
 
     # ── 재시작 대조 ─────────────────────────────────────────
-    def reconcile(self, own: set | None = None) -> dict:
-        """거래소와 맞춘다. {종목: 부호수량} 을 돌려준다.
+    def reconcile(self, own: set | None = None) -> dict | None:
+        """거래소와 맞춘다. {종목: 부호수량} 을 돌려준다. **못 읽으면 None.**
 
         ⚠ 우리 장부에 없는 포지션은 **손대지 않는다** — 수동 개입일 수 있다.
-          드러내기만 한다. 포지션 없는데 남은 조건부 주문은 고아라 걷는다."""
-        pos = self.positions()
+          드러내기만 한다. 포지션 없는데 남은 조건부 주문은 고아라 걷는다.
+
+        ⚠ **반드시 strict 로 읽는다** (2026-09-08 사고). 예전엔 non-strict 라
+          조회 실패가 `{}` 로 돌아왔고, 그러면
+            ① 호출부가 장부의 포지션을 전부 "거래소에 없다"고 지웠고
+            ② 아래 고아 청소가 **살아 있는 포지션의 손절을 전부 취소**했다.
+          바이낸스 `-1003` IP 차단 때 실제로 ①이 일어났다(②는 조건부 주문
+          조회도 같이 실패해 우연히 면했다). 모르는 것과 없는 것은 다르다."""
+        pos = self.positions(strict=True)
+        if pos is None:
+            log.critical("거래소 포지션을 못 읽었다 — **대조하지 않는다.** "
+                         "장부를 지우지도, 조건부 주문을 걷지도 않는다")
+            return None
         algo = self.open_algo_orders()
         log.info("거래소 대조 — 포지션 %d종목 · 조건부 주문 %d종목",
                  len(pos or {}), len(algo))

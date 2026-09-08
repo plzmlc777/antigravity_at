@@ -977,14 +977,20 @@ def main() -> int:
         # ⚠ 재시작 대조 — 거래소가 진실이다. 우리 장부에 없는 포지션은
         #   손대지 않고 **드러내기만** 한다(수동 개입일 수 있다).
         onx = broker.reconcile({p["symbol"] for p in st.positions})
-        kept = []
-        for p in st.positions:
-            if p["symbol"] in onx:
-                kept.append(p)
-            else:
-                log.warning("장부엔 %s 가 있는데 거래소엔 없다 — 장부에서 뺀다",
-                            p["symbol"])
-        st.positions = kept
+        if onx is None:
+            # ⚠ 못 읽었다 = 없다가 아니다. 장부를 **그대로 둔다**.
+            #   2026-09-08 `-1003` IP 차단 때 장부가 통째로 비워졌다.
+            log.critical("기동 대조 실패 — 장부를 손대지 않는다 (보유 %d건 유지). "
+                         "거래소를 직접 확인하라", len(st.positions))
+        else:
+            kept = []
+            for p in st.positions:
+                if p["symbol"] in onx:
+                    kept.append(p)
+                else:
+                    log.warning("장부엔 %s 가 있는데 거래소엔 없다 — 장부에서 뺀다",
+                                p["symbol"])
+            st.positions = kept
         w = broker.wallet_balance()
         log.warning("*** 실거래 모드 *** 계좌 %s · 레버리지 %dx · 슬롯 %d "
                     "· 지갑 %s USDT · 다리당 명목 %s%s",
