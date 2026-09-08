@@ -8,6 +8,7 @@ Binance Base Adapter - Shared functionality for Spot and Futures adapters.
 
 import hashlib
 import hmac
+import os
 import time
 import logging
 from typing import Dict, Any, Optional, List
@@ -30,6 +31,56 @@ RECV_WINDOW_MS = 10_000
 # 서버가 **실행하기 전에** 거절하는 시각 오류. 재시도해도 중복 주문이
 # 되지 않는 유일한 부류라서 여기만 자동 재시도한다.
 _TIMESTAMP_ERRORS = (-1021,)
+
+# ── IP 예산 계측 (2026-09-08 `-1003` 차단 뒤 신설)
+#
+# 바이낸스 한도는 **API 키가 아니라 IP 기준**이다. 이 호스트는 PM2 58개가
+# 한 IP 를 나눠 쓰고 정각·30분에 같이 깨어난다. 그런데 로그에 남는 것은
+# 요청 **수**뿐이라, `positionRisk`(가중치 5)와 klines(최대 10)를 구분할 수
+# 없어 **누가 예산을 먹는지 추측밖에 못 했다.**
+#
+# 응답 헤더 `X-MBX-USED-WEIGHT-1M` 이 그 순간의 **IP 전체 사용량**이다.
+# 각 프로세스가 자기 요청 수와 함께 남기면 귀속이 된다.
+# ⚠ 계측이 스스로 로그 폭풍이 되면 안 된다 — 문턱을 넘을 때와 분당 한 번만.
+WEIGHT_WARN = int(os.environ.get("BINANCE_WEIGHT_WARN", "1200"))
+WEIGHT_LIMIT = 2400                       # 선물 IP 한도(참고용)
+_W_LAST: float = 0.0                      # 마지막 관측 사용량
+_W_PEAK: float = 0.0                      # 이번 분의 최고
+_W_MIN: int = 0                           # 이번 분(epoch//60)
+_W_REQ: int = 0                           # 이번 분 **이 프로세스의** 요청 수
+_W_WARN_AT: float = 0.0                   # 마지막 경고 시각(초)
+
+
+def _note_weight(headers, path: str) -> None:
+    """응답 헤더에서 IP 사용량을 읽어 남긴다. **실패해도 조용히 넘어간다.**"""
+    global _W_LAST, _W_PEAK, _W_MIN, _W_REQ, _W_WARN_AT
+    try:
+        raw = None
+        for k in ("X-MBX-USED-WEIGHT-1M", "x-mbx-used-weight-1m"):
+            raw = headers.get(k)
+            if raw:
+                break
+        now = time.time()
+        cur_min = int(now // 60)
+        if cur_min != _W_MIN:
+            if _W_MIN and _W_PEAK:
+                logger.info(
+                    f"[IP예산] {_W_MIN % 60:02d}분 최고 {_W_PEAK:.0f}/{WEIGHT_LIMIT} "
+                    f"({100 * _W_PEAK / WEIGHT_LIMIT:.0f}%) · 이 프로세스 요청 {_W_REQ}건")
+            _W_MIN, _W_PEAK, _W_REQ = cur_min, 0.0, 0
+        _W_REQ += 1
+        if raw is None:
+            return
+        w = float(raw)
+        _W_LAST = w
+        _W_PEAK = max(_W_PEAK, w)
+        if w >= WEIGHT_WARN and now - _W_WARN_AT >= 5.0:
+            _W_WARN_AT = now
+            logger.warning(
+                f"[IP예산] **{w:.0f}/{WEIGHT_LIMIT}** ({100 * w / WEIGHT_LIMIT:.0f}%) "
+                f"— 이 프로세스가 이번 분 {_W_REQ}건 [{path}]")
+    except Exception:                                     # noqa: BLE001
+        pass                                              # 계측이 거래를 막지 않는다
 
 
 class BinanceRateLimiter:
@@ -159,6 +210,7 @@ class BinanceBaseAdapter:
             else:
                 raise ValueError(f"Unsupported method: {method}")
 
+            _note_weight(response.headers, path)
             if response.status_code < 400:
                 return response.json() if response.content else {}
 
