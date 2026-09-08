@@ -91,16 +91,25 @@ def fold(sym: str, days: list[str]) -> pd.DataFrame | None:
         if not f.exists():
             continue
         try:
-            t = pd.read_parquet(f, columns=["ts_ms", "price", "qty"])
+            t = pd.read_parquet(f, columns=["ts_ms", "price", "qty",
+                                        "is_buyer_maker"])
         except Exception:                                 # noqa: BLE001
             continue
         if not len(t):
             continue
         m = (t.ts_ms // 60_000) * 60_000
         g = t.groupby(m)
+        # ⚠ rmax = 분 안에서 **테이커 방향이 이어진 최장 길이**
+        #   (`kinematics_paper._maxrun` 과 같은 뜻). rmz 신호가 이걸 쓴다.
+        bm = t.is_buyer_maker.to_numpy()
+        newrun = np.r_[True, (bm[1:] != bm[:-1]) | (m.to_numpy()[1:] != m.to_numpy()[:-1])]
+        runid = np.cumsum(newrun)
+        rl = pd.DataFrame({"m": m.to_numpy(), "r": runid}).groupby(["m", "r"]).size()
+        rmax = rl.groupby(level=0).max()
         parts.append(pd.DataFrame({
             "cl": g.price.last(), "hi": g.price.max(), "lo": g.price.min(),
-            "qv": (t.price * t.qty).groupby(m).sum(), "ntr": g.price.size()}))
+            "qv": (t.price * t.qty).groupby(m).sum(), "ntr": g.price.size(),
+            "rmax": rmax}))
         del t
     if not parts:
         return None
@@ -114,10 +123,15 @@ def main() -> int:
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--since", default="2026-09-01")
     p.add_argument("--until", default="")
-    p.add_argument("--signal", default="imp", choices=["imp", "kine"])
+    p.add_argument("--signal", default="imp",
+                   choices=["imp", "kine", "rmz", "ac1", "rev"])
     p.add_argument("--side", default="short", choices=["short", "both"])
     p.add_argument("--slots", type=int, default=3)
     p.add_argument("--hold-min", type=int, default=480)
+    p.add_argument("--paths", type=int, default=0,
+                   help="무작위 경로 개수. 주면 경로 분산 모드로 돈다")
+    p.add_argument("--skip-probs", default="0.01,0.02,0.05,0.10",
+                   help="사이클당 진입 건너뛸 확률 목록")
     p.add_argument("--sig-lag", type=int, default=0,
                    help="신호를 몇 분 전 봉으로 볼 것인가. 드라이버는 사이클이 "
                         "돌 때 직전 완성 봉을 쓰므로 1 이 실제에 가깝다")
@@ -160,11 +174,30 @@ def main() -> int:
             continue
         c = b.cl.to_numpy(float)
         qv = b.qv.to_numpy(float)
+        # ⚠ 각 신호의 **부호 규약**은 드라이버(kinematics_paper.py:417~451)를
+        #   그대로 따른다. 엔진은 늘 "z 높은 쪽을 숏" 이므로 신호마다 부호를
+        #   맞춰 넣는다. 뒤집으면 다른 전략이 된다.
         if r.signal == "imp":
             ar = np.abs(np.diff(np.log(np.maximum(c, 1e-12)), prepend=np.nan)) * 100.0
             ai = pd.Series(ar / np.maximum(qv, 1e-9)).rolling(60).mean()
             med = ai.rolling(1440, min_periods=360).median().shift(1)
-            b["imp"] = (ai / med.where(med > 0)).to_numpy()
+            b["imp"] = (-(ai / med.where(med > 0))).to_numpy()   # z = -imp
+            b["za"] = 0.0
+        elif r.signal == "rmz":
+            rm = b.rmax.astype(float)
+            cur = rm.rolling(60).max()
+            med = rm.rolling(1440, min_periods=360).median().shift(1)
+            b["imp"] = (cur / med.where(med > 0)).to_numpy()     # z = rmz
+            b["za"] = 0.0
+        elif r.signal == "ac1":
+            nt = b.ntr.astype(float)
+            b["imp"] = nt.rolling(60).corr(nt.shift(1)).to_numpy()  # z = ac1
+            b["za"] = 0.0
+        elif r.signal == "rev":
+            n_ = len(c)
+            rv = np.full(n_, np.nan)
+            rv[61:] = -(c[61:] / c[:-61] - 1.0) * 100.0          # z = rev
+            b["imp"] = rv
             b["za"] = 0.0
         else:
             zv, za = kine_sig(c)
@@ -199,7 +232,8 @@ def main() -> int:
     log.info("적재 완료 %.1f분 · 종목 %d · 분 %d · 배열 %.0f MB",
              (time.time() - t0) / 60, m, n, 4 * C.nbytes / 1e6)
 
-    def sim(true_high: bool, off: int = 0):
+    def sim(true_high: bool, off: int = 0, skip_p: float = 0.0,
+            rng: np.random.Generator | None = None):
         """true_high=False 면 드라이버와 같이 **종가 10개의 최대**로 손절 본다.
 
         `off` 는 진입 격자의 시작 오프셋(분). 규칙은 그대로 두고 **언제
@@ -243,7 +277,30 @@ def main() -> int:
             base = np.isfinite(v) & np.isfinite(px) & (LV[ts_] >= MIN_LIVE)
             for j in book:
                 base[j] = False
-            if r.side == "short":
+            # ⚠ 무작위 경로 — 규칙은 그대로 두고 **이번 사이클에 그 슬롯을
+            #   못 채운 것**으로 둔다. 실제로 늘 일어나는 일이다(시세 조회
+            #   실패·주문 거절·체결가 확정 실패). 다음 사이클에 다시 시도한다.
+            if skip_p > 0 and rng is not None and rng.random() < skip_p:
+                continue
+            if r.signal != "kine":
+                # 중앙분할 갈래 — z 최고가 숏, z 최저가 롱(드라이버 cycle():648~)
+                idx = np.flatnonzero(base)
+                if idx.size < 2:
+                    continue
+                o = idx[np.argsort(-v[idx])]        # z 내림차순
+                if r.side == "short":
+                    for j in o[:r.slots - len(book)]:
+                        book[int(j)] = (t, float(px[j]), True)
+                else:
+                    half = r.slots // 2
+                    nl = sum(1 for x in book.values() if not x[2])
+                    ns = len(book) - nl
+                    for j in o[:max(half - ns, 0)]:
+                        book[int(j)] = (t, float(px[j]), True)
+                    for j in o[::-1][:max(half - nl, 0)]:
+                        if int(j) not in book:
+                            book[int(j)] = (t, float(px[j]), False)
+            elif r.side == "short":
                 vv = np.where(base, v, np.inf)
                 for j in np.argsort(vv)[:r.slots - len(book)]:
                     if not base[j]:
@@ -265,6 +322,37 @@ def main() -> int:
     print(f"\n■ {a.signal}/{a.side} 틱 재현 — 종목 {m} · "
           f"{pd.Timestamp(grid[0], unit='ms')} ~ {pd.Timestamp(grid[-1], unit='ms')}")
     print(f"  {'손절 판정':>22}{'거래':>7}{'거래당%':>10}{'승률':>7}{'손절':>7}{'자본%':>10}")
+    if a.paths:
+        # ── 무작위 경로 분산 — 오프셋은 **계통 이동**이라 진짜 경로 분산을
+        #    과소평가한다. 여기서는 장부를 확률적으로 흩어 분포를 낸다.
+        print(f"\n■ 무작위 경로 분산 [{a.signal}/{a.side}·슬롯{r.slots}"
+              f"·보유{r.hold_min}분] — 종목 {m} · "
+              f"{pd.Timestamp(grid[0], unit='ms').date()}~"
+              f"{pd.Timestamp(grid[-1], unit='ms').date()}")
+        print(f"  {'건너뛸확률':>10}{'경로':>6}{'거래중앙':>9}{'자본% 중앙':>11}"
+              f"{'최저':>9}{'최고':>9}{'σ':>8}{'양수':>8}")
+        for sp in [float(x) for x in a.skip_probs.split(",")]:
+            caps, ns = [], []
+            for k in range(a.paths):
+                g = np.random.default_rng(20260908 + 977 * k + int(sp * 1e4))
+                tr = sim(False, 0, sp, g)
+                if not tr:
+                    continue
+                net = np.array([x[0] for x in tr])
+                e = np.cumprod(1 + net / r.slots / 100)
+                caps.append(100 * (e[-1] - 1))
+                ns.append(len(net))
+            if not caps:
+                continue
+            c = np.array(caps)
+            print(f"  {sp:>10.3f}{len(c):>6}{int(np.median(ns)):>9}"
+                  f"{np.median(c):>+11.2f}{c.min():>+9.2f}{c.max():>+9.2f}"
+                  f"{c.std(ddof=1):>8.2f}{100 * (c > 0).mean():>7.0f}%")
+        print("\n  ※ 규칙은 그대로다. **이번 사이클에 그 슬롯을 못 채운 것**으로만 둔다.")
+        print("     실제로 늘 일어나는 일이다(시세 실패·주문 거절·체결가 확정 실패).")
+        log.info("완료 %.1f분", (time.time() - t0) / 60)
+        return 0
+
     if a.offsets:
         # ── 오프셋 실험 — 규칙은 그대로, 진입 격자만 밀어본다.
         #    같은 일주일에서 성적이 얼마나 흩어지는지가 곧 '슬롯 운'의 크기다.
