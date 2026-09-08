@@ -46,6 +46,29 @@ import pandas as pd
 from scripts.research.imp_tp_grid import Cfg as GridCfg
 from scripts.research.imp_tp_grid import imp_sig
 
+def kine_sig(c: np.ndarray, bar_min: int):
+    """속도저울(kine)의 z_vel · z_acc — 5분봉판.
+
+    동결 사양(1분봉)의 창을 분 단위로 맞춘다: 승률창 60분 · 관측창 360분 ·
+    차분 180분. `rate` 를 `win_h` 만큼 **뒤로 밀어** 미래를 뺀다 —
+    `stop_loss_test.feats` 와 같은 처리다.
+
+    ⚠ 5분봉으로 만든 근사다. 실거래는 1분봉을 쓴다. 두 신호를 **같은 자리에서**
+      비교하려고 눈금을 맞춘 것이지, 절대 수준을 실거래 기대치로 읽으면 안 된다.
+    """
+    wh, win, dl = 60 // bar_min, 360 // bar_min, 180 // bar_min
+    n = len(c)
+    fw = np.full(n, np.nan)
+    fw[:n - wh] = c[wh:] / c[:n - wh] - 1.0
+    w = pd.Series(np.where(np.isfinite(fw), (fw > 0).astype(float), np.nan))
+    rate = w.rolling(win, min_periods=win // 2).mean().shift(wh)
+    vel = rate - rate.shift(dl)
+    acc = vel - vel.shift(dl)
+    p_ = rate.clip(0.01, 0.99)
+    se = np.sqrt(p_ * (1 - p_) / max(win / wh, 1.0))
+    return (vel / (se * np.sqrt(2))).to_numpy(), (acc / (se * 2.0)).to_numpy()
+
+
 log = logging.getLogger("bookTP")
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -62,6 +85,11 @@ class Run:
     fee_rt: float = 0.072
     min_dv_usd: float = 50_000.0
     unit: str = "sum"          # sum | cap
+    signal: str = "imp"        # imp | kine
+    side: str = "short"        # short(전량 숏) | both(롱·숏 반반)
+    z_lo: float = -1.25        # kine 밴드 — 롱은 음수 구간
+    z_hi: float = -0.25
+    acc_max: float = 0.5
     n_side_min: int = 6        # 앵커에 후보가 이만큼은 있어야 뽑는다
     mirror: bool = False       # 방향 반전 대조군 — imp **최고** 3종목
 
@@ -78,18 +106,36 @@ def load(r: Run, smoke: int = 0):
     since = pd.Timestamp(r.since, tz="UTC")
     cols, names, t0 = [], [], time.time()
     for i, f in enumerate(fs, 1):
-        d = pd.read_parquet(f, columns=["ts", "h", "c", "v"])
+        d = pd.read_parquet(f, columns=["ts", "h", "l", "c", "v", "n"])
         d = d.sort_values("ts")
         d = d[pd.DatetimeIndex(d.ts) >= since]
         if len(d) < g.warm + 200:
             continue
         c = d.c.to_numpy(np.float64)
         qv = d.v.to_numpy(np.float64) * c
-        imp = imp_sig(c, qv, g)
         dvm = pd.Series(qv).rolling(288, min_periods=96).median().shift(1).to_numpy()
+        # ⚠ 부호 규약은 드라이버(kinematics_paper.py:417~451) 그대로.
+        #   엔진은 늘 "z 높은 쪽을 숏" 이다.
+        if r.signal == "imp":
+            v1 = -imp_sig(c, qv, g)              # z = -imp
+            v2 = np.zeros(len(c))
+        elif r.signal == "ac1":
+            nt = pd.Series(d.n.to_numpy(float) if "n" in d else
+                           np.full(len(c), np.nan))
+            w = 60 // r.bar_min
+            v1 = nt.rolling(w).corr(nt.shift(1)).to_numpy()   # z = ac1
+            v2 = np.zeros(len(c))
+        elif r.signal == "rev":
+            w = 60 // r.bar_min
+            v1 = np.full(len(c), np.nan)
+            v1[w + 1:] = -(c[w + 1:] / c[:-(w + 1)] - 1.0) * 100.0   # z = rev
+            v2 = np.zeros(len(c))
+        else:
+            v1, v2 = kine_sig(c, r.bar_min)
         cols.append(pd.DataFrame(
             {"c": c.astype(np.float32), "h": d.h.to_numpy(np.float32),
-             "imp": imp.astype(np.float32),
+             "l": d.l.to_numpy(np.float32),
+             "imp": np.asarray(v1, np.float32), "za": np.asarray(v2, np.float32),
              "ok": (dvm >= r.min_dv_usd).astype(bool)},
             index=pd.DatetimeIndex(d.ts)))
         names.append(f.stem)
@@ -103,74 +149,127 @@ def load(r: Run, smoke: int = 0):
     n, m = len(grid), len(names)
     C = np.full((n, m), np.nan, np.float32)
     H = np.full((n, m), np.nan, np.float32)
+    L = np.full((n, m), np.nan, np.float32)
     I = np.full((n, m), np.nan, np.float32)
+    A = np.full((n, m), np.nan, np.float32)
     OK = np.zeros((n, m), bool)
     for j, x in enumerate(cols):
         y = x.reindex(grid)
         C[:, j] = y["c"].to_numpy(np.float32)
         H[:, j] = y["h"].to_numpy(np.float32)
+        L[:, j] = y["l"].to_numpy(np.float32)
         I[:, j] = y["imp"].to_numpy(np.float32)
+        A[:, j] = y["za"].to_numpy(np.float32)
         OK[:, j] = y["ok"].fillna(False).to_numpy(bool)
     log.info("종목 %d · 격자 %s (%s ~ %s) · 배열 %.0f MB",
              m, f"{n:,}", grid[0].date(), grid[-1].date(),
-             (C.nbytes + H.nbytes + I.nbytes + OK.nbytes) / 1e6)
-    return grid, C, H, I, OK, names
+             (C.nbytes + H.nbytes + L.nbytes + I.nbytes + A.nbytes
+              + OK.nbytes) / 1e6)
+    return grid, C, H, L, I, A, OK, names
 
 
-def simulate(grid, C, H, I, OK, r: Run, tp: float):
-    """5분 격자 장부. (거래목록, 통합익절 발동 횟수) 를 돌려준다.
+def _cands(I, A, OK, C, t, r, book):
+    """이 격자에서 열 수 있는 (종목, 숏여부) 후보를 **우선순위 순**으로.
+
+    ⚠ 엔진과 같은 순서여야 한다.
+      imp  : imp 최저 = z_vel(=-imp) 최고 = 숏 대상 (명세 §2.4)
+      kine : 롱은 z_vel 낮은 순, 숏은 높은 순 (밴드 안에서만)
+    """
+    px, v = C[t], I[t]
+    base = OK[t] & np.isfinite(v) & np.isfinite(px)
+    for j in book:
+        base[j] = False
+    if r.signal != "kine":
+        # 중앙분할 갈래 — z **최고**가 숏, 최저가 롱. imp 는 v 에 이미 -imp 가
+        # 들어 있다. 거울은 뒤집는다.
+        idx = np.flatnonzero(base)
+        order = idx[np.argsort(v[idx] if r.mirror else -v[idx])]
+        if r.side == "short":
+            return [(int(j), True) for j in order]
+        half = r.slots // 2
+        # ⚠ 호출부가 (롱목록, 숏목록) 순으로 받는다. 순서를 바꾸면 방향이 뒤집힌다.
+        return ([(int(j), False) for j in order[::-1][:half]],
+                [(int(j), True) for j in order[:half]])
+    a_ = A[t]
+    ok = base & np.isfinite(a_)
+    Lm = ok & (v >= r.z_lo) & (v <= r.z_hi) & (a_ < r.acc_max)
+    Sm = ok & (v >= -r.z_hi) & (v <= -r.z_lo) & (a_ > -r.acc_max)
+    li = np.flatnonzero(Lm)
+    si = np.flatnonzero(Sm)
+    lo = [(int(j), False) for j in li[np.argsort(v[li])]]
+    so = [(int(j), True) for j in si[np.argsort(-v[si])]]
+    if r.mirror:
+        # 거울 — 롱 후보를 숏 치고 숏 후보를 롱 친다(방향만 뒤집는다)
+        lo = [(j, True) for j, _ in lo]
+        so = [(j, False) for j, _ in so]
+        return so, lo
+    return lo, so
+
+
+def simulate(grid, C, H, L, I, A, OK, r: Run, tp: float,
+             skip_p: float = 0.0, rng=None, stamp: bool = False):
+    """5분 격자 장부. (거래목록, 통합익절 발동 횟수).
 
     거래 = (순수익%, 사유) · 사유 ∈ {stop, tp, exp}
     """
     n, m = C.shape
     hb = r.hold_min // r.bar_min
-    book: dict[int, tuple[int, float]] = {}      # 종목 → (진입스텝, 진입가)
+    half = r.slots // 2
+    book: dict[int, tuple[int, float, bool]] = {}
     trades, n_tp = [], 0
     for t in range(n - 1):
         px = C[t]
-        # ── 개별 손절 (숏: 고가가 +5% 를 스치면)
+        # ── 개별 손절 (숏은 고가 · 롱은 저가)
         for j in list(book):
-            t0, p0 = book[j]
-            if r.stop_pct > 0 and np.isfinite(H[t, j]) and \
-                    H[t, j] >= p0 * (1 + r.stop_pct / 100):
-                trades.append((-r.stop_pct - r.fee_rt, "stop"))
+            t0, p0, sh = book[j]
+            if r.stop_pct <= 0:
+                continue
+            hit = (np.isfinite(H[t, j]) and H[t, j] >= p0 * (1 + r.stop_pct / 100)) \
+                if sh else \
+                (np.isfinite(L[t, j]) and L[t, j] <= p0 * (1 - r.stop_pct / 100))
+            if hit:
+                trades.append((-r.stop_pct - r.fee_rt, "stop", t))
                 del book[j]
-        # ── 통합 익절 — 열린 다리 수익률의 **합**(또는 평균)
+        # ── 통합 익절 — 열린 다리 수익률의 합(또는 평균)
         if tp > 0 and book:
-            rs = [100.0 * (p0 - px[j]) / p0 for j, (t0, p0) in book.items()
-                  if np.isfinite(px[j])]
-            if len(rs) == len(book) and rs:
-                v = sum(rs) if r.unit == "sum" else sum(rs) / r.slots
-                if v >= tp:
+            rs = []
+            for j, (t0, p0, sh) in book.items():
+                if not np.isfinite(px[j]):
+                    rs = None
+                    break
+                rs.append(100.0 * ((p0 - px[j]) / p0 if sh else (px[j] - p0) / p0))
+            if rs:
+                val = sum(rs) if r.unit == "sum" else sum(rs) / r.slots
+                if val >= tp:
                     for ret in rs:
-                        trades.append((ret - r.fee_rt, "tp"))
+                        trades.append((ret - r.fee_rt, "tp", t))
                     book.clear()
                     n_tp += 1
         # ── 만기
         for j in list(book):
-            t0, p0 = book[j]
+            t0, p0, sh = book[j]
             if t - t0 >= hb:
                 if not np.isfinite(px[j]):
-                    continue                      # 시세 없으면 다음 격자
-                trades.append((100.0 * (p0 - px[j]) / p0 - r.fee_rt, "exp"))
+                    continue
+                ret = 100.0 * ((p0 - px[j]) / p0 if sh else (px[j] - p0) / p0)
+                trades.append((ret - r.fee_rt, "exp", t))
                 del book[j]
-        # ── 빈 슬롯 채움 — imp 최저 3(거울이면 최고 3)
-        free = r.slots - len(book)
-        if free <= 0:
+        # ── 빈 슬롯 채움
+        if len(book) >= r.slots:
             continue
-        v = I[t].copy()
-        bad = ~(OK[t] & np.isfinite(v) & np.isfinite(px))
-        for j in book:
-            bad[j] = True
-        v[bad] = np.inf if not r.mirror else -np.inf
-        if r.mirror:
-            order = np.argsort(-v)
+        # ⚠ 무작위 경로 — 이번 사이클에 그 슬롯을 못 채운 것으로 둔다.
+        if skip_p > 0 and rng is not None and rng.random() < skip_p:
+            continue
+        if r.side == "short":
+            need = r.slots - len(book)
+            for j, sh in _cands(I, A, OK, C, t, r, book)[:need]:
+                book[j] = (t, float(px[j]), True)
         else:
-            order = np.argsort(v)
-        for j in order[:free]:
-            if bad[j]:
-                break
-            book[int(j)] = (t, float(px[j]))
+            nl = sum(1 for v_ in book.values() if not v_[2])
+            ns = len(book) - nl
+            lo, so = _cands(I, A, OK, C, t, r, book)
+            for j, sh in lo[:max(half - nl, 0)] + so[:max(half - ns, 0)]:
+                book[j] = (t, float(px[j]), sh)
     return trades, n_tp
 
 
@@ -249,7 +348,18 @@ def main() -> int:
     p.add_argument("--stop-pct", type=float, default=5.0)
     p.add_argument("--mirror", action="store_true",
                    help="방향 반전 대조군을 같이 낸다(교훈#91)")
+    p.add_argument("--signal", default="imp",
+                   choices=["imp", "kine", "ac1", "rev"],
+                   help="imp = 탄성저울 · kine = 속도저울 · ac1 · rev")
+    p.add_argument("--side", default="short", choices=["short", "both"],
+                   help="short = 전량 숏(탄성저울) · both = 롱·숏 반반(속도저울)")
     p.add_argument("--smoke", type=int, default=0)
+    p.add_argument("--weekly", action="store_true",
+                   help="시간 축 검증 — 주 단위로 잘라 주별 분포를 낸다")
+    p.add_argument("--paths", type=int, default=5,
+                   help="무작위 경로 개수(주별 검증에서 씀)")
+    p.add_argument("--skip-prob", type=float, default=0.02,
+                   help="사이클당 진입 건너뛸 확률")
     p.add_argument("--diag", action="store_true",
                    help="기준선 진단 — 장부 / 인과앵커 / 미래참조앵커 셋을 "
                         "나란히 낸다. imp_tp_grid 의 +0.517%%/일 이 어디서 "
@@ -258,21 +368,60 @@ def main() -> int:
     logging.basicConfig(level=logging.INFO,
                         format="%(asctime)s [%(levelname)s] %(message)s")
     r = Run(since=a.since, hold_min=a.hold_min, slots=a.slots,
-            stop_pct=a.stop_pct, unit=a.unit)
+            stop_pct=a.stop_pct, unit=a.unit, signal=a.signal, side=a.side)
     tps = [float(x) for x in a.tps.split(",")]
-    log.info("인자 도달 — 익절 %s (%s 단위) · 보유 %d분 · 슬롯 %d · 손절 %.1f%% · 거울 %s",
-             tps, a.unit, r.hold_min, r.slots, r.stop_pct, a.mirror)
+    log.info("인자 도달 — 신호 %s · %s · 보유 %d분 · 슬롯 %d · 손절 %.1f%% "
+             "· 익절 %s(%s) · 거울 %s", a.signal, a.side, r.hold_min, r.slots,
+             r.stop_pct, tps, a.unit, a.mirror)
     log.info("설정 전문 %s", r.dump())
 
     t0 = time.time()
-    grid, C, H, I, OK, names = load(r, a.smoke)
+    grid, C, H, L, I, A, OK, names = load(r, a.smoke)
     days = (grid[-1] - grid[0]).total_seconds() / 86400
     log.info("적재 완료 %.1f분 · %.0f일", (time.time() - t0) / 60, days)
 
+    if a.weekly:
+        # ── 시간 축 검증 — 전 구간을 돌리고 **주 단위로 잘라** 분포를 낸다.
+        #    경로 견고성(한 주 안에서)과 시간 견고성(주들 사이)은 다르다.
+        wk = pd.DatetimeIndex(grid).to_period("W")
+        rows = []
+        for k in range(a.paths):
+            g = np.random.default_rng(20260908 + 7919 * k)
+            tr, _ = simulate(grid, C, H, L, I, A, OK, r, 0.0,
+                             skip_p=a.skip_prob, rng=g)
+            if not tr:
+                continue
+            df = pd.DataFrame({"net": [x[0] for x in tr],
+                               "w": [wk[x[2]] for x in tr]})
+            wr = df.groupby("w").net.sum() / r.slots      # 주별 자본 수익률(%)
+            if len(wr) < 10:
+                continue
+            t_ = wr.mean() / (wr.std(ddof=1) / np.sqrt(len(wr)))
+            rows.append((len(tr), len(wr), wr.mean(), t_,
+                         100 * (wr > 0).mean(), wr.median()))
+        if not rows:
+            raise SystemExit("주별 표본이 부족하다")
+        d_ = pd.DataFrame(rows, columns=["거래", "주", "주평균%", "t",
+                                         "양수주%", "주중앙%"])
+        print(f"\n■ 시간 축 검증 [{a.signal}/{a.side}·슬롯{r.slots}"
+              f"·보유{r.hold_min}분] — 종목 {len(names)} · "
+              f"{grid[0].date()}~{grid[-1].date()} · 경로 {len(d_)}"
+              f"(건너뛸확률 {a.skip_prob})")
+        print(f"  {'':>10}{'거래':>8}{'주':>5}{'주평균%':>10}{'t':>8}"
+              f"{'양수주%':>9}{'주중앙%':>10}")
+        for lab, f_ in (("중앙", np.median), ("최저", np.min), ("최고", np.max)):
+            print(f"  {lab:>10}{f_(d_['거래']):>8.0f}{f_(d_['주']):>5.0f}"
+                  f"{f_(d_['주평균%']):>+10.3f}{f_(d_['t']):>+8.2f}"
+                  f"{f_(d_['양수주%']):>8.0f}%{f_(d_['주중앙%']):>+10.3f}")
+        print("\n  ※ **주별** 수익률의 통계다. 한 주 안의 경로 견고성과 다르다 —")
+        print("     양수주% 가 50 근처면 주 단위로는 동전이라는 뜻이다.")
+        log.info("완료 %.1f분", (time.time() - t0) / 60)
+        return 0
+
     if a.diag:
         base = Run(since=a.since, hold_min=a.hold_min, slots=a.slots,
-                   stop_pct=a.stop_pct)
-        tr, _ = simulate(grid, C, H, I, OK, base, 0.0)
+                   stop_pct=a.stop_pct, signal=a.signal, side=a.side)
+        tr, _ = simulate(grid, C, H, L, I, A, OK, base, 0.0)
         net = np.array([x[0] for x in tr])
         bk = net.sum() / base.slots / days
         la = anchor_sweep(grid, C, H, I, OK, base, lookahead=True)
@@ -295,13 +444,14 @@ def main() -> int:
     for tp in tps:
         for mir in ((False, True) if a.mirror else (False,)):
             rr = Run(since=a.since, hold_min=a.hold_min, slots=a.slots,
-                     stop_pct=a.stop_pct, unit=a.unit, mirror=mir)
-            tr, ntp = simulate(grid, C, H, I, OK, rr, tp)
+                     stop_pct=a.stop_pct, unit=a.unit, mirror=mir,
+                     signal=a.signal, side=a.side)
+            tr, ntp = simulate(grid, C, H, L, I, A, OK, rr, tp)
             lab = ("익절 없음" if tp <= 0 else f"통합 {tp:.0f}%") + (" · 거울" if mir else "")
             rows.append(report(lab, tr, ntp, rr, days))
             log.info("%s — 거래 %d · %.1f분", lab, len(tr), (time.time() - t0) / 60)
 
-    print(f"\n■ 통합 익절 ({a.unit} 단위) — 종목 {len(names)} · "
+    print(f"\n■ {a.signal}/{a.side} · 통합 익절({a.unit}) — 종목 {len(names)} · "
           f"{grid[0].date()}~{grid[-1].date()} ({days:.0f}일) · "
           f"슬롯 {r.slots} · 보유 {r.hold_min}분 · 손절 {r.stop_pct:.0f}%")
     print(f"  {'설정':>14}{'거래':>8}{'거래당%':>10}{'t':>7}{'승률':>7}"
