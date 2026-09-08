@@ -47,6 +47,27 @@ TICKS = ROOT / "runs" / "ticks"
 
 MIN_LIVE = 5.0
 FEE_RT = 0.072
+# 동결 사양(kinematics_paper.py:64-65). 틱을 1분봉으로 접었으므로
+# **근사가 아니라 그대로** 쓸 수 있다.
+WIN_H, WINDOW, DELTA = 60, 360, 180
+Z_LO, Z_HI, ACC_MAX = -1.25, -0.25, 0.5
+
+
+def kine_sig(c: np.ndarray):
+    """z_vel · z_acc — `signal_now()` 의 kine 분기와 같은 계산."""
+    n = len(c)
+    fw = np.full(n, np.nan)
+    fw[:n - WIN_H] = c[WIN_H:] / c[:n - WIN_H] - 1.0
+    w = pd.Series(np.where(np.isfinite(fw), (fw > 0).astype(float), np.nan))
+    # ⚠ shift(WIN_H) — 승부가 끝난 앵커만 쓴다. 빼먹으면 미래참조다.
+    rate = w.rolling(WINDOW, min_periods=WINDOW // 2).mean().shift(WIN_H)
+    vel = rate - rate.shift(DELTA)
+    acc = vel - vel.shift(DELTA)
+    neff = max(WINDOW / WIN_H, 1.0)
+    p_ = rate.clip(0.01, 0.99)
+    se = np.sqrt(p_ * (1 - p_) / neff)
+    return ((vel / (se * np.sqrt(2))).to_numpy(),
+            (acc / (se * 2.0)).to_numpy())
 
 
 @dataclass(frozen=True)
@@ -55,6 +76,9 @@ class Run:
     warm_days: int = 2          # imp 는 1500분 후행이 필요하다
     slots: int = 3
     hold_min: int = 480
+    sig_lag: int = 0           # 신호를 몇 분 전 봉으로 볼 것인가
+    signal: str = "imp"        # imp(탄성저울) | kine(속도저울)
+    side: str = "short"        # short(전량 숏) | both(롱·숏 반반)
     stop_pct: float = 5.0
     step_min: int = 5
 
@@ -90,16 +114,35 @@ def main() -> int:
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--since", default="2026-09-01")
     p.add_argument("--until", default="")
+    p.add_argument("--signal", default="imp", choices=["imp", "kine"])
+    p.add_argument("--side", default="short", choices=["short", "both"])
+    p.add_argument("--slots", type=int, default=3)
+    p.add_argument("--hold-min", type=int, default=480)
+    p.add_argument("--sig-lag", type=int, default=0,
+                   help="신호를 몇 분 전 봉으로 볼 것인가. 드라이버는 사이클이 "
+                        "돌 때 직전 완성 봉을 쓰므로 1 이 실제에 가깝다")
+    p.add_argument("--universe", default="",
+                   help="드라이버가 보는 종목 목록 파일. 주면 그것만 쓴다")
     p.add_argument("--offsets", default="",
                    help="진입 격자 시작 오프셋(분) 목록. 주면 오프셋 실험으로 돈다")
     p.add_argument("--smoke", type=int, default=0)
     a = p.parse_args()
     logging.basicConfig(level=logging.INFO,
                         format="%(asctime)s [%(levelname)s] %(message)s")
-    r = Run(since=a.since)
+    r = Run(since=a.since, slots=a.slots, hold_min=a.hold_min,
+            signal=a.signal, side=a.side, sig_lag=a.sig_lag)
     t0 = time.time()
 
     syms = sorted(x.name for x in TICKS.iterdir() if x.is_dir())
+    if a.universe:
+        # ⚠ 드라이버가 보는 목록과 **정확히** 맞춘다. 하나만 달라도
+        #   슬롯이 어긋나 그 뒤가 전부 갈린다.
+        uf = ROOT / a.universe
+        if not uf.exists():
+            uf = ROOT.parent / a.universe
+        u = {x.strip().upper() for x in uf.read_text().split() if x.strip()}
+        syms = [x for x in syms if x in u]
+        log.info("유니버스 %s — %d종목으로 제한", uf, len(syms))
     if a.smoke:
         syms = syms[:a.smoke]
     # ⚠ 시간대를 섞지 않는다 — naive 로 통일한다(파일명이 UTC 날짜다)
@@ -117,12 +160,17 @@ def main() -> int:
             continue
         c = b.cl.to_numpy(float)
         qv = b.qv.to_numpy(float)
-        ar = np.abs(np.diff(np.log(np.maximum(c, 1e-12)), prepend=np.nan)) * 100.0
-        ai = pd.Series(ar / np.maximum(qv, 1e-9)).rolling(60).mean()
-        med = ai.rolling(1440, min_periods=360).median().shift(1)
-        b["imp"] = (ai / med.where(med > 0)).to_numpy()
+        if r.signal == "imp":
+            ar = np.abs(np.diff(np.log(np.maximum(c, 1e-12)), prepend=np.nan)) * 100.0
+            ai = pd.Series(ar / np.maximum(qv, 1e-9)).rolling(60).mean()
+            med = ai.rolling(1440, min_periods=360).median().shift(1)
+            b["imp"] = (ai / med.where(med > 0)).to_numpy()
+            b["za"] = 0.0
+        else:
+            zv, za = kine_sig(c)
+            b["imp"], b["za"] = zv, za
         b["live"] = b.ntr.rolling(60).median().shift(1).to_numpy()
-        ser[s] = b[["cl", "hi", "lo", "imp", "live"]]
+        ser[s] = b[["cl", "hi", "lo", "imp", "za", "live"]]
         if i % 100 == 0:
             log.info("  [%d/%d] %.1f분", i, len(syms), (time.time() - t0) / 60)
     if not ser:
@@ -135,13 +183,17 @@ def main() -> int:
     n, m = len(grid), len(names)
     C = np.full((n, m), np.nan, np.float32)
     HI = np.full((n, m), np.nan, np.float32)
+    LO = np.full((n, m), np.nan, np.float32)
     I = np.full((n, m), np.nan, np.float32)
+    A = np.full((n, m), np.nan, np.float32)
     LV = np.full((n, m), np.nan, np.float32)
     for j, s in enumerate(names):
         y = ser[s].reindex(grid)
         C[:, j] = y.cl.to_numpy(np.float32)
         HI[:, j] = y.hi.to_numpy(np.float32)
+        LO[:, j] = y.lo.to_numpy(np.float32)
         I[:, j] = y.imp.to_numpy(np.float32)
+        A[:, j] = y.za.to_numpy(np.float32)
         LV[:, j] = y.live.to_numpy(np.float32)
     del ser
     log.info("적재 완료 %.1f분 · 종목 %d · 분 %d · 배열 %.0f MB",
@@ -156,16 +208,22 @@ def main() -> int:
         """
         step = r.step_min
         hb = r.hold_min
-        book: dict[int, tuple[int, float]] = {}
+        book: dict[int, tuple[int, float, bool]] = {}
         tr = []
+        half = r.slots // 2
         for t in range(off, n - 1, step):
             px = C[t]
             for j in list(book):
-                t0_, p0 = book[j]
+                t0_, p0, sh = book[j]
                 a0 = max(t0_ + 1, t - 9)
-                seg = (HI[a0:t + 1, j] if true_high else C[a0:t + 1, j])
-                seg = seg[np.isfinite(seg)]
-                hit = bool(seg.size and seg.max() >= p0 * (1 + r.stop_pct / 100))
+                if sh:
+                    seg = (HI[a0:t + 1, j] if true_high else C[a0:t + 1, j])
+                    seg = seg[np.isfinite(seg)]
+                    hit = bool(seg.size and seg.max() >= p0 * (1 + r.stop_pct / 100))
+                else:
+                    seg = (LO[a0:t + 1, j] if true_high else C[a0:t + 1, j])
+                    seg = seg[np.isfinite(seg)]
+                    hit = bool(seg.size and seg.min() <= p0 * (1 - r.stop_pct / 100))
                 if hit:
                     tr.append((-r.stop_pct - FEE_RT, "stop", names[j],
                                grid[t0_], grid[t]))
@@ -173,24 +231,38 @@ def main() -> int:
                 elif t - t0_ >= hb:
                     if not np.isfinite(px[j]):
                         continue
-                    tr.append((100.0 * (p0 - px[j]) / p0 - FEE_RT, "exp",
-                               names[j], grid[t0_], grid[t]))
+                    ret = 100.0 * ((p0 - px[j]) / p0 if sh else (px[j] - p0) / p0)
+                    tr.append((ret - FEE_RT, "exp", names[j], grid[t0_], grid[t]))
                     del book[j]
-            free = r.slots - len(book)
-            if free <= 0:
+            if len(book) >= r.slots:
                 continue
-            v = I[t].copy()
-            bad = ~(np.isfinite(v) & np.isfinite(px) & (LV[t] >= MIN_LIVE))
+            # ⚠ 드라이버는 벽시계 14:00:20 에 도는데 그때 **완성된 마지막
+            #   봉은 13:59** 다. 신호를 한 봉 당겨 보는 것이 실제에 가깝다.
+            ts_ = max(t - r.sig_lag, 0)
+            v, a_ = I[ts_], A[ts_]
+            base = np.isfinite(v) & np.isfinite(px) & (LV[ts_] >= MIN_LIVE)
             for j in book:
-                bad[j] = True
-            v[bad] = np.inf
-            for j in np.argsort(v)[:free]:
-                if bad[j]:
-                    break
-                book[int(j)] = (t, float(px[j]))
+                base[j] = False
+            if r.side == "short":
+                vv = np.where(base, v, np.inf)
+                for j in np.argsort(vv)[:r.slots - len(book)]:
+                    if not base[j]:
+                        break
+                    book[int(j)] = (t, float(px[j]), True)
+            else:
+                ok = base & np.isfinite(a_)
+                Lm = ok & (v >= Z_LO) & (v <= Z_HI) & (a_ < ACC_MAX)
+                Sm = ok & (v >= -Z_HI) & (v <= -Z_LO) & (a_ > -ACC_MAX)
+                nl = sum(1 for x in book.values() if not x[2])
+                ns = len(book) - nl
+                li, si = np.flatnonzero(Lm), np.flatnonzero(Sm)
+                pick = ([(int(j), False) for j in li[np.argsort(v[li])][:max(half - nl, 0)]]
+                        + [(int(j), True) for j in si[np.argsort(-v[si])][:max(half - ns, 0)]])
+                for j, sh in pick:
+                    book[j] = (t, float(px[j]), sh)
         return tr
 
-    print(f"\n■ 탄성저울 틱 재현 — 종목 {m} · "
+    print(f"\n■ {a.signal}/{a.side} 틱 재현 — 종목 {m} · "
           f"{pd.Timestamp(grid[0], unit='ms')} ~ {pd.Timestamp(grid[-1], unit='ms')}")
     print(f"  {'손절 판정':>22}{'거래':>7}{'거래당%':>10}{'승률':>7}{'손절':>7}{'자본%':>10}")
     if a.offsets:
@@ -207,7 +279,7 @@ def main() -> int:
             rows.append((off, len(net), net.mean(), 100 * (e[-1] - 1),
                          sum(1 for x in tr if x[1] == "stop"),
                          float(net.max())))
-        print(f"\n■ 오프셋 실험 — 종목 {m} · {pd.Timestamp(grid[0], unit='ms')}"
+        print(f"\n■ 오프셋 실험 [{a.signal}/{a.side}·슬롯{r.slots}·보유{r.hold_min}분] — 종목 {m} · {pd.Timestamp(grid[0], unit='ms')}"
               f" ~ {pd.Timestamp(grid[-1], unit='ms')} · 규칙 동일, 격자만 이동")
         print(f"  {'오프셋(분)':>10}{'거래':>7}{'거래당%':>10}{'자본%':>10}"
               f"{'손절':>7}{'최고거래%':>11}")
