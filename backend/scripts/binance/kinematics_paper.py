@@ -127,8 +127,12 @@ MIN_LIVE_TR, FEE_ONE_WAY = 5.0, 0.036
 # ⚠ 최대 손절(%). 0 이면 끈다. 14개월 8구성 실측에서 5% 가 최적이고
 #   문턱을 올릴수록 단조 악화했다(2026-09-03).
 STOP_PCT = 5.0
-# 방향 신호(dir·impconf)의 되돌아보기(분). --dir-min 으로 덮는다.
+# 방향 신호(dir·impconf·impanti)의 되돌아보기(분). --dir-min 으로 덮는다.
 DIR_MIN = 15
+# 확인·역확인의 문턱(%). impconf 는 dir < -DIR_THR, impanti 는 dir > +DIR_THR.
+#   2026-09-09 14일 5위상 실측에서 문턱 0 이 가장 나았고 올릴수록 나빠졌다
+#   (역확인 >0 +3.28 → >1% +1.84 → >2% +0.67). --dir-thr 로 덮는다.
+DIR_THR = 0.0
 FEE_PCT = 2 * FEE_ONE_WAY          # 왕복 0.072%
 
 _stop = False
@@ -296,7 +300,7 @@ def signal_now(b: pd.DataFrame, sig: str = "kine") -> dict | None:
       신규 162종목이 609분 쌓였는데 790분 문턱에 걸려 신호 0건).
     """
     need = (SESS_END * 60 + 30 if sig == "sess"
-            else 1500 if sig in ("imp", "rmz", "impconf")  # 하루 후행 중앙값 + 60분 창
+            else 1500 if sig in ("imp", "rmz", "impconf", "impanti")  # 하루 후행 중앙값 + 60분 창
             else DIR_MIN + 30 if sig == "dir"   # 방향은 창 + 여유면 된다
             else 150 if sig in ("skew", "ac1")  # 60분 창 + 여유
             else WIN_H + WINDOW + 2 * DELTA + 10)
@@ -329,7 +333,8 @@ def signal_now(b: pd.DataFrame, sig: str = "kine") -> dict | None:
               if n >= DIR_MIN + 1 else np.nan)
     # ⚠ sess 는 z_vel 을 안 쓴다. 봉이 790분 미만이면 zv·za 가 NaN 인데
     #   그걸로 걸러내면 세션 갈래가 신규 종목을 영영 못 본다.
-    if sig in ("sess", "imp", "skew", "ac1", "rmz", "dir", "impconf"):
+    if sig in ("sess", "imp", "skew", "ac1", "rmz", "dir", "impconf",
+               "impanti"):
         if not np.isfinite(live):
             return None
     elif not (np.isfinite(zv) and np.isfinite(za) and np.isfinite(live)):
@@ -437,7 +442,7 @@ def cycle(syms: list[str], st: State, ledger: Path, now: datetime,
     sig_kind = sig
     since = int((now - timedelta(minutes=WIN_H + WINDOW + 2 * DELTA + 60))
                 .timestamp() * 1000)
-    if sig_kind in ("imp", "rmz", "impconf"):
+    if sig_kind in ("imp", "rmz", "impconf", "impanti"):
         # ⚠ 충격 계수·최장 연속은 **하루 후행 중앙값**이 필요하다. 기본 840분으로는
         #   못 만들고 신호가 전부 결측이 된다.
         since = int((now - timedelta(minutes=1560)).timestamp() * 1000)
@@ -513,7 +518,22 @@ def cycle(syms: list[str], st: State, ledger: Path, now: datetime,
             #   통과시킨다 — 대표님 제안의 '확인' 해석.
             if not np.isfinite(sig.get("imp", np.nan)):
                 continue
-            if not (np.isfinite(sig.get("dir", np.nan)) and sig["dir"] < 0):
+            if not (np.isfinite(sig.get("dir", np.nan))
+                    and sig["dir"] < -DIR_THR):
+                continue
+            cands.append({"symbol": s, "side_short": None,
+                          **{**sig, "z_vel": -sig["imp"]}})
+            continue
+        if sig_kind == "impanti":
+            # **역확인** — imp 최저 순은 두고 직전 DIR_MIN 분이 **여전히 오르는
+            #   것만** 통과. 연료(imp)는 탔는데 가격이 아직 오르는 자리다.
+            #   확인숏(impconf)의 거울이고, 14일 실측에서 확인숏보다 4배 나았다
+            #   (+3.28 vs +0.83) — imp 가 **선행** 신호라 꺾인 뒤엔 늦다는 뜻.
+            #   다만 필터 없는 기준(+3.77)은 못 넘었다.
+            if not np.isfinite(sig.get("imp", np.nan)):
+                continue
+            if not (np.isfinite(sig.get("dir", np.nan))
+                    and sig["dir"] > DIR_THR):
                 continue
             cands.append({"symbol": s, "side_short": None,
                           **{**sig, "z_vel": -sig["imp"]}})
@@ -731,7 +751,7 @@ def cycle(syms: list[str], st: State, ledger: Path, now: datetime,
     st.positions = keep
 
     if sig_kind in ("rev", "sess", "imp", "skew", "ac1", "rmz",
-                    "dir", "impconf") and cands:
+                    "dir", "impconf", "impanti") and cands:
         # z_vel 이 낮은 쪽(= 많이 떨어진 쪽)이 롱, 높은 쪽이 숏
         order = sorted(cands, key=lambda x: x["z_vel"])
         h = len(order) // 2
@@ -960,12 +980,15 @@ def main() -> int:
     p.add_argument("--pick", default="zvel", choices=["zvel", "noise"],
                    help="선별 기준. noise = 체결 방향 반전율 + 도착 간격 "
                         "불규칙성의 순위합(잡음 지배). **틱에만 있다**")
+    p.add_argument("--dir-thr", type=float, default=0.0,
+                   help="확인·역확인의 문턱(%%). impconf 는 dir < -thr, "
+                        "impanti 는 dir > +thr. 실측 최적 0.")
     p.add_argument("--dir-min", type=int, default=15,
                    help="방향 신호의 되돌아보기(분). dir·impconf 가 쓴다. "
                         "14일 격자에서 15분이 5·30분보다 나았다(미확정).")
     p.add_argument("--signal", default="kine",
                    choices=["kine", "rev", "sess", "imp", "skew", "ac1", "rmz",
-                            "dir", "impconf"],
+                            "dir", "impconf", "impanti"],
                    help="kine = 위약 승률 속도(밴드 있음) · "
                         "rev = 1시간 되돌림(밴드 없음, 횡단면 순위만)")
     p.add_argument("--entry-hour", type=int, default=-1,
@@ -1004,8 +1027,9 @@ def main() -> int:
     #   기본값을 쓴다 — 교훈#88(클래스만 고치고 경로를 안 봐서 재진입
     #   차단이 한 번도 동작 안 했다)과 같은 형태다.
     global STOP_PCT, STOP_COOLDOWN_MIN
-    global DIR_MIN
+    global DIR_MIN, DIR_THR
     DIR_MIN = int(a.dir_min)
+    DIR_THR = float(a.dir_thr)
     STOP_PCT = float(a.stop_pct)
     STOP_COOLDOWN_MIN = int(a.stop_cooldown_min)
     # ⚠ 풀을 자르는 순서는 **선별 순서와 같아야** 한다. `--pick noise` 는
@@ -1029,8 +1053,9 @@ def main() -> int:
     st = load_state(state_p)
     side = "롱숏동시" if a.both else ("숏" if a.short else "롱")
     log.info("손절 상한 **%.2f%%** (0 이면 끔) — 인자 도달 확인", STOP_PCT)
-    if a.signal in ("dir", "impconf"):
-        log.info("방향 되돌아보기 **%d분** — 인자 도달 확인", DIR_MIN)
+    if a.signal in ("dir", "impconf", "impanti"):
+        log.info("방향 되돌아보기 **%d분** · 문턱 **%.2f%%** — 인자 도달 확인",
+                 DIR_MIN, DIR_THR)
     log.info("손절 후 재진입 금지 **%d분** (0 이면 끔) — 인자 도달 확인",
              STOP_COOLDOWN_MIN)
     if st.cooldown:

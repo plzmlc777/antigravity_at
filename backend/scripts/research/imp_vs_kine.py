@@ -85,7 +85,8 @@ def kine_z(C: np.ndarray, c: Cfg):
 
 
 def run(M: dict, c: Cfg, sig: str, slots: int, hold: int, both: bool,
-        k: int = 15, SIG: np.ndarray | None = None, offset: int = 0):
+        k: int = 15, SIG: np.ndarray | None = None, offset: int = 0,
+        thr: float = 0.0):
     """(날별 자본수익%, 날). 커널은 하나 — 신호와 배치만 바뀐다."""
     C, LIVE, AGE = M["C"], M["LIVE"], M["AGE"]
     nT, nS = C.shape
@@ -142,7 +143,16 @@ def run(M: dict, c: Cfg, sig: str, slots: int, hold: int, both: bool,
             prev = C[max(0, t - k)]
             r = np.where(prev > 0, 100.0 * (C[t] / prev - 1.0), np.nan)
             v = M["IMP"][t]
-            ok &= np.isfinite(v) & np.isfinite(r) & (r < 0)
+            ok &= np.isfinite(v) & np.isfinite(r) & (r < -thr)
+            score = v
+        elif sig == "impanti":
+            # **역확인** — imp 최저 순 유지 + 직전 k분이 여전히 **오르는 것만**.
+            #   연료(imp)는 다 탔는데 가격이 아직 오르고 있다 = 괴리가 가장 큰
+            #   자리라는 가설. 확인숏(impconf)의 거울이다.
+            prev = C[max(0, t - k)]
+            r = np.where(prev > 0, 100.0 * (C[t] / prev - 1.0), np.nan)
+            v = M["IMP"][t]
+            ok &= np.isfinite(v) & np.isfinite(r) & (r > thr)
             score = v
         else:                              # kine — 밴드 통과자만
             zv, za = SIG[0][t], SIG[1][t]

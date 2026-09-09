@@ -38,7 +38,8 @@ TRACKS = [
     ("s3short_h4",    "충격240  imp·240 (기준=실거래)", 3),
     ("s3short_impns", "무손숏3  imp·240·무손절",        3),
     ("s3short_dir",   "방향숏3  dir k=15·240",          3),
-    ("s3short_conf",  "확인숏3  impconf k=15·240",      3),
+    ("s3short_conf",  "확인숏3  impconf k=15·240 (꺾임)", 3),
+    ("s3short_anti",  "역확인3  impanti k=15·240 (상승)", 3),
     # ── 보유 대조군 — 보유가 정체성이라 240 으로 안 바꾼다
     ("s3short_imp",   "충격숏3  imp·480 (보유대조)",    3),
     ("s3short_h1",    "충격60   imp·60  (보유대조)",    3),
