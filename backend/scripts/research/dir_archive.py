@@ -62,8 +62,13 @@ class Cfg:
 
 
 def simulate(C, DV, ok0, c: Cfg, k_bars: int, mode: str, rng=None,
-             short: bool = True):
-    """조각 하나의 (날, 자본수익%) 목록. mode: dir | random."""
+             short: bool = True, IMP=None):
+    """조각 하나의 (날, 자본수익%) 목록. mode: dir | random | imp.
+
+    ⚠ `imp` 는 **5분봉 근사**다. 같은 14일에서 1분봉 판본과 최저3 겹침이
+      1.858/3(62%) · 순위상관 +0.542 뿐이다(`imp5m_fidelity.py` 실측,
+      교훈#108 의 2.01/3 보다 낮다). **절대 성적을 imp 의 성적으로 읽지 마라.**
+      쓸 수 있는 것은 **거울 대조군** 같은 계열 수준 진단이다."""
     nT, nS = C.shape
     hold = c.hold_min // c.bar_min
     st = c.stop_pct / 100.0
@@ -89,15 +94,18 @@ def simulate(C, DV, ok0, c: Cfg, k_bars: int, mode: str, rng=None,
         free = c.slots - n_open
         if free <= 0:
             continue
-        prev = C[t - k_bars]
-        ret = np.where((prev > 0) & np.isfinite(C[t]),
-                       100.0 * (C[t] / prev - 1.0), np.nan)
-        ok = ok0[t] & np.isfinite(ret) & (end < 0)
+        if mode == "imp":
+            sc = IMP[t]
+        else:
+            prev = C[t - k_bars]
+            sc = np.where((prev > 0) & np.isfinite(C[t]),
+                          100.0 * (C[t] / prev - 1.0), np.nan)
+        ok = ok0[t] & np.isfinite(sc) & (end < 0)
         idx = np.flatnonzero(ok)
         if len(idx) < c.min_cand:
             continue
         order = (rng.permutation(idx) if mode == "random"
-                 else idx[np.argsort(ret[idx])])
+                 else idx[np.argsort(sc[idx])])
         for j in order[:free]:
             end[j] = t + hold
             epx[j] = C[t, j]
@@ -133,7 +141,9 @@ def main() -> None:
     log.info("조각 %d개", max(len(edges) - 1, 1))
 
     cells = [(f"dir k={k}", k // c.bar_min, "dir", True) for k in c.ks]
-    cells += [(f"거울 k={k}", k // c.bar_min, "dir", False) for k in c.ks]
+    cells += [(f"dir거울 k={k}", k // c.bar_min, "dir", False) for k in c.ks]
+    # imp 5분봉 근사 — 절대 성적이 아니라 **거울 대조군**이 목적이다
+    cells += [("imp5 숏", 1, "imp", True), ("imp5 거울", 1, "imp", False)]
     cells += [("무작위 숏", 1, "random", True)]
     acc = {name: {} for name, *_ in cells}
 
@@ -167,9 +177,15 @@ def main() -> None:
             C[:, j] = pd.Series(C[:, j]).ffill().to_numpy(np.float32)
         DV = pd.DataFrame(V).rolling(288, min_periods=96).median().shift(1).to_numpy(np.float32)
         ok0 = np.isfinite(C) & (DV >= c.min_dv_usd)
+        # imp 5분봉 근사 — 엔진 수식의 창을 5분 단위로 옮긴다(60분=12봉·24h=288봉)
+        AR = np.abs(np.diff(np.log(np.maximum(C, 1e-12)), axis=0,
+                            prepend=np.nan)) * 100.0
+        AI = pd.DataFrame(AR / np.maximum(V, 1e-9)).rolling(12).mean()
+        MED = AI.rolling(288, min_periods=72).median().shift(1)
+        IMP = (AI / MED.where(MED > 0)).to_numpy(np.float32)
         day = pd.Series(grid).dt.tz_convert("Asia/Seoul").dt.date.to_numpy()
         for name, kb, mode, sh in cells:
-            for t, r in simulate(C, DV, ok0, c, kb, mode, rng, sh):
+            for t, r in simulate(C, DV, ok0, c, kb, mode, rng, sh, IMP):
                 acc[name].setdefault(day[t], []).append(r)
         el = time.time() - tstart
         log.info("  조각 %d/%d (%s) · 종목 %d · %.1f분 · 남은 %.1f분",

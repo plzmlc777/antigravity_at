@@ -188,7 +188,9 @@ def run(M: dict, c: Cfg, sig: str, slots: int, hold: int, both: bool,
             esh[j] = sh
             n_open += 1
     days = sorted(per_day)
-    return np.array([np.sum(per_day[d]) / slots for d in days], float), np.array(days)
+    n_tr = int(sum(len(v) for v in per_day.values()))
+    return (np.array([np.sum(per_day[d]) / slots for d in days], float),
+            np.array(days), n_tr)
 
 
 def tstat(x):
@@ -220,7 +222,7 @@ def main() -> None:
         ("(참고) imp/6양/240",      "imp",  6, 240, True,  None),
     ]
     for name, sig, slots, hold, both, S in cases:
-        r, dy = run(M, c, sig, slots, hold, both, a.k, S)
+        r, dy, _n = run(M, c, sig, slots, hold, both, a.k, S)
         if len(r) < 3:
             continue
         rows.append({"갈래": name, "날": len(r), "일평균%": r.mean(),

@@ -1058,6 +1058,15 @@ def main() -> int:
                  DIR_MIN, DIR_THR)
     log.info("손절 후 재진입 금지 **%d분** (0 이면 끔) — 인자 도달 확인",
              STOP_COOLDOWN_MIN)
+    if a.live and STOP_PCT > 0 and STOP_COOLDOWN_MIN <= 0:
+        # ⚠ 실거래에서 냉각이 꺼져 있으면 손절당한 종목을 **곧바로 다시** 잡는다.
+        #   2026-09-07 AKEUSDT(-5.15% → 재진입 → -4.31%) · 2026-09-09
+        #   PHAROSUSDT(-5.15% → **51초 뒤** 3.7% 높은 가격에 재진입).
+        #   기본값을 바꾸면 검정 중인 페이퍼 갈래가 조용히 달라지므로,
+        #   기본은 두고 **실거래에서만 크게 경고**한다.
+        log.critical("⚠ 실거래인데 손절 냉각이 **꺼져 있다**. 손절당한 종목을 "
+                     "곧바로 다시 잡는다 — `--stop-cooldown-min %d` 를 권고한다",
+                     a.hold_min)
     if st.cooldown:
         log.info("복원된 냉각 %d종목: %s", len(st.cooldown),
                  ", ".join(f"{k}→{v[:16]}" for k, v in
