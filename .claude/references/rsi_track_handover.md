@@ -1819,3 +1819,53 @@ impconf (꺾임<0)     후보  38  = **11%**
 복원된 냉각 1종목: PHAROSUSDT→2026-09-09 09:13(UTC)
 거래소 대조 포지션 2 · 조건부 2 → 이후 AUSDT 진입해 3/3
 ```
+
+### 35-A. 냉각 전 갈래 확대 + 런처 인자 결함 수정 (2026-09-09 14:31)
+
+대표님 지시로 **나머지 7갈래에도** 냉각을 켰다. 이제 15갈래 전부 냉각이 있고
+값은 **각자 보유기간과 같다**(소스 권고 규칙).
+
+```
+live-imp3s 240 · imp3s 480 · imp3h4 240 · imp3h1 60 · imp3ns 240
+dir3s 240 · conf3s 240 · anti3s 240 · imp6b 480 · ac16b 480 · rmz3s 480
+s2both 120 · s6both-h240 240 · s10both 120 · utc01 120
+                                             냉각 없는 갈래 **0**
+```
+
+⚠ 인자는 **손으로 다시 적지 않았다.** `dump.pm2` 에서 원래 인자를 그대로 읽어
+`--stop-cooldown-min` 만 덧붙였다(`/home/mint/addcool.py`). 옮겨 적다 빠뜨리면
+갈래가 조용히 달라진다(교훈#102).
+
+### 🚨 런처 인자 결함 — `s10both` 이 122회 크래시 루프
+
+`10 both` 처럼 **위치 인자가 둘뿐인** 갈래에 플래그를 붙이자 런처의
+`shift 3` 이 **플래그를 먹었다**:
+
+```
+10 both --stop-cooldown-min 120
+  → DELAY="--stop-cooldown-min" · shift 3 → 남은 인자 "120"
+  → argparse: error: argument --delay-min: expected one argument
+```
+
+2026-08-31 에 다섯 갈래가 801회 돌았던 것과 **같은 자리**다. 그때는 인자가
+적을 때, 이번엔 인자가 늘 때 터졌다. 주석으로만 막아 두고 코드는 안 고쳤다.
+
+**고쳤다** — 앞의 위치 인자를 최대 세 개까지만, `-` 로 시작하는 것이 나오면
+거기서 멈추고 나머지는 그대로 넘긴다:
+
+```bash
+SLOTS="10"; SIDE="long"; DELAY="0"
+_n=0
+while [ "$#" -gt 0 ] && [ "$_n" -lt 3 ]; do
+  case "$1" in -*) break ;; esac
+  case "$_n" in 0) SLOTS="$1";; 1) SIDE="$1";; 2) DELAY="$1";; esac
+  shift; _n=$((_n + 1))
+done
+```
+
+파싱을 단독으로 5가지 조합에 검증했고, **예전에 죽던 형태**(`10 both
+--stop-cooldown-min 120`)로 예비비행해 정상 기동을 확인했다. 백업
+`/home/mint/backups/20260909_h240/run_kinematics_paper.sh.before_argfix`.
+
+⚠ 가동 중 15갈래는 재기동하지 않았다 — 지금 인자로 정상 동작 중이고,
+수정은 **다음 기동부터** 효력이 있다.
