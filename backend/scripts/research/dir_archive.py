@@ -96,6 +96,13 @@ def simulate(C, DV, ok0, c: Cfg, k_bars: int, mode: str, rng=None,
             continue
         if mode == "imp":
             sc = IMP[t]
+        elif mode in ("impanti", "impconf"):
+            # imp 최저 순 + 직전 k분이 **오르는**(anti) / **꺾인**(conf) 것만
+            prev = C[t - k_bars]
+            r = np.where((prev > 0) & np.isfinite(C[t]),
+                         100.0 * (C[t] / prev - 1.0), np.nan)
+            keep = (r > 0) if mode == "impanti" else (r < 0)
+            sc = np.where(np.isfinite(r) & keep, IMP[t], np.nan)
         else:
             prev = C[t - k_bars]
             sc = np.where((prev > 0) & np.isfinite(C[t]),
@@ -144,6 +151,9 @@ def main() -> None:
     cells += [(f"dir거울 k={k}", k // c.bar_min, "dir", False) for k in c.ks]
     # imp 5분봉 근사 — 절대 성적이 아니라 **거울 대조군**이 목적이다
     cells += [("imp5 숏", 1, "imp", True), ("imp5 거울", 1, "imp", False)]
+    # 확인·역확인 — 창은 15분(3봉) 고정. 14일 실측에서 15분이 기준이었다
+    cells += [("역확인 숏", 3, "impanti", True), ("역확인 거울", 3, "impanti", False)]
+    cells += [("확인 숏", 3, "impconf", True), ("확인 거울", 3, "impconf", False)]
     cells += [("무작위 숏", 1, "random", True)]
     acc = {name: {} for name, *_ in cells}
 
