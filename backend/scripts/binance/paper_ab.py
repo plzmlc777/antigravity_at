@@ -43,6 +43,10 @@ TRACKS = [
     # ── 보유 대조군 — 보유가 정체성이라 240 으로 안 바꾼다
     ("s3short_imp",   "충격숏3  imp·480 (보유대조)",    3),
     ("s3short_h1",    "충격60   imp·60  (보유대조)",    3),
+    # ── 양다리 대조 — 슬롯 6(롱3+숏3). 숏만 vs 롱숏 헤지를 본다.
+    #   6년 검정: 숏↔롱 상관 −0.389(헤지는 진짜)이나 롱 기대수익이 −0.030%/일
+    #   이라 반반 혼합 시 샤프 0.0526 → 0.0442 로 떨어진다.
+    ("s6both_imp",    "충격스프3 imp·480·롱3숏3",       6),
 ]
 
 
@@ -93,6 +97,21 @@ def main() -> None:
               if n_tr else
               f"{pad(name, 30)}{n_tr:>5}{'—':>10}{'—':>9}{'—':>9}{'—':>7}"
               f"{held:>4}/{slots}")
+    # ── 충격스프3 다리별 — 숏만(충격240) 대비 헤지가 실제로 먹는지 본다
+    #   6년 검정: 상관 −0.389 · 숏 손해일에 롱 +1.575%(63%가 이익).
+    f = PAPER / "s6both_imp" / "trades.csv"
+    if f.exists():
+        t = pd.read_csv(f)
+        if len(t):
+            t["e"] = pd.to_datetime(t.entry_ts, utc=True,
+                                    errors="coerce").dt.tz_convert(KST)
+            t = t[t.e >= since]
+            if len(t):
+                sh = t["short"].astype(bool)
+                print(f"\n  충격스프3 다리별 — 숏 {int(sh.sum())}건 "
+                      f"{t[sh].net_pct.sum():+.2f}% · 롱 {int((~sh).sum())}건 "
+                      f"{t[~sh].net_pct.sum():+.2f}%")
+
     # ── 승격 후보 대조 (2026-09-09 대표님 지시)
     #
     # 아카이브가 아무리 좋아도 **페이퍼 전진 성적 없이는 승격하지 않는다.**
