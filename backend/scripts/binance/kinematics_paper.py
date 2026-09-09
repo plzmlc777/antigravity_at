@@ -127,6 +127,8 @@ MIN_LIVE_TR, FEE_ONE_WAY = 5.0, 0.036
 # ⚠ 최대 손절(%). 0 이면 끈다. 14개월 8구성 실측에서 5% 가 최적이고
 #   문턱을 올릴수록 단조 악화했다(2026-09-03).
 STOP_PCT = 5.0
+# 방향 신호(dir·impconf)의 되돌아보기(분). --dir-min 으로 덮는다.
+DIR_MIN = 15
 FEE_PCT = 2 * FEE_ONE_WAY          # 왕복 0.072%
 
 _stop = False
@@ -294,7 +296,8 @@ def signal_now(b: pd.DataFrame, sig: str = "kine") -> dict | None:
       신규 162종목이 609분 쌓였는데 790분 문턱에 걸려 신호 0건).
     """
     need = (SESS_END * 60 + 30 if sig == "sess"
-            else 1500 if sig in ("imp", "rmz")  # 하루 후행 중앙값 + 60분 창
+            else 1500 if sig in ("imp", "rmz", "impconf")  # 하루 후행 중앙값 + 60분 창
+            else DIR_MIN + 30 if sig == "dir"   # 방향은 창 + 여유면 된다
             else 150 if sig in ("skew", "ac1")  # 60분 창 + 여유
             else WIN_H + WINDOW + 2 * DELTA + 10)
     if len(b) < need:
@@ -315,9 +318,18 @@ def signal_now(b: pd.DataFrame, sig: str = "kine") -> dict | None:
     zv = (vel / (se * np.sqrt(2))).iloc[-1]
     za = (acc / (se * 2.0)).iloc[-1]
     live = b.ntr.rolling(60).median().shift(1).iloc[-1]
+    # 방향 — 직전 DIR_MIN 분 수익(%). **후행만** 쓴다.
+    #   2026-09-09 대표님 제안: "가격이 안 움직인 것보다 이미 역방향으로
+    #   움직인 것을 고르는 편이 낫지 않은가". 두 가지로 구현된다 —
+    #     dir      정렬 기준 자체를 방향으로 (낮은 쪽 숏)
+    #     impconf  imp 최저 순은 두고 **꺾인 것만** 통과
+    #   14일 격자에서 둘의 부호가 반대로 나왔다(dir +4.19 / impconf -0.99).
+    #   최대통계량 p 0.105 로 통과 못 했으므로 **페이퍼로 나란히 재는 중**이다.
+    dirret = (float((c[-1] / c[-1 - DIR_MIN] - 1.0) * 100.0)
+              if n >= DIR_MIN + 1 else np.nan)
     # ⚠ sess 는 z_vel 을 안 쓴다. 봉이 790분 미만이면 zv·za 가 NaN 인데
     #   그걸로 걸러내면 세션 갈래가 신규 종목을 영영 못 본다.
-    if sig in ("sess", "imp", "skew", "ac1", "rmz"):
+    if sig in ("sess", "imp", "skew", "ac1", "rmz", "dir", "impconf"):
         if not np.isfinite(live):
             return None
     elif not (np.isfinite(zv) and np.isfinite(za) and np.isfinite(live)):
@@ -399,7 +411,7 @@ def signal_now(b: pd.DataFrame, sig: str = "kine") -> dict | None:
     return {"z_vel": float(zv), "z_acc": float(za), "live": float(live),
             "px": float(c[-1]), "lo10": lo10, "hi10": hi10, "ts": b.index[-1],
             "bump": bump, "irr": irr, "rev": rev, "sess": sess, "imp": imp,
-            "qskew": qskew, "ac1": ac1, "rmz": rmz}
+            "qskew": qskew, "ac1": ac1, "rmz": rmz, "dir": dirret}
 
 
 def _tell(broker, text: str) -> None:
@@ -425,7 +437,7 @@ def cycle(syms: list[str], st: State, ledger: Path, now: datetime,
     sig_kind = sig
     since = int((now - timedelta(minutes=WIN_H + WINDOW + 2 * DELTA + 60))
                 .timestamp() * 1000)
-    if sig_kind in ("imp", "rmz"):
+    if sig_kind in ("imp", "rmz", "impconf"):
         # ⚠ 충격 계수·최장 연속은 **하루 후행 중앙값**이 필요하다. 기본 840분으로는
         #   못 만들고 신호가 전부 결측이 된다.
         since = int((now - timedelta(minutes=1560)).timestamp() * 1000)
@@ -483,6 +495,25 @@ def cycle(syms: list[str], st: State, ledger: Path, now: datetime,
             #   쪽을 숏 하므로 **부호를 뒤집어** 넣는다.
             #   스프레드 갈래에서는 낮은 z_vel(= 높은 amihud_z)이 롱이 된다.
             if not np.isfinite(sig.get("imp", np.nan)):
+                continue
+            cands.append({"symbol": s, "side_short": None,
+                          **{**sig, "z_vel": -sig["imp"]}})
+            continue
+        if sig_kind == "dir":
+            # ⚠⚠ 부호 — **직전 DIR_MIN 분 수익이 가장 낮은** 3종목을 숏
+            #   (이미 꺾인 것을 따라간다 = 모멘텀 지속). 엔진은 z_vel 이 높은
+            #   쪽을 숏 하므로 **부호를 뒤집어** 넣는다.
+            if not np.isfinite(sig.get("dir", np.nan)):
+                continue
+            cands.append({"symbol": s, "side_short": None,
+                          **{**sig, "z_vel": -sig["dir"]}})
+            continue
+        if sig_kind == "impconf":
+            # imp 최저 순은 그대로 두고 **직전 DIR_MIN 분 수익 < 0 인 것만**
+            #   통과시킨다 — 대표님 제안의 '확인' 해석.
+            if not np.isfinite(sig.get("imp", np.nan)):
+                continue
+            if not (np.isfinite(sig.get("dir", np.nan)) and sig["dir"] < 0):
                 continue
             cands.append({"symbol": s, "side_short": None,
                           **{**sig, "z_vel": -sig["imp"]}})
@@ -699,7 +730,8 @@ def cycle(syms: list[str], st: State, ledger: Path, now: datetime,
             keep.append(p)
     st.positions = keep
 
-    if sig_kind in ("rev", "sess", "imp", "skew", "ac1", "rmz") and cands:
+    if sig_kind in ("rev", "sess", "imp", "skew", "ac1", "rmz",
+                    "dir", "impconf") and cands:
         # z_vel 이 낮은 쪽(= 많이 떨어진 쪽)이 롱, 높은 쪽이 숏
         order = sorted(cands, key=lambda x: x["z_vel"])
         h = len(order) // 2
@@ -928,7 +960,12 @@ def main() -> int:
     p.add_argument("--pick", default="zvel", choices=["zvel", "noise"],
                    help="선별 기준. noise = 체결 방향 반전율 + 도착 간격 "
                         "불규칙성의 순위합(잡음 지배). **틱에만 있다**")
-    p.add_argument("--signal", default="kine", choices=["kine", "rev", "sess", "imp", "skew", "ac1", "rmz"],
+    p.add_argument("--dir-min", type=int, default=15,
+                   help="방향 신호의 되돌아보기(분). dir·impconf 가 쓴다. "
+                        "14일 격자에서 15분이 5·30분보다 나았다(미확정).")
+    p.add_argument("--signal", default="kine",
+                   choices=["kine", "rev", "sess", "imp", "skew", "ac1", "rmz",
+                            "dir", "impconf"],
                    help="kine = 위약 승률 속도(밴드 있음) · "
                         "rev = 1시간 되돌림(밴드 없음, 횡단면 순위만)")
     p.add_argument("--entry-hour", type=int, default=-1,
@@ -967,6 +1004,8 @@ def main() -> int:
     #   기본값을 쓴다 — 교훈#88(클래스만 고치고 경로를 안 봐서 재진입
     #   차단이 한 번도 동작 안 했다)과 같은 형태다.
     global STOP_PCT, STOP_COOLDOWN_MIN
+    global DIR_MIN
+    DIR_MIN = int(a.dir_min)
     STOP_PCT = float(a.stop_pct)
     STOP_COOLDOWN_MIN = int(a.stop_cooldown_min)
     # ⚠ 풀을 자르는 순서는 **선별 순서와 같아야** 한다. `--pick noise` 는
@@ -990,6 +1029,8 @@ def main() -> int:
     st = load_state(state_p)
     side = "롱숏동시" if a.both else ("숏" if a.short else "롱")
     log.info("손절 상한 **%.2f%%** (0 이면 끔) — 인자 도달 확인", STOP_PCT)
+    if a.signal in ("dir", "impconf"):
+        log.info("방향 되돌아보기 **%d분** — 인자 도달 확인", DIR_MIN)
     log.info("손절 후 재진입 금지 **%d분** (0 이면 끔) — 인자 도달 확인",
              STOP_COOLDOWN_MIN)
     if st.cooldown:
