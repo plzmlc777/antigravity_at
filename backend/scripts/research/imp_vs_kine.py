@@ -48,6 +48,12 @@ class Cfg:
     need_bars: int = 1500
     min_live: float = 5.0
     # kine 상수 — kinematics_paper.py 에서 옮겨 적음
+    # ⚠ 엔진은 틱 파일 **2개**만 읽는다(read_bars days=2). UTC 일 경계 직후엔
+    #   (전일 1440분 + 당일 T분) 뿐이라 imp 의 1500봉 요구를 못 채운다.
+    #   따라서 매일 **UTC 00:00~01:00 은 진입이 0** 이다(§30-A). 커널에도
+    #   같은 구멍을 뚫지 않으면 진입 목록이 통째로 갈린다 — 2026-09-09
+    #   재현 실패(원장과 상관 −0.020)의 유력 원인이었다.
+    blind_min: int = 60
     win_h: int = 60
     window: int = 360
     delta: int = 180
@@ -79,7 +85,7 @@ def kine_z(C: np.ndarray, c: Cfg):
 
 
 def run(M: dict, c: Cfg, sig: str, slots: int, hold: int, both: bool,
-        k: int = 15, SIG: np.ndarray | None = None):
+        k: int = 15, SIG: np.ndarray | None = None, offset: int = 0):
     """(날별 자본수익%, 날). 커널은 하나 — 신호와 배치만 바뀐다."""
     C, LIVE, AGE = M["C"], M["LIVE"], M["AGE"]
     nT, nS = C.shape
@@ -90,14 +96,26 @@ def run(M: dict, c: Cfg, sig: str, slots: int, hold: int, both: bool,
     n_open = 0
     day = pd.to_datetime(M["grid"], unit="ms", utc=True).tz_convert("Asia/Seoul").date
     per_day: dict = {}
-    for t in range(c.need_bars, nT, c.cycle_min):
+    utcmin = (pd.to_datetime(M["grid"], unit="ms", utc=True).hour * 60
+              + pd.to_datetime(M["grid"], unit="ms", utc=True).minute).to_numpy()
+    # ⚠ 위상(offset). 3슬롯 장부는 **경로 혼돈**이라 격자를 1분만 밀어도 이후
+    #   거래 목록이 통째로 갈린다(교훈#109 — 같은 주가 −11%~+33%). 엔진을
+    #   그대로 재현하는 것은 불가능하므로, 여러 위상으로 돌려 **분포로** 본다.
+    for t in range(c.need_bars + offset, nT, c.cycle_min):
+        blind = utcmin[t] < c.blind_min
+        # ⚠ 손절은 **매 사이클** 본다. 만기에 소급 판정하면 손절당한 자리가
+        #   보유기간 내내 묶여 **회전이 통째로 사라진다** — 엔진은 즉시 비우고
+        #   새로 진입한다. 2026-09-09 재현 실패(원장 92건 vs 커널 소수,
+        #   상관 −0.025)의 진짜 원인이었다. §31 의 회전 기전과 같은 자리다.
         for j in np.flatnonzero(end >= 0):
-            if end[j] > t:
-                continue
             e, sh = epx[j], esh[j]
-            seg = C[max(0, int(end[j]) - hold):int(end[j]) + 1, j]
+            beg = int(end[j]) - hold
+            seg = C[max(0, beg):t + 1, j]          # 진입 ~ **지금**
             adv = (np.nanmax(seg) / e - 1) if sh else (1 - np.nanmin(seg) / e)
-            if np.isfinite(adv) and adv >= st:
+            hit = bool(np.isfinite(adv) and adv >= st)
+            if not hit and end[j] > t:
+                continue                            # 아직 살아 있다
+            if hit:
                 r = -c.stop_pct
             else:
                 x = C[min(int(end[j]), nT - 1), j]
@@ -106,7 +124,7 @@ def run(M: dict, c: Cfg, sig: str, slots: int, hold: int, both: bool,
             end[j] = -1
             n_open -= 1
         free = slots - n_open
-        if free <= 0:
+        if free <= 0 or blind:      # 사각지대에는 엔진이 진입하지 못한다
             continue
         ok = (np.isfinite(C[t]) & (LIVE[t] >= c.min_live)
               & (AGE[t] >= c.need_bars) & (end < 0))
@@ -119,6 +137,13 @@ def run(M: dict, c: Cfg, sig: str, slots: int, hold: int, both: bool,
             v = np.where(prev > 0, 100.0 * (C[t] / prev - 1.0), np.nan)
             ok &= np.isfinite(v)
             score = v                      # 낮은 쪽 숏
+        elif sig == "impconf":
+            # imp 최저 순 유지 + **직전 k분이 꺾인 것만** 통과
+            prev = C[max(0, t - k)]
+            r = np.where(prev > 0, 100.0 * (C[t] / prev - 1.0), np.nan)
+            v = M["IMP"][t]
+            ok &= np.isfinite(v) & np.isfinite(r) & (r < 0)
+            score = v
         else:                              # kine — 밴드 통과자만
             zv, za = SIG[0][t], SIG[1][t]
             ok &= np.isfinite(zv) & np.isfinite(za)

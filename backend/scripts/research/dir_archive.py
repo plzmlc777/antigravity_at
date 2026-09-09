@@ -55,7 +55,7 @@ class Cfg:
     ks: tuple = (5, 15, 30, 60)          # 방향 창(분) — 격자
     min_dv_usd: float = 50_000.0         # 직전 24h 5분 거래대금 중앙 하한
     min_cand: int = 30                   # 하루 후보 하한 (교훈#99)
-    chunk_days: int = 60
+    chunk_days: int = 180   # ⚠ 조각을 키워 파일 재읽기를 줄인다(부하 절감). 60일이면 41회, 180일이면 14회.
     start: str = "2020-01-01"
     n_perm: int = 200
     seed: int = 20260909

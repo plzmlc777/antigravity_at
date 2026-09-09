@@ -34,12 +34,14 @@ PAPER = ROOT / "runs" / "kinematics_paper"
 
 # (경로, 이름, 슬롯) — 늘릴 땐 여기만 고친다
 TRACKS = [
-    ("s3short_imp",   "충격숏3 (imp·손절5%)", 3),
-    ("s3short_impns", "무손숏3 (imp·무손절)", 3),
-    ("s3short_dir",   "방향숏3 (dir k=15)",   3),
-    ("s3short_conf",  "확인숏3 (imp+꺾임)",   3),
-    ("s3short_h4",    "충격240 (imp·보유240)", 3),
-    ("s3short_h1",    "충격60 (imp·보유60)",   3),
+    # ── 보유 240분 무리 — **실거래와 같은 보유**. 하나씩만 다르다
+    ("s3short_h4",    "충격240  imp·240 (기준=실거래)", 3),
+    ("s3short_impns", "무손숏3  imp·240·무손절",        3),
+    ("s3short_dir",   "방향숏3  dir k=15·240",          3),
+    ("s3short_conf",  "확인숏3  impconf k=15·240",      3),
+    # ── 보유 대조군 — 보유가 정체성이라 240 으로 안 바꾼다
+    ("s3short_imp",   "충격숏3  imp·480 (보유대조)",    3),
+    ("s3short_h1",    "충격60   imp·60  (보유대조)",    3),
 ]
 
 
@@ -58,7 +60,7 @@ def main() -> None:
     since = (pd.Timestamp(a.since, tz=KST) if a.since
              else pd.Timestamp.now(tz=KST).normalize() + pd.Timedelta(hours=11))
     print(f"■ 페이퍼 A/B — 공통 출발선 {since:%Y-%m-%d %H:%M} KST 이후 (진입 기준)\n")
-    hdr = (f"{pad('갈래', 24)}{'거래':>5}{'실현합%':>10}{'자본%':>9}"
+    hdr = (f"{pad('갈래', 30)}{'거래':>5}{'실현합%':>10}{'자본%':>9}"
            f"{'거래당%':>9}{'승률':>7}{'보유':>6}{'미실현%':>9}")
     print(hdr)
     print("─" * w(hdr))
@@ -85,10 +87,10 @@ def main() -> None:
                 held = len(st.get("positions", []))
             except Exception:                                   # noqa: BLE001
                 pass
-        print(f"{pad(name, 24)}{n_tr:>5}{tot:>+10.2f}{tot/slots:>+9.2f}"
+        print(f"{pad(name, 30)}{n_tr:>5}{tot:>+10.2f}{tot/slots:>+9.2f}"
               f"{per:>+9.3f}{wr:>6.0f}%{held:>4}/{slots}"
-              f"{'':>9}" if n_tr else
-              f"{pad(name, 24)}{n_tr:>5}{'—':>10}{'—':>9}{'—':>9}{'—':>7}"
+              if n_tr else
+              f"{pad(name, 30)}{n_tr:>5}{'—':>10}{'—':>9}{'—':>9}{'—':>7}"
               f"{held:>4}/{slots}")
     print("\n※ 자본% = 실현합 ÷ 슬롯. 총손익이 판정 주축이다 — 거래당만 보면 뒤집힌다.")
     print("※ 진입 기준이다. 청산 기준으로 보면 8시간 보유만큼 시점이 밀린다(교훈#110).")
