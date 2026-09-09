@@ -31,6 +31,8 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[2]
 KST = "Asia/Seoul"
 PAPER = ROOT / "runs" / "kinematics_paper"
+# A/B 개시 — 무손숏3·방향숏3·확인숏3 를 띄워 기준과 나란히 세운 시각
+AB_START = pd.Timestamp("2026-09-09 11:00", tz=KST)
 
 # (경로, 이름, 슬롯) — 늘릴 땐 여기만 고친다
 TRACKS = [
@@ -62,8 +64,10 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--since", default="")
     a = ap.parse_args()
-    since = (pd.Timestamp(a.since, tz=KST) if a.since
-             else pd.Timestamp.now(tz=KST).normalize() + pd.Timedelta(hours=11))
+    # ⚠ 기본값은 **A/B 개시 시각 고정**이다. "오늘 11:00" 으로 두면 날이 바뀌는
+    #   순간 전 갈래가 0건으로 나와 보고가 통째로 빈다(2026-09-10 아침 실제 발생).
+    #   비교의 출발선은 달력이 아니라 실험이 시작된 날이다.
+    since = pd.Timestamp(a.since, tz=KST) if a.since else AB_START
     print(f"■ 페이퍼 A/B — 공통 출발선 {since:%Y-%m-%d %H:%M} KST 이후 (진입 기준)\n")
     hdr = (f"{pad('갈래', 30)}{'거래':>5}{'실현합%':>10}{'자본%':>9}"
            f"{'거래당%':>9}{'승률':>7}{'보유':>6}{'미실현%':>9}")
