@@ -93,6 +93,35 @@ def main() -> None:
               if n_tr else
               f"{pad(name, 30)}{n_tr:>5}{'—':>10}{'—':>9}{'—':>9}{'—':>7}"
               f"{held:>4}/{slots}")
+    # ── 승격 후보 대조 (2026-09-09 대표님 지시)
+    #
+    # 아카이브가 아무리 좋아도 **페이퍼 전진 성적 없이는 승격하지 않는다.**
+    # 6년 검정에서 확인숏의 방향 성분이 1위(+0.257)였지만 그것은 근거가
+    # 아니다 — 여기 숫자가 근거다. 기준은 **현행 실거래 규칙**이다.
+    print("\n■ 승격 후보 대조 — 기준(충격240 = 현행 실거래 규칙) 대비")
+    base = None
+    for tag, name, slots in TRACKS:
+        if tag not in ("s3short_h4", "s3short_conf", "s3short_anti"):
+            continue
+        f = PAPER / tag / "trades.csv"
+        n_tr, cap = 0, 0.0
+        if f.exists():
+            t = pd.read_csv(f)
+            if len(t):
+                t["e"] = pd.to_datetime(t.entry_ts, utc=True,
+                                        errors="coerce").dt.tz_convert(KST)
+                t = t[t.e >= since]
+                n_tr = len(t)
+                cap = float(t.net_pct.sum()) / slots if n_tr else 0.0
+        if base is None:
+            base = cap
+            gap = "  (기준)"
+        else:
+            gap = f"  기준대비 {cap - base:+7.2f}%p"
+        short = name.split()[0]
+        print(f"  {pad(short, 10)}{n_tr:>4}건   자본 {cap:>+7.2f}%{gap}")
+    print("  ⚠ 표본이 찰 때까지(실측 SD 기준 약 30일) 순위를 읽지 마라.")
+
     print("\n※ 자본% = 실현합 ÷ 슬롯. 총손익이 판정 주축이다 — 거래당만 보면 뒤집힌다.")
     print("※ 진입 기준이다. 청산 기준으로 보면 8시간 보유만큼 시점이 밀린다(교훈#110).")
 
