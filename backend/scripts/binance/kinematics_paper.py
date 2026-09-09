@@ -230,6 +230,38 @@ def bars(sym: str, since_ms: int) -> pd.DataFrame | None:
     return tickbars.finalize(b)
 
 
+
+def held_range(sym: str, now: pd.Timestamp) -> tuple[float, float, float] | None:
+    """보유 종목의 최근 10분 (저, 고, 마지막) 종가. 못 읽으면 None.
+
+    ## 왜 있나 (2026-09-03 AKEUSDT · §28)
+
+    손절 판정이 `sym in lo_cache` 였다 — **그 사이클에 신호가 안 나온 종목은
+    손절을 조용히 건너뛰고 만기까지 갔다.** AKEUSDT 가 진입 대비 **+118%** 를
+    지나갔는데 5% 손절이 안 걸렸다. 원장에는 `stopped=False` 로 남아 성공처럼
+    보인다.
+
+    ⚠ 하필 **손절이 필요한 순간**에 캐시가 빈다. 큰 역행은 거래량 폭발을
+      동반하고, 그때 봉 파이프라인이 밀리거나 `signal_now` 의 되돌아보기
+      요구량(imp 는 1500봉)을 못 채운다. 결함이 **가장 위험한 때** 발동한다.
+
+    ⚠ 실거래는 거래소 STOP_MARKET 이라 무조건 발동한다. 그래서 이 결함은
+      **페이퍼를 실거래보다 낙관적으로** 만든다 — 대조군으로 못 쓴다.
+    """
+    since = int((now - timedelta(minutes=30)).timestamp() * 1000)
+    try:
+        b = bars(sym, since)
+    except Exception:                                          # noqa: BLE001
+        return None
+    if b is None or "cl" not in b or len(b) == 0:
+        return None
+    c = b.cl.to_numpy(float)
+    c = c[np.isfinite(c)][-10:]
+    if len(c) == 0:
+        return None
+    return float(c.min()), float(c.max()), float(c[-1])
+
+
 _FB_SEEN: set[str] = set()
 
 
@@ -505,6 +537,23 @@ def cycle(syms: list[str], st: State, ledger: Path, now: datetime,
     # ⚠ 손절은 **엣지가 아니라 생존 장치**다. 6/8 은 여전히 적자다.
     # ⚠ 체결은 손절가 정확히로 본다(지정가). 갭이 나면 실제는 더 나쁘다 —
     #   백테스트가 못 재는 영역이라 낙관 쪽으로 치우쳐 있다.
+    # ── 보유 종목은 **반드시** 시세를 갖춘다 (2026-09-09 수정 · §28)
+    #
+    # 후보 훑기에서 신호가 안 나온 종목은 위 캐시에 없다. 예전엔 그러면
+    # 손절 판정을 **조용히 건너뛰었다.** 보유 중인 것만 따로 읽어 채운다 —
+    # 슬롯 수만큼이라 비용이 없다. 그래도 못 읽으면 **크게 남긴다.**
+    for _p in st.positions:
+        _s = _p["symbol"]
+        if _s in px_cache:
+            continue
+        _r = held_range(_s, now)
+        if _r is None:
+            log.critical("%s 보유 중인데 시세를 못 읽었다 — **손절 판정 불가**. "
+                         "거래소를 직접 확인하라", _s)
+            continue
+        px_cache[_s], lo_cache[_s], hi_cache[_s] = _r[2], _r[0], _r[1]
+        log.warning("%s 신호 캐시에 없어 시세를 직접 읽었다 — 보유 종목 보호", _s)
+
     closed = []
     keep = []
     # ── 실거래: 거래소 포지션을 **한 번만** 읽는다
