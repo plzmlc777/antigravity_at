@@ -156,3 +156,10 @@ backend/runs/daytrade_funding_hifr/
 backend/runs/daytrade_funding_early/
 backend/runs/research_track/ultra_*_trades.joblib
 backend/runs/research_track/ultra_trades_cache.joblib
+backend/runs/kr_slice_exec/
+backend/runs/kr_campaign/
+backend/runs/kr_transfer/
+backend/runs/api_key_ages.json
+
+# 세션 산출 차트 (커밋하지 않는다)
+.charts/
